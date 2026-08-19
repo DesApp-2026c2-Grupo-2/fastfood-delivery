@@ -6,6 +6,31 @@
 **Documento para:** planning conjunto del 20/08 (consultas de requerimientos + arranque del 1er Sprint).  
 **No incluye código.** El objetivo es alinear dominio, alcance, decisiones y tareas.
 
+### Convención de lenguaje
+
+La **documentación de carpeta, las historias y la UI** se escriben en español (es el idioma del enunciado y de la materia).
+
+El **dominio técnico** (código, tablas, JSON, URLs de frontend y de API) se escribe en **inglés**, con un solo nombre por concepto. No mezclar `/pedidos` en el front y `/orders` en la API.
+
+| Concepto (español) | Nombre canónico (inglés) | Se usa en |
+|---|---|---|
+| Cliente | `Customer` | rol, UI copy → “cliente”; código/URLs → `customer` |
+| Administrador | `Admin` | `admin` |
+| Sucursal | `Branch` | `/branches`, tabla `Branch` |
+| Dirección | `Address` | `/addresses` |
+| Categoría | `Category` | `/categories` |
+| Producto | `Product` | `/products` |
+| Carrito | `Cart` | `/cart` |
+| Pedido | `Order` | `/orders` |
+| Estado de pedido | `OrderStatus` | `pending`, `confirmed`, `preparing`, `ready`, `on_the_way`, `delivered`, `cancelled` |
+| Stock | `Stock` | `/stock` |
+| Promoción | `Promotion` | `/promotions` |
+| Repartidor | `Driver` | `/driver` (solo Ext. 2) |
+| Parámetro | `Parameter` | `/parameters` |
+| Reporte | `Report` | `/reports` |
+
+Regla: si el enunciado dice “sucursal”, en una HU decimos sucursal; en la ruta y en el modelo decimos `branch`. Nunca `sucursal`, `local` y `branch` para la misma cosa.
+
 ---
 
 ## 1. Cómo leer este documento
@@ -210,21 +235,23 @@ Estas son las ambigüedades que el enunciado deja al grupo. Hay que salir con un
 
 Dos superficies: **Cliente** y **Admin**. Mismo frontend o dos apps en `/frontend` (decisión D-front). Recomendación: **un SPA React con layouts distintos** (`/` cliente, `/admin` backoffice) para no duplicar auth, build y deploy. Si los docentes piden “aplicación independiente”, se parte en dos apps más adelante sin cambiar el backend.
 
+Las rutas de pantalla usan **los mismos recursos** que la API (`products`, `orders`, `branches`). El texto visible sigue en español.
+
 ### 5.1 App Cliente
 
 ```
 /                          Landing / sucursal sugerida + categorías
 /login                     Iniciar sesión
 /register                  Registro
-/recuperar-password        Recuperar contraseña
-/catalogo                  Listado por categoría
-/producto/:id              Detalle + configuraciones + agregar al carrito
-/carrito                   Ítems, cantidades, total, editar/quitar
+/forgot-password           Recuperar contraseña
+/products                  Listado por categoría
+/products/:id              Detalle + configuraciones + agregar al carrito
+/cart                      Ítems, cantidades, total, editar/quitar
 /checkout                  Dirección, sucursal asignada/sugerida, confirmar
-/pedidos                   Historial
-/pedidos/:id               Detalle + seguimiento + repetir
-/cuenta                    Datos personales
-/cuenta/direcciones        ABM direcciones (texto + geo)
+/orders                    Historial
+/orders/:id                Detalle + seguimiento + repetir
+/account                   Datos personales
+/account/addresses         ABM direcciones (texto + geo)
 ```
 
 ### 5.2 App Admin
@@ -232,23 +259,23 @@ Dos superficies: **Cliente** y **Admin**. Mismo frontend o dos apps en `/fronten
 ```
 /admin/login               Login admin
 /admin                     Home / atajos
-/admin/productos           ABM productos
-/admin/categorias          ABM categorías
-/admin/sucursales          ABM sucursales
+/admin/products            ABM productos
+/admin/categories          ABM categorías
+/admin/branches            ABM sucursales
 /admin/stock               Stock por sucursal (Ext. 1 / entidad ya pedida)
-/admin/promociones         ABM promociones
-/admin/pedidos             Listado + cambio de estado
-/admin/administradores     Alta de admins
-/admin/parametros          Parámetros y estados
-/admin/reportes            Reportes de productos (base) + extras según extensión
+/admin/promotions          ABM promociones
+/admin/orders              Listado + cambio de estado
+/admin/admins              Alta de admins
+/admin/parameters          Parámetros y estados
+/admin/reports             Reportes de productos (base) + extras según extensión
 ```
 
 ### 5.3 App Repartidores (solo si Extensión 2)
 
 ```
-/repartidor/login
-/repartidor/pendientes
-/repartidor/viaje
+/driver/login
+/driver/pending
+/driver/trip
 ```
 
 Fuera de Sprint 1.
@@ -263,23 +290,23 @@ Queda para sprints 2+: recuperar password pulido, seguimiento rico, historial/re
 
 ## 6. Entidades candidatas (insumo del modelo de datos)
 
-No es el modelo final. Es el vocabulario compartido para historias y APIs.
+No es el modelo final. Nombres en inglés (canónicos). Entre paréntesis, el término del enunciado.
 
 ```
-User (rol: cliente | admin)
-Address (user, texto, lat, lng, default)
-Branch (nombre, dirección, lat, lng, teléfono, activa, horarios)
-Category
-Product (categoría, precio, imagen, disponible, permiteConfig)
+User (role: customer | admin)
+Address (dirección)
+Branch (sucursal: nombre, dirección, lat, lng, teléfono, activa, horarios)
+Category (categoría)
+Product (producto: categoría, precio, imagen, disponible, permiteConfig)
 ProductOption / Ingredient (configuraciones)
-Cart + CartItem
-Order + OrderItem + OrderStatusHistory
-Stock (branch, product, cantidad)          — Ext. 1 / ABM pedido
-Promotion                                  — ABM pedido; reglas después
-SystemParameter
+Cart + CartItem (carrito)
+Order + OrderItem + OrderStatusHistory (pedido)
+Stock (stock por sucursal y producto)     — Ext. 1 / ABM pedido
+Promotion (promoción)                     — ABM pedido; reglas después
+SystemParameter (parámetro del sistema)
 ```
 
-Relaciones críticas: **Order pertenece a User y Branch**; **OrderItem copia precio y config** (no depende del catálogo vivo); **Stock es por sucursal**.
+Relaciones críticas: **Order pertenece a User y Branch**; **OrderItem copia precio y config** (no depende del catálogo vivo); **Stock es por Branch**.
 
 ---
 
