@@ -1,0 +1,22 @@
+Necesito que te comportes como un Leader Técnico con una amplia experiencia en desarrollo en Node.js y con mucha experiencia en análisis de sistemas. Esto es crucial para ir trabajando en cada tarea que te solicite.
+El objetivo general es desarrollar una aplicación Web responsiva que responda a los requerimientos que se explican en docs/Enunciado.txt . 
+La arquitectura básica es: frontend y backend deployados en forma separada, aunque en un mismo repo dentro de las carpetas /frontend y /backend; comunicación via API REST.
+Para empezar, te pido que a partir de un análisis de estos requerimientos, generes un documento inicial que describa: 
+- las funcionalidades que deben desarrollarse para cumplir con lo que pide el enunciado, vinculando cada una con citas concretas del enunciado.
+- un mapa inicial de páginas que sugerís para la app Web.
+- un esquema inicial para los endpoints necesarios para soportar las funcionalidades necesarias.
+
+Tene en cuanta que somos 4 integrantes y tmb tene en cuenta el cronograma y el documento donde explica como es la materia:
+
+necesitamos entregar estas cosas :
+
+Alcance funcional.
+Supuestos y decisiones de negocio.
+Requerimientos funcionales.
+Historias de usuario.
+Incrementos de los sprints.
+Modelo de datos.
+Diseño de APIs.
+Testing y automatización.
+
+Pero no quiero q me des todo el codigo ahora, lo q quiero es un plan de accion y las tareas para la primer planing grupal de mañana.

@@ -1,0 +1,25 @@
+Cronograma
+Fecha	Actividad	Presencial
+13/08	Presentación / objetivos / armado de equipos / selección de trabajos / Herramientas basadas en IA.	 
+20/08	1er Sprint - planning conjunto
+Consultas de requerimientos	 
+27/08	React y BE - trabajo con herramientas basadas en IA - 1.
+Seguimiento.	 
+03/09	Seguimiento.	 
+10/09	1er Sprint - review
+2do Sprint - planning	 
+17/09	React y BE - trabajo con herramientas basadas en IA - 2.
+Seguimiento.	 
+24/09	2do Sprint - review
+3er Sprint - planning	 
+01/10	Seguimiento.	 
+08/10	3er Sprint - review
+4to Sprint - planning	 
+15/10	Seguimiento.	 
+22/10	Presentación medio término	Tal vez
+29/10	4to Sprint - review
+5to Sprint - planning	 
+05/11	Seguimiento.	 
+12/11	Entrega final carpetas	 
+19/11	5to Sprint - review	 
+27/11	Presentación final	Seguro

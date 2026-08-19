@@ -1,0 +1,39 @@
+Segundo cuatrimestre 2026 - Desarrollo de Aplicaciones
+Características generales
+Esta cursada va a incluir 8 grupos. Vamos a proponer un enunciado único para todos los grupos, con variantes en parte del alcance.
+
+Importante
+Para mantener un control adecuado en cada cierre de sprint, se considerarán únicamente las tareas completadas hasta las 23:59 del día anterior.
+Esta medida es necesaria ya que los docentes debemos revisar cada repositorio y verificar las tareas realizadas por cada grupo, y debido a la cantidad de estudiantes, resulta imposible llevar a cabo esta evaluación el mismo día por la tarde.
+
+Cómo arrancar
+Obviamente, lo primero es organizarse en grupos. Inmediatamente después, hay que definir de qué proyecto se encarga cada grupo; esto lo vamos a hablar durante la primera clase.
+
+Después, toca arrancar con el desarrollo. Para esto, hacer lo que se indica en la página de tareas iniciales.
+
+Proyectos
+Vamos a trabajar sobre un proyecto: la gestión de los pedidos de una casa de comidas rápidas. El proyecto implica el desarrollo de dos (o tres de acuerdo a la elección de cada grupo) aplicaciones: una para la administración, una para los clientes, y eventualmente una para los repartidores.
+
+El enunciado es este: casa de comidas rápidas.
+
+Como stakeholders vamos a estar nosotros docentes.
+
+El alcance de la propuesta debe ser implementado completamente dentro de Desarrollo de Aplicaciones.
+
+Instrucciones para arrancar.
+Tienen que arrancar de cero con el proyecto. Por lo tanto, se empieza por entender el dominio. Luego recomendamos definir un núcleo inicial de funcionalidad a implementar en conjunto, a partir del cual se puedan separar funcionalidades adicionales a ser implementadas por cada integrante en forma separada.
+Para todas las tareas, partiendo desde la generación de los planes iniciales, les sugerimos fuertemente el uso de herramientas basadas en IA.
+
+Qué hay que presentar
+Las aplicaciones andando, eso seguro. Puede ser en local, y también puede ser deployadas en algún/algunos servidor/es gratuito/s (puede ser uno para el FE, uno para el BE, uno para la BD).
+
+Una carpeta con esta organización:
+
+Alcance funcional.
+Supuestos y decisiones de negocio.
+Requerimientos funcionales.
+Historias de usuario.
+Incrementos de los sprints.
+Modelo de datos.
+Diseño de APIs.
+Testing y automatización.
