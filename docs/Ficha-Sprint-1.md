@@ -8,7 +8,8 @@
 **Corte de tareas:** 09/09/2026 23:59 (solo cuenta lo mergeado hasta esa hora)  
 **Duración:** 3 semanas  
 **Porcentaje del TP en este incremento:** **40%** de las funcionalidades base del enunciado  
-**Extensiones:** fuera de este sprint
+**Extensiones:** fuera de este sprint  
+**Stack:** React + Vite (front) · NestJS + TypeScript (back) · PostgreSQL + Prisma (datos) · JWT
 
 ---
 
@@ -241,7 +242,7 @@ Núcleo compartido (entre todos, primeras 48–72 h): modelo de datos v0, contra
 
 | Dueño | Historias | Tareas concretas |
 |---|---|---|
-| **A — Backend base** | HU-01 (API), HU-02 (seed) | Node + Express, PostgreSQL, Prisma, JWT, seed admin, CORS, `.env.example` |
+| **A — Backend base** | HU-01 (API), HU-02 (seed) | NestJS + TypeScript, PostgreSQL, Prisma, JWT, seed admin, CORS, `.env.example` |
 | **B — Catálogo y admin** | HU-02 (UI admin), HU-03, HU-05 | Pantallas ABM + endpoints admin de categories, products, branches |
 | **C — Cliente catálogo/carrito** | HU-01 (UI), HU-04, HU-07 | SPA cliente, catálogo, detalle, carrito, layout responsivo |
 | **D — Pedido + docs** | HU-06, HU-08 + carpeta | Direcciones, checkout, `POST /orders`, asignación simple de sucursal, ficha/RF/alcance actualizados |

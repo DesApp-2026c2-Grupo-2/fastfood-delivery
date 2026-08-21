@@ -459,10 +459,10 @@ Alineado a la materia (React + backend Node) y a deploy separado:
 | Capa | Propuesta | Por qué |
 |---|---|---|
 | Frontend | React + Vite + React Router | Lo que la cursada trabaja; SPA responsiva |
-| Backend | Node.js + Express (o Fastify) | Simple de desplegar y de testear |
+| Backend | Node.js + NestJS + TypeScript | Decisión del grupo. Módulos por dominio, guards JWT, ValidationPipe |
 | BD | PostgreSQL | Geo, relaciones, reportes |
-| ORM | Prisma | Modelo de datos versionado, migraciones claras para la carpeta |
-| Auth | JWT + bcrypt | Estándar REST |
+| Acceso a datos | Prisma | Nest no reemplaza la BD: Prisma habla con PostgreSQL |
+| Auth | JWT + bcrypt (`@nestjs/jwt`) | Estándar REST |
 | Deploy | Front en hosting estático (p. ej. Vercel/Netlify), API en Render/Railway, BD gestionada | Enunciado de carpeta permite local **y** deploys gratuitos |
 
 Monorepo:
