@@ -20,3 +20,82 @@ Diseño de APIs.
 Testing y automatización.
 
 Pero no quiero q me des todo el codigo ahora, lo q quiero es un plan de accion y las tareas para la primer planing grupal de mañana.
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+Actuá como tech lead. No inventes alcance: leé y respetá estos docs del repo:
+- docs/Enunciado.txt
+- docs/Ficha-Sprint-1.md
+- docs/Requerimientos-funcionales.md
+- docs/01-Analisis-inicial-y-planning-Sprint-1.md
+
+Contexto
+- Somos 5. Este prompt es SOLO el trabajo inicial conjunto. Después nos dividimos.
+- Arquitectura ya definida: frontend React (Vite) en /frontend, backend NestJS + TypeScript en /backend, PostgreSQL con Docker, Prisma, API REST, JWT.
+- Foco del sprint para el stakeholder: gestión de productos y categorías. Si hay que recortar, eso no se recorta.
+- Un solo repo. UI en español. Código, tablas, JSON y URLs en inglés (Category, Product, Branch, Cart, Order).
+- App cliente en / y admin en /admin (mismo SPA, layouts distintos).
+
+Objetivo de ESTA sesión (no del sprint entero)
+Dejar el proyecto corriendo en local y demostrar este flujo:
+1. docker compose up
+2. admin seed inicia sesión en /admin/login
+3. crea una categoría
+4. crea un producto (nombre, descripción, categoría, precio, imagen URL, available sí/no)
+5. el cliente (aunque sea sin login todavía) ve el catálogo y NO ve productos con available=false
+
+NO implementes ahora: carrito, pedidos, sucursales, direcciones, registro de cliente, reportes, stock, promos, mapa, upload de imágenes, configuraciones especiales de producto.
+
+Qué tenés que crear
+
+1) Infra
+- docker-compose.yml con PostgreSQL
+- .env.example (nunca commitear .env)
+- .gitignore correcto
+- README con: cómo levantar Docker, backend, frontend, seed y URLs
+
+2) Backend NestJS
+- Prisma schema v0, solo lo necesario para este foco, pero dejando el modelo listo para no romper después:
+  - User (id, email, passwordHash, role: customer|admin, name)
+  - Category (id, name, createdAt, updatedAt)
+  - Product (id, name, description, price, imageUrl, available, categoryId)
+- Relaciones: Product pertenece a Category. Category tiene muchos Products.
+- Seed: un admin (email y password en .env.example, documentados)
+- Auth: POST /api/auth/login (JWT). Guard de rol admin.
+- CORS habilitado para el frontend local
+- Endpoints de este foco:
+  Público:
+    GET /api/categories
+    GET /api/products (solo available=true; filtro opcional ?categoryId=)
+    GET /api/products/:id
+  Admin (JWT + role admin):
+    CRUD /api/admin/categories
+    CRUD /api/admin/products
+- Validar que no se pueda borrar una categoría si tiene productos (409)
+- Producto: name, description, categoryId, price, imageUrl, available
+
+3) Frontend React + Vite
+- Routing:
+  /products, /products/:id
+  /admin/login, /admin, /admin/categories, /admin/products
+- Admin: login, listado/alta/edición de categorías, listado/alta/edición de productos
+- Cliente: listado filtrable por categoría + detalle (precio, descripción, imagen)
+- Layout usable en celular, no pixel-perfect
+- Consumir la API real, no mocks
+
+4) Cierre
+- Un script o comando documentado para: docker up + prisma migrate + seed
+- Verificar que el flujo de 5 pasos de arriba funciona
+- No toques la ficha salvo que haga falta anotar cómo correr el proyecto
+
+Al terminar, listá en el chat:
+- comandos exactos para levantar todo
+- endpoints que quedaron
+- qué puede tomar cada integrante ahora (1 backend extra, 2 catálogo admin pulido, 3 catálogo cliente, 4 carrito/pedido, 5 sucursales/docs) sin pisarse
+
+
+
+
+
+
