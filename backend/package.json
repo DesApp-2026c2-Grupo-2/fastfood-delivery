@@ -11,6 +11,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
     "db:setup": "prisma migrate deploy && prisma db seed",
+    "admin:dev": "npm run dev --prefix admin",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -34,6 +35,7 @@
     "@nestjs/schematics": "^11.0.7",
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.3",
+    "@types/multer": "^2.2.0",
     "@types/node": "^22.18.0",
     "prisma": "^6.15.0",
     "tsx": "^4.20.5",

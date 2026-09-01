@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Product } from '../../api/types';
+import { ProductTags } from '../../components/ProductTags';
+import { mediaUrl } from '../../lib/media';
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(price);
@@ -45,19 +47,32 @@ export function ProductDetailPage() {
   }
   if (!product) return null;
 
+  const images = product.images?.length
+    ? product.images
+    : product.imageUrl
+      ? [{ id: 'cover', url: product.imageUrl, sortOrder: 0 }]
+      : [];
+
   return (
     <article className="detail">
       <Link to="/products">← volvamos al menú</Link>
-      <img
-        src={product.imageUrl}
-        alt={product.name}
-        onError={(event) => {
-          event.currentTarget.src =
-            'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240"><rect width="100%" height="100%" fill="%23FFEDD5"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23EA580C" font-family="Nunito,sans-serif" font-size="22">sin fotito</text></svg>';
-        }}
-      />
-      <p className="muted">{product.category?.name}</p>
+      {images.length ? (
+        <div className={images.length > 1 ? 'detail-gallery' : undefined}>
+          {images.map((image) => (
+            <img
+              key={image.id}
+              src={mediaUrl(image.url)}
+              alt={product.name}
+              onError={(event) => {
+                event.currentTarget.src =
+                  'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240"><rect width="100%" height="100%" fill="%23FFEDD5"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23EA580C" font-family="Nunito,sans-serif" font-size="22">sin fotito</text></svg>';
+              }}
+            />
+          ))}
+        </div>
+      ) : null}
       <h1>{product.name}</h1>
+      <ProductTags product={product} />
       <p className="price">{formatPrice(product.price)}</p>
       <p>{product.description}</p>
     </article>

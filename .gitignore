@@ -9,3 +9,5 @@ Thumbs.db
 coverage/
 .idea/
 *.tsbuildinfo
+backend/uploads/*
+!backend/uploads/.gitkeep
