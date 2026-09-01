@@ -47,7 +47,7 @@ export function AdminLoginPage() {
         <form className="card form login-card" onSubmit={onSubmit}>
           <BrandLogo size={120} />
           <h1>Mordi</h1>
-          <p className="muted">Entrá a administrar el menú.</p>
+          <p className="muted">Entrá con el usuario inicial del sistema.</p>
           <label>
             Email
             <input

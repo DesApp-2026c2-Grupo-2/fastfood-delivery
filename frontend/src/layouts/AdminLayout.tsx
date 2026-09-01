@@ -26,6 +26,9 @@ export function AdminLayout() {
           </span>
         </Link>
         <nav className="nav">
+          <NavLink to="/admin" end>
+            Inicio
+          </NavLink>
           <NavLink to="/admin/categories">Categorías</NavLink>
           <NavLink to="/admin/products">Productos</NavLink>
           <button type="button" className="link-button" onClick={logout}>
@@ -34,7 +37,7 @@ export function AdminLayout() {
         </nav>
       </header>
       <main className="main">
-        {user ? <p className="muted">Hola, {user.email}</p> : null}
+        {user ? <p className="muted admin-user">Sesión: {user.email}</p> : null}
         <Outlet />
       </main>
     </div>
