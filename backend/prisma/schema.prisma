@@ -55,3 +55,18 @@ model ProductImage {
 
   @@index([productId])
 }
+
+model Branch {
+  id           String   @id @default(cuid())
+  name         String
+  address      String
+  latitude     Decimal  @db.Decimal(10, 7)
+  longitude    Decimal  @db.Decimal(10, 7)
+  openingHours String
+  phone        String
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([active])
+}
