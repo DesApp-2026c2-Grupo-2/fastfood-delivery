@@ -262,7 +262,7 @@ export function AdminBranchesPage() {
               placeholder="+54 11 4000-0000"
             />
           </label>
-          <label className="checkbox-label">
+          <label className="checkbox">
             <input
               type="checkbox"
               checked={form.active}
