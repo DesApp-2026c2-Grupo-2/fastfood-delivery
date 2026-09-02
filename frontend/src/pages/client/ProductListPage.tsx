@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Category, Product } from '../../api/types';
+import { ProductTags } from '../../components/ProductTags';
+import { mediaUrl } from '../../lib/media';
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(price);
@@ -83,10 +85,10 @@ export function ProductListPage() {
         {products.map((product) => (
           <li key={product.id}>
             <Link className="product-card" to={`/products/${product.id}`}>
-              <img src={product.imageUrl} alt="" onError={onImageError} />
+              <img src={mediaUrl(product.images?.[0]?.url || product.imageUrl)} alt="" onError={onImageError} />
               <div>
                 <h2>{product.name}</h2>
-                <p>{product.category?.name}</p>
+                <ProductTags product={product} />
                 <strong>{formatPrice(product.price)}</strong>
               </div>
             </Link>

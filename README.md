@@ -1,11 +1,12 @@
 # Pedidos en casas de comidas rápidas
 
-Aplicación de delivery (cliente + administración) en un solo repo.
+Tres piezas en un solo repo, misma base de datos:
 
-- Frontend: React + Vite (`/frontend`)
-- Backend: NestJS + TypeScript (`/backend`)
-- Base de datos: PostgreSQL con Docker
-- Comunicación: API REST + JWT
+- Cliente (quien pide comida): React + Vite en `/frontend`
+- Administración: React + Vite en `/backend/admin`
+- API: NestJS + TypeScript en `/backend`
+
+Comunicación: API REST + JWT. PostgreSQL con Docker.
 
 Foco actual del equipo: **gestión de productos y categorías**.
 
@@ -19,7 +20,7 @@ En la raíz del repo:
 docker compose up -d
 ```
 
-Backend:
+API:
 
 ```bash
 cd backend
@@ -30,13 +31,16 @@ npm run db:setup
 npm run start:dev
 ```
 
-En PowerShell, en vez de `cp`:
+Admin (otra terminal):
 
-```powershell
-Copy-Item .env.example .env
+```bash
+cd backend/admin
+cp .env.example .env
+npm install
+npm run dev
 ```
 
-Frontend (otra terminal):
+Cliente (otra terminal):
 
 ```bash
 cd frontend
@@ -45,10 +49,16 @@ npm install
 npm run dev
 ```
 
+En PowerShell, en vez de `cp`:
+
+```powershell
+Copy-Item .env.example .env
+```
+
 URLs:
 
 - App cliente: http://localhost:5173/products
-- Admin: http://localhost:5173/admin/login
+- Admin: http://localhost:5174/admin/login
 - API: http://localhost:3000/api
 
 Usuario seed (admin):

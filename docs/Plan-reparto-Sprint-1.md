@@ -72,9 +72,9 @@ Arrancar siempre desde `main` actualizado. No volver a scaffoldar el repo.
 
 **Toca**
 
-- `frontend/src/pages/admin/`
-- `frontend/src/layouts/AdminLayout.tsx`
-- CSS de esas pantallas
+- `backend/admin/` (app de administración, independiente del cliente)
+- `backend/src/` solo si hace falta un endpoint del catálogo
+- No toca el frontend del cliente
 
 **No toca:** carrito, sucursales, schema Prisma de pedido.
 

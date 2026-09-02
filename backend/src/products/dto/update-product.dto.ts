@@ -1,14 +1,19 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
-  IsUrl,
+  Matches,
   MaxLength,
   Min,
 } from 'class-validator';
+
+const emptyToUndefined = ({ value }: { value: unknown }) =>
+  typeof value === 'string' && value.trim() === '' ? undefined : value;
 
 export class UpdateProductDto {
   @IsOptional()
@@ -16,6 +21,15 @@ export class UpdateProductDto {
   @IsNotEmpty()
   @MaxLength(120)
   name?: string;
+
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message: 'El slug solo puede tener minúsculas, números y guiones',
+  })
+  slug?: string;
 
   @IsOptional()
   @IsString()
@@ -30,18 +44,19 @@ export class UpdateProductDto {
   price?: number;
 
   @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  @IsUrl({ require_tld: false })
-  imageUrl?: string;
-
-  @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()
   available?: boolean;
 
   @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  categoryId?: string;
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Elegí al menos una categoría' })
+  @IsString({ each: true })
+  categoryIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Subí al menos una imagen' })
+  @IsString({ each: true })
+  imageUrls?: string[];
 }

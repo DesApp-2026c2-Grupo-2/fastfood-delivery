@@ -13,7 +13,8 @@ function readErrorMessage(body: unknown, status: number): string {
 
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const headers = new Headers(options.headers);
-  if (options.body && !headers.has('Content-Type')) {
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  if (options.body && !headers.has('Content-Type') && !isFormData) {
     headers.set('Content-Type', 'application/json');
   }
   if (options.token) {
@@ -35,3 +36,4 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   }
   return body as T;
 }
+

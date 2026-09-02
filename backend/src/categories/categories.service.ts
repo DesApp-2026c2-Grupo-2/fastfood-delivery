@@ -1,7 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { slugify } from './slug';
 
 @Injectable()
 export class CategoriesService {
@@ -26,14 +27,19 @@ export class CategoriesService {
   }
 
   create(dto: CreateCategoryDto) {
-    return this.prisma.category.create({ data: { name: dto.name.trim() } });
+    const name = dto.name.trim();
+    const slug = this.resolveSlug(dto.slug, name);
+    return this.prisma.category.create({ data: { name, slug } });
   }
 
   async update(id: string, dto: UpdateCategoryDto) {
-    await this.findOne(id);
+    const current = await this.findOne(id);
+    const name = dto.name?.trim() ?? current.name;
+    const slugSource = dto.slug !== undefined ? dto.slug : current.slug;
+    const slug = this.resolveSlug(slugSource, name);
     return this.prisma.category.update({
       where: { id },
-      data: { name: dto.name?.trim() },
+      data: { name, slug },
     });
   }
 
@@ -44,5 +50,13 @@ export class CategoriesService {
     }
     await this.prisma.category.delete({ where: { id } });
     return { id };
+  }
+
+  private resolveSlug(raw: string | undefined, name: string): string {
+    const slug = slugify(raw?.trim() || name);
+    if (!slug) {
+      throw new BadRequestException('El slug no puede quedar vacío');
+    }
+    return slug;
   }
 }
