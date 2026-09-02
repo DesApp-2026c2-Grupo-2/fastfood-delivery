@@ -42,3 +42,13 @@ export type LoginResponse = {
   accessToken: string;
   user: User;
 };
+
+export type Address = {
+  id: string;
+  street: string;
+  latitude: number | string;
+  longitude: number | string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
