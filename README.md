@@ -8,7 +8,7 @@ Tres piezas en un solo repo, misma base de datos:
 
 Comunicación: API REST + JWT. PostgreSQL con Docker.
 
-Foco actual del equipo: **gestión de productos y categorías**.
+Foco actual del equipo: **gestión de productos y categorías**, más **sucursales** y **direcciones de cliente** (Sprint 1).
 
 ## Cómo levantar todo
 
@@ -58,7 +58,9 @@ Copy-Item .env.example .env
 URLs:
 
 - App cliente: http://localhost:5173/products
+- Direcciones cliente: http://localhost:5173/account/addresses
 - Admin: http://localhost:5174/admin/login
+- Sucursales admin: http://localhost:5174/admin/branches
 - API: http://localhost:3000/api
 
 Usuario seed (admin):
@@ -66,9 +68,32 @@ Usuario seed (admin):
 - Email: `admin@rapido.local`
 - Contraseña: `Admin123!`
 
-Flujo mínimo a probar: login admin → crear categoría → crear producto (disponible y no disponible) → ver el catálogo del cliente. El producto no disponible no tiene que aparecer.
+Sucursal seed (tras `npm run db:setup`):
 
-## Endpoints de este núcleo
+- Nombre: **Mordi Centro** (activa, con lat/lng en Buenos Aires)
+
+## Flujos a probar
+
+### Catálogo (núcleo actual)
+
+Login admin → crear categoría → crear producto (disponible y no disponible) → ver el catálogo del cliente. El producto no disponible no tiene que aparecer.
+
+### Sucursales (HU-05)
+
+Login admin → **Sucursales** → crear o editar un local con nombre, dirección, lat/lng, horarios, teléfono y estado activa/inactiva.
+
+### Direcciones (HU-06)
+
+Requiere **login de cliente** (lo implementa Lucas). La UI de direcciones está en `/account/addresses` y la API en `/api/me/addresses`.
+
+Convención de sesión cliente para integrar con Lucas:
+
+- Token: `customer_token` en `localStorage` o `sessionStorage`
+- Usuario: `customer_user` (JSON con `role: "customer"`)
+
+Hasta que exista login, `/account/addresses` redirige a `/login` (placeholder).
+
+## Endpoints
 
 | Método | Ruta | Auth |
 |---|---|---|
@@ -78,5 +103,12 @@ Flujo mínimo a probar: login admin → crear categoría → crear producto (dis
 | GET | `/api/products/:id` | No (404 si no está disponible) |
 | CRUD | `/api/admin/categories` | JWT admin |
 | CRUD | `/api/admin/products` | JWT admin |
+| CRUD | `/api/admin/branches` | JWT admin |
+| GET/POST | `/api/me/addresses` | JWT cliente |
+| PATCH/DELETE | `/api/me/addresses/:id` | JWT cliente |
 
-No se puede borrar una categoría que tenga productos (409).
+Reglas:
+
+- No se puede borrar una categoría que tenga productos (409).
+- Las sucursales inactivas no se asignan a pedidos nuevos (lógica de pedido en desarrollo).
+- Cada cliente solo ve y edita sus propias direcciones.
