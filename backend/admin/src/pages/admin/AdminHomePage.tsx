@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
-import type { Category, Product } from '../../api/types';
+import type { Category, Product, Branch } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { mediaUrl } from '../../lib/media';
 
@@ -26,22 +26,26 @@ export function AdminHomePage() {
   const token = getToken() ?? '';
   const [categories, setCategories] = useState<Category[] | null>(null);
   const [products, setProducts] = useState<Product[] | null>(null);
+  const [branches, setBranches] = useState<Branch[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const [categoryList, productList] = await Promise.all([
+        const [categoryList, productList, branchList] = await Promise.all([
           api<Category[]>('/admin/categories', { token }),
           api<Product[]>('/admin/products', { token }),
+          api<Branch[]>('/admin/branches', { token }),
         ]);
         if (cancelled) return;
         setCategories(categoryList);
         setProducts(productList);
+        setBranches(branchList);
       } catch {
         if (!cancelled) {
           setCategories([]);
           setProducts([]);
+          setBranches([]);
         }
       }
     }
@@ -130,6 +134,17 @@ export function AdminHomePage() {
           ) : (
             <p className="home-latest-empty">{products === null ? 'Cargando…' : 'Todavía no hay productos.'}</p>
           )}
+        </article>
+
+        <article className="home-panel">
+          <Link className="card-link" to="/admin/branches">
+            <span>Sucursales</span>
+            <small>
+              {branches === null
+                ? '…'
+                : `${branches.length} cargadas · ${branches.filter((branch) => branch.active).length} activas`}
+            </small>
+          </Link>
         </article>
       </div>
 

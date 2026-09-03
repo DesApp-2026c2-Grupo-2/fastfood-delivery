@@ -1,28 +1,16 @@
-import { PrismaClient, Role } from '@prisma/client';
-import bcrypt from 'bcrypt';
-
-const prisma = new PrismaClient();
-
-async function main() {
-  const email = process.env.ADMIN_EMAIL ?? 'admin@rapido.local';
-  const password = process.env.ADMIN_PASSWORD ?? 'Admin123!';
-  const passwordHash = await bcrypt.hash(password, 10);
-
-  // 1. Admin base de Carla
-  await prisma.user.upsert({
-    where: { email },
-    update: { passwordHash, role: Role.admin, name: 'Administrador' },
-    create: {
-      email,
-      passwordHash,
-      role: Role.admin,
-      name: 'Administrador',
-    },
+// 2. Sucursal base (de main)
+  const existingBranch = await prisma.branch.findFirst({
+    where: { name: DEFAULT_BRANCH.name },
   });
 
-  console.log(`Admin seed listo: ${email}`);
+  if (!existingBranch) {
+    await prisma.branch.create({ data: DEFAULT_BRANCH });
+    console.log(`Sucursal seed listo: ${DEFAULT_BRANCH.name}`);
+  } else {
+    console.log(`Sucursal seed ya existe: ${DEFAULT_BRANCH.name}`);
+  }
 
-  // 2. Categorías base
+  // 3. Categorías base
   await prisma.category.upsert({
     where: { slug: 'guarnicion' },
     update: {},
@@ -77,7 +65,7 @@ async function main() {
     },
   });
 
-  // 3. Productos del catálogo (HU-04)
+  // 4. Productos del catálogo (HU-04)
   const productosDemo: Array<{
     name: string;
     slug: string;
@@ -313,13 +301,3 @@ async function main() {
   }
 
   console.log('Categorías y productos de prueba cargados.');
-}
-
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });

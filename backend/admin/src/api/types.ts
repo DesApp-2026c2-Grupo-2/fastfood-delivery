@@ -42,3 +42,16 @@ export type LoginResponse = {
   accessToken: string;
   user: User;
 };
+
+export type Branch = {
+  id: string;
+  name: string;
+  address: string;
+  latitude: number | string;
+  longitude: number | string;
+  openingHours: string;
+  phone: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
