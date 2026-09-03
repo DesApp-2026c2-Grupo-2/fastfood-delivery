@@ -14,6 +14,7 @@ export function ClientLayout() {
         </Link>
         <nav className="nav">
           <NavLink to="/products">Catálogo</NavLink>
+          <NavLink to="/account/addresses">Mis direcciones</NavLink>
         </nav>
       </header>
       <main className="main">

@@ -9,6 +9,7 @@ import chevronRight from './chevron-right.svg?raw';
 import upload from './upload.svg?raw';
 import close from './close.svg?raw';
 import check from './check.svg?raw';
+import store from './store.svg?raw';
 
 const icons = {
   eye,
@@ -16,6 +17,7 @@ const icons = {
   home,
   tag,
   bag,
+  store,
   logout,
   'chevron-left': chevronLeft,
   'chevron-right': chevronRight,
