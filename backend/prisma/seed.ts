@@ -31,6 +31,21 @@ async function main() {
 
   console.log(`Admin seed listo: ${email}`);
 
+  const testCustomerId = 'test-customer-cart-0001';
+  await prisma.user.upsert({
+    where: { id: testCustomerId },
+    update: {},
+    create: {
+      id: testCustomerId,
+      email: 'test-customer@rapido.local',
+      passwordHash: await bcrypt.hash('Test123!', 10),
+      role: Role.customer,
+      name: 'Cliente de prueba',
+    },
+  });
+
+  console.log(`Cliente de prueba seed listo: ${testCustomerId}`);
+
   const existingBranch = await prisma.branch.findFirst({
     where: { name: DEFAULT_BRANCH.name },
   });
