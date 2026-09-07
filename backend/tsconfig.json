@@ -19,5 +19,5 @@
     "strictBindCallApply": true,
     "noFallthroughCasesInSwitch": true
   },
-  "exclude": ["node_modules", "dist", "admin"]
+  "exclude": ["node_modules", "dist", "admin", "test"]
 }

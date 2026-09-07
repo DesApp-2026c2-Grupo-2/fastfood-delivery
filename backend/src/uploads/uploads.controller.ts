@@ -8,20 +8,18 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { randomUUID } from 'crypto';
-import { existsSync, mkdirSync } from 'fs';
 import { diskStorage } from 'multer';
-import { extname, join } from 'path';
+import { extname } from 'path';
 import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { resolveUploadsDir } from './upload-dir';
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads');
+const UPLOAD_DIR = resolveUploadsDir();
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 
 function ensureUploadDir() {
-  if (!existsSync(UPLOAD_DIR)) {
-    mkdirSync(UPLOAD_DIR, { recursive: true });
-  }
+  resolveUploadsDir();
 }
 
 @Controller('admin/uploads')

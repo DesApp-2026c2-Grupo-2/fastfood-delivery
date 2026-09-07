@@ -24,6 +24,7 @@ function serialize(cart: CartWithRelations) {
       id: item.id,
       productId: item.productId,
       quantity: item.quantity,
+      notes: item.notes,
       unitPrice,
       subtotal: unitPrice * item.quantity,
       product: {
@@ -56,10 +57,15 @@ export class CartService {
     const product = await this.assertAvailableProduct(dto.productId);
     const cart = await this.getOrCreateCart(userId);
 
+    const notes = dto.notes ?? '';
+
     await this.prisma.cartItem.upsert({
       where: { cartId_productId: { cartId: cart.id, productId: product.id } },
-      create: { cartId: cart.id, productId: product.id, quantity: dto.quantity },
-      update: { quantity: { increment: dto.quantity } },
+      create: { cartId: cart.id, productId: product.id, quantity: dto.quantity, notes },
+      update: {
+        quantity: { increment: dto.quantity },
+        ...(dto.notes !== undefined ? { notes } : {}),
+      },
     });
 
     return this.getCart(userId);
@@ -70,7 +76,10 @@ export class CartService {
 
     await this.prisma.cartItem.update({
       where: { id: itemId },
-      data: { quantity: dto.quantity },
+      data: {
+        quantity: dto.quantity,
+        ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+      },
     });
 
     return this.getCart(userId);

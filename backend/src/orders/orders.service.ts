@@ -23,15 +23,23 @@ type OrderWithRelations = Prisma.OrderGetPayload<{ include: typeof withRelations
 function serialize(order: OrderWithRelations) {
   return {
     id: order.id,
-    status: (order as typeof order & { status: string }).status,
-    totalAmount: Number((order as OrderWithRelations & { totalAmount: Prisma.Decimal }).totalAmount),
+    status: order.status,
+    totalAmount: Number(order.totalAmount),
     createdAt: order.createdAt,
-    branch: order.branch,
-    address: order.address,
+    branch: {
+      id: order.branch.id,
+      name: order.branch.name,
+      address: order.branch.address,
+    },
+    address: {
+      id: order.address.id,
+      street: order.address.street,
+    },
     items: order.items.map((item) => ({
       id: item.id,
       productId: item.productId,
       quantity: item.quantity,
+      notes: item.notes,
       unitPrice: Number(item.unitPrice),
       subtotal: Number(item.unitPrice) * item.quantity,
       product: {
@@ -87,6 +95,7 @@ export class OrdersService {
               productId: item.productId,
               quantity: item.quantity,
               unitPrice: item.product.price,
+              notes: item.notes,
             })),
           },
         },

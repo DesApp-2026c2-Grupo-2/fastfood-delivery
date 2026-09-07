@@ -25,21 +25,7 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    };
-
-    return {
-      accessToken: this.jwt.sign(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-    };
+    return this.tokenResponse(user);
   }
 
   async register(dto: RegisterDto) {
@@ -62,11 +48,24 @@ export class AuthService {
       },
     });
 
-    return {
-      id: user.id,
+    return this.tokenResponse(user);
+  }
+
+  private tokenResponse(user: { id: string; email: string; name: string; role: Role }) {
+    const payload: JwtPayload = {
+      sub: user.id,
       email: user.email,
-      name: user.name,
       role: user.role,
+    };
+
+    return {
+      accessToken: this.jwt.sign(payload),
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
     };
   }
 }

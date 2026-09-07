@@ -12,6 +12,7 @@
     "prisma:seed": "prisma db seed",
     "db:setup": "prisma migrate deploy && prisma db seed",
     "admin:dev": "npm run dev --prefix admin",
+    "test": "jest --config ./test/jest-e2e.json --runInBand",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -24,6 +25,7 @@
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/platform-express": "^11.1.6",
     "@prisma/client": "^6.15.0",
+    "prisma": "^6.15.0",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
@@ -35,9 +37,13 @@
     "@nestjs/schematics": "^11.0.7",
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
     "@types/multer": "^2.2.0",
     "@types/node": "^22.18.0",
-    "prisma": "^6.15.0",
+    "@types/supertest": "^6.0.3",
+    "jest": "^30.1.3",
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.4.1",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"
   }

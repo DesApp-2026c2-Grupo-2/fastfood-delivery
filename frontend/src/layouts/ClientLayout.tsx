@@ -1,7 +1,16 @@
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { clearSession, getUser } from '../auth/session';
 import { BrandLogo } from '../components/BrandLogo';
 
 export function ClientLayout() {
+  const navigate = useNavigate();
+  const user = getUser();
+
+  function logout() {
+    clearSession();
+    navigate('/login');
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -14,7 +23,12 @@ export function ClientLayout() {
         </Link>
         <nav className="nav">
           <NavLink to="/products">Catálogo</NavLink>
-          <NavLink to="/account/addresses">Mis direcciones</NavLink>
+          <NavLink to="/cart">Carrito</NavLink>
+          <NavLink to="/account/addresses">Direcciones</NavLink>
+          {user ? <span className="nav-user">{user.name}</span> : null}
+          <button type="button" className="link-button" onClick={logout}>
+            Salir
+          </button>
         </nav>
       </header>
       <main className="main">

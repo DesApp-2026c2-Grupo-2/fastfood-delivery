@@ -4,10 +4,7 @@ import { api } from '../../api/client';
 import type { Category, Product } from '../../api/types';
 import { ProductTags } from '../../components/ProductTags';
 import { mediaUrl } from '../../lib/media';
-
-function formatPrice(price: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(price);
-}
+import { formatPrice } from '../../lib/money';
 
 export function ProductListPage() {
   const [searchParams, setSearchParams] = useSearchParams();

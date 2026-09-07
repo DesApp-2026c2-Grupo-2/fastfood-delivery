@@ -52,3 +52,56 @@ export type Address = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type CartItem = {
+  id: string;
+  productId: string;
+  quantity: number;
+  notes: string;
+  unitPrice: number;
+  subtotal: number;
+  product: {
+    id: string;
+    name: string;
+    available: boolean;
+    imageUrl: string;
+  };
+};
+
+export type Cart = {
+  id: string;
+  items: CartItem[];
+  itemCount: number;
+  total: number;
+};
+
+export type OrderItem = {
+  id: string;
+  productId: string;
+  quantity: number;
+  notes: string;
+  unitPrice: number;
+  subtotal: number;
+  product: {
+    id: string;
+    name: string;
+    imageUrl: string;
+  };
+};
+
+export type Order = {
+  id: string;
+  status: string;
+  totalAmount: number;
+  createdAt: string;
+  branch: {
+    id: string;
+    name: string;
+    address: string;
+  };
+  address: {
+    id: string;
+    street: string;
+  };
+  items: OrderItem[];
+};

@@ -8,7 +8,7 @@ Tres piezas en un solo repo, misma base de datos:
 
 Comunicación: API REST + JWT. PostgreSQL con Docker.
 
-Foco actual del equipo: **gestión de productos y categorías**, más **sucursales** y **direcciones de cliente** (Sprint 1).
+Foco del Sprint 1: catálogo admin, sucursales, direcciones, carrito y confirmar un pedido.
 
 ## Cómo levantar todo
 
@@ -57,10 +57,12 @@ Copy-Item .env.example .env
 
 URLs:
 
-- App cliente: http://localhost:5173/products
-- Direcciones cliente: http://localhost:5173/account/addresses
+- App cliente: http://localhost:5173/login
+- Catálogo: http://localhost:5173/products
+- Carrito: http://localhost:5173/cart
+- Checkout: http://localhost:5173/checkout
+- Direcciones: http://localhost:5173/account/addresses
 - Admin: http://localhost:5174/admin/login
-- Sucursales admin: http://localhost:5174/admin/branches
 - API: http://localhost:3000/api
 
 Usuario seed (admin):
@@ -72,31 +74,39 @@ Sucursal seed (tras `npm run db:setup`):
 
 - Nombre: **Mordi Centro** (activa, con lat/lng en Buenos Aires)
 
+Tests de backend (login + `POST /orders`):
+
+```bash
+cd backend
+npm test
+```
+
 ## Flujos a probar
 
-### Catálogo (núcleo actual)
+### Catálogo (admin)
 
 Login admin → crear categoría → crear producto (disponible y no disponible) → ver el catálogo del cliente. El producto no disponible no tiene que aparecer.
 
-### Sucursales (HU-05)
+### Pedido de punta a punta
 
-Login admin → **Sucursales** → crear o editar un local con nombre, dirección, lat/lng, horarios, teléfono y estado activa/inactiva.
+1. Admin: categoría, producto disponible y sucursal activa.
+2. Cliente: `/register` o `/login` → dirección con lat/lng.
+3. Catálogo → detalle → agregar al carrito (cantidad + observaciones).
+4. `/cart`: cambiar cantidad, ver total, quitar ítems.
+5. `/checkout`: elegir dirección y confirmar. El pedido queda `pending`, con sucursal más cercana, y el carrito se vacía.
 
-### Direcciones (HU-06)
-
-Requiere **login de cliente** (lo implementa Lucas). La UI de direcciones está en `/account/addresses` y la API en `/api/me/addresses`.
-
-Convención de sesión cliente para integrar con Lucas:
+Convención de sesión cliente:
 
 - Token: `customer_token` en `localStorage` o `sessionStorage`
 - Usuario: `customer_user` (JSON con `role: "customer"`)
 
-Hasta que exista login, `/account/addresses` redirige a `/login` (placeholder).
+Sin sesión de cliente no se entra a `/products`, `/cart` ni `/checkout`.
 
 ## Endpoints
 
 | Método | Ruta | Auth |
 |---|---|---|
+| POST | `/api/auth/register` | No (crea cliente y devuelve JWT) |
 | POST | `/api/auth/login` | No |
 | GET | `/api/categories` | No |
 | GET | `/api/products` | No (`?categoryId=` opcional; solo `available=true`) |
@@ -106,9 +116,15 @@ Hasta que exista login, `/account/addresses` redirige a `/login` (placeholder).
 | CRUD | `/api/admin/branches` | JWT admin |
 | GET/POST | `/api/me/addresses` | JWT cliente |
 | PATCH/DELETE | `/api/me/addresses/:id` | JWT cliente |
+| GET | `/api/cart` | JWT cliente |
+| POST | `/api/cart/items` | JWT cliente |
+| PATCH/DELETE | `/api/cart/items/:id` | JWT cliente |
+| POST | `/api/orders` | JWT cliente |
 
 Reglas:
 
 - No se puede borrar una categoría que tenga productos (409).
-- Las sucursales inactivas no se asignan a pedidos nuevos (lógica de pedido en desarrollo).
+- Las sucursales inactivas no se asignan a pedidos nuevos.
 - Cada cliente solo ve y edita sus propias direcciones.
+- El total del carrito es `suma(precio × cantidad)`.
+- Al confirmar un pedido se asigna la sucursal **activa más cercana** a la dirección. Si no hay ninguna activa, no se crea el pedido.

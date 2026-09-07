@@ -1,18 +1,17 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { existsSync } from 'fs';
 import { AppModule } from './app.module';
 import { PrismaExceptionFilter } from './common/prisma-exception.filter';
+import { resolveUploadsDir } from './uploads/upload-dir';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  const uploadsDir = join(process.cwd(), 'uploads');
-  if (!existsSync(uploadsDir)) {
-    mkdirSync(uploadsDir, { recursive: true });
+  const uploadsDir = resolveUploadsDir();
+  if (existsSync(uploadsDir)) {
+    app.useStaticAssets(uploadsDir, { prefix: '/uploads/' });
   }
-  app.useStaticAssets(uploadsDir, { prefix: '/uploads/' });
   app.setGlobalPrefix('api');
   const extraOrigins = (
     process.env.FRONTEND_ORIGIN ??
@@ -28,7 +27,8 @@ async function bootstrap() {
         return;
       }
       const localDev = /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
-      callback(null, localDev || extraOrigins.includes(origin));
+      const vercelApp = /^https:\/\/[\w.-]+\.vercel\.app$/.test(origin);
+      callback(null, localDev || vercelApp || extraOrigins.includes(origin));
     },
     credentials: true,
   });

@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -116,6 +117,7 @@ model CartItem {
   cartId    String
   productId String
   quantity  Int
+  notes     String   @default("")
   cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
   product   Product  @relation(fields: [productId], references: [id])
   createdAt DateTime @default(now())
@@ -152,6 +154,7 @@ model OrderItem {
   productId String
   quantity  Int
   unitPrice Decimal @db.Decimal(10, 2)
+  notes     String  @default("")
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product   Product @relation(fields: [productId], references: [id])
 
