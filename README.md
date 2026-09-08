@@ -10,6 +10,12 @@ Comunicación: API REST + JWT. PostgreSQL con Docker.
 
 Foco del Sprint 1: catálogo admin, sucursales, direcciones, carrito y confirmar un pedido.
 
+## Deploy
+
+- Administrador: https://mordi-admin.vercel.app/
+- Web: https://mordi-web.vercel.app/
+- API: https://mordi-administrador.vercel.app/api/products
+
 ## Cómo levantar todo
 
 Hace falta Node.js 22+, npm y Docker Desktop.

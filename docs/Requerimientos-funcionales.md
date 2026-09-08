@@ -1,9 +1,9 @@
 # Requerimientos funcionales
 
-**Proyecto:** Pedidos en casas de comidas rápidas  
+**Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
 **Fuente:** `docs/Enunciado.txt`  
-**Versión:** 0.1 (20/08/2026)  
-**Estado:** borrador para carpeta de la materia. Pendiente de ajustar según respuestas de docentes (stock/promos base vs extensión, alcance de parámetros y estados).
+**Versión:** 1.0 (07/09/2026)  
+**Estado:** versión de carpeta Sprint 1. Los IDs son estables. El alcance (qué entra en cada sprint) está en `docs/Alcance-funcional.md`. Las historias que cubren cada RF están en `docs/Historias-de-usuario.md`.
 
 ## 1. Cómo leer este documento
 
@@ -21,17 +21,17 @@ Un requerimiento funcional (RF) describe **qué debe hacer el sistema**, no cóm
 
 Convención de lenguaje (igual que el resto de la carpeta): documentación y UI en español; código, tablas y URLs en inglés. Ver glosario en `docs/01-Analisis-inicial-y-planning-Sprint-1.md`.
 
-Los RF de extensión **no forman parte del mínimo** del enunciado. Se implementan solo si el grupo elige esa propuesta.
+Los RF de extensión **no forman parte del mínimo** del enunciado. El grupo toma **Extensión 1**. La Extensión 2 no es compromiso.
 
 ## 2. Actores
 
 | Actor | Descripción |
 |---|---|
-| Visitante | Persona no autenticada. Puede registrarse e iniciar sesión. |
+| Visitante | Persona no autenticada. Puede registrarse, ver el catálogo y, como extra del grupo, confirmar un pedido invitado. |
 | Cliente (`Customer`) | Usuario autenticado que realiza pedidos de delivery. |
 | Administrador (`Admin`) | Usuario autenticado que gestiona el negocio desde la aplicación administrativa. |
 | Sistema | Comportamiento automático (asignación de sucursal, cálculo de total, registro de estados, seed inicial). |
-| Repartidor (`Driver`) | Solo si se elige Extensión 2. |
+| Repartidor (`Driver`) | Solo Extensión 2 (fuera de compromiso). |
 
 ## 3. Requerimientos — funcionalidades base
 
@@ -114,7 +114,7 @@ El enunciado exige una aplicación administrativa independiente que comparte la 
 
 | ID | Nombre | Descripción | Actor | Prioridad | Entidad | Fuente |
 |---|---|---|---|---|---|---|
-| RF-ADM-04 | Aplicación administrativa independiente | El sistema deberá ofrecer una aplicación administrativa, distinta de la de clientes, que comparte la misma base de datos. | Administrador | Obligatorio | — | “Los administradores disponen de una aplicación independiente que comparte la misma base de datos con el sistema de delivery.” |
+| RF-ADM-04 | Aplicación administrativa independiente | El sistema deberá ofrecer una aplicación administrativa, distinta de la de clientes, que comparte la misma base de datos. El grupo la implementa como SPA propia (`/backend/admin`), no como rutas `/admin` dentro de la app de clientes. | Administrador | Obligatorio | — | “Los administradores disponen de una aplicación independiente que comparte la misma base de datos con el sistema de delivery.” |
 | RF-ADM-05 | ABM de promociones | El sistema deberá permitir al administrador el alta, baja, modificación y consulta de promociones. | Administrador | Obligatorio | `Promotion` | Entidad “Promociones.” en el ABM del sistema administrativo. |
 | RF-ADM-06 | ABM de stock | El sistema deberá permitir al administrador consultar y actualizar stock. | Administrador | Obligatorio | `Stock` | Entidad “Stock.” en el ABM del sistema administrativo. |
 | RF-ADM-07 | ABM de administradores | El sistema deberá permitir consultar y dar de alta administradores desde el backoffice. | Administrador | Obligatorio | `Admin` | Entidad “Administradores.” |
@@ -212,7 +212,9 @@ Aplican solo si el grupo elige la propuesta 2. Los reportes extra de esta extens
 | Extensión 1 | 18 (stock, promos, reportes extra; RF-STK-05 es opcional dentro de la extensión) |
 | Extensión 2 | 7 + reportes RF-RPT-10 a RF-RPT-20 |
 
-Núcleo mínimo demostrable (Sprint 1), no es el alcance total: RF-CLI-01, RF-CLI-02, RF-ADM-01, RF-ADM-02, RF-CAT-01, RF-CAT-02, RF-CAT-03, RF-CRT-01 a RF-CRT-04, RF-ORD-01, RF-BRN-01.
+Núcleo mínimo demostrable (**Sprint 1**, 16 RF = 40% del base): RF-CLI-01, RF-CLI-02, RF-CLI-05, RF-CLI-07, RF-ADM-01, RF-ADM-02, RF-ADM-04, RF-BRN-01, RF-CAT-01, RF-CAT-02, RF-CAT-03, RF-CRT-01 a RF-CRT-04, RF-ORD-01. RF-GEO-01 arranca junto con RF-CLI-05 (lat/lng en cada dirección).
+
+Capacidad adicional (no es RF del enunciado, no cuenta para el 40%): el visitante puede confirmar un pedido sin cuenta (`POST /api/orders/guest`). No sustituye RF-CLI-01, RF-CLI-02 ni RF-CLI-05.
 
 ## 7. Trazabilidad enunciado → RF
 
@@ -232,12 +234,29 @@ Núcleo mínimo demostrable (Sprint 1), no es el alcance total: RF-CLI-01, RF-CL
 | Extensión 1 | RF-STK-*, RF-PRM-*, RF-RPT-10 a RF-RPT-22 |
 | Extensión 2 | RF-RAT-01, RF-NOT-01, RF-DRV-01 a RF-DRV-05 |
 
-## 8. Pendientes de confirmación con docentes
+## 8. Asignación a sprints (plan)
 
-Estos RF pueden bajar o subir de prioridad según la consulta de requerimientos:
+No cambia la prioridad del RF. Solo indica cuándo el grupo planea cubrirlo.
 
-1. RF-ADM-05 y RF-ADM-06: ¿ABM alcanza sin Extensión 1, o el checkout ya debe usar stock y promos?
-2. RF-ADM-08 y RF-ADM-09: ¿pantalla de configuración o valores en BD?
-3. RF-CLI-03: ¿correo real o flujo demostrable?
-4. RF-ADM-04: ¿mismo SPA con `/admin` o deploy separado?
-5. RF-GEO-03: confirmar que sigue optativo para medio término.
+| Sprint | RF |
+|---|---|
+| 1 | RF-CLI-01, RF-CLI-02, RF-CLI-05, RF-CLI-07, RF-ADM-01, RF-ADM-02, RF-ADM-04, RF-BRN-01, RF-CAT-01, RF-CAT-02, RF-CAT-03, RF-CRT-01 a RF-CRT-04, RF-ORD-01 (+ lat/lng de RF-GEO-01) |
+| 2 | RF-CLI-03, RF-CLI-04, RF-CLI-06, RF-ADM-03, RF-ADM-07, RF-ADM-10, RF-BRN-02, RF-BRN-03, RF-ORD-02 a RF-ORD-04, RF-GEO-02, RF-TRK-01 a RF-TRK-03, RF-HIS-01 |
+| 3 | RF-CAT-04, RF-ADM-06, RF-ADM-08, RF-ADM-09, RF-STK-01 a RF-STK-04 |
+| 4 | RF-ADM-05, RF-HIS-02, RF-PRM-01, RF-PRM-02, RF-RPT-01 a RF-RPT-04 |
+| 5 | RF-RPT-10 a RF-RPT-22, RF-STK-05 (si hay tiempo), pulido de RF ya cubiertos |
+| Fuera (optativo / plus) | RF-GEO-03 (mapa), todos los RF de Extensión 2 |
+
+## 9. Pendientes de confirmación con docentes
+
+Cerrados por decisión de grupo (se consultan si un docente contradice):
+
+1. **RF-ADM-04:** dos SPAs (cliente y admin), deploys separados, misma API y misma BD.
+2. **RF-GEO-03:** sigue optativo; no entra al núcleo ni al medio término.
+3. **Extensión:** se toma la propuesta 1. Una extensión alcanza para aspirar a nota alta.
+
+Siguen abiertos (no bloquean Sprint 1):
+
+1. RF-ADM-05 y RF-ADM-06: el ABM del bloque administrativo base ¿exige usar stock y promos en el checkout, o alcanza cargar los datos hasta abrir Extensión 1?
+2. RF-ADM-08 y RF-ADM-09: ¿pantalla de configuración o valores en BD usados por el sistema?
+3. RF-CLI-03: ¿correo real o flujo demostrable (token visible / consola)?
