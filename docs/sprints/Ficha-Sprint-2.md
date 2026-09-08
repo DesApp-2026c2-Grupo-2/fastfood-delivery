@@ -1,7 +1,7 @@
 # Ficha Sprint 2
 
 **Proyecto:** Pedidos en casas de comidas rápidas (Mordi)  
-**Versión:** 1.0  
+**Versión:** 1.1  
 **Actualizado:** 07/09/2026  
 **Grupo:** 2 · 5 integrantes (Celeste, Carla, Lucas, Nicolas, Rafael)  
 **Sprint:** 2 de 5  
@@ -9,8 +9,6 @@
 **Review:** 24/09/2026  
 **Corte de tareas:** 23/09/2026 23:59 (solo cuenta lo mergeado a `main` hasta esa hora)  
 **Duración:** 2 semanas  
-**Porcentaje del TP en este incremento:** **25%** de las funcionalidades base del enunciado (10 / 40 RF)  
-**Acumulado al cierre:** **65%** (Sprint 1 40% + este 25%)  
 **Extensiones:** fuera de este sprint  
 **Stack:** React + Vite (front cliente y admin) · NestJS + TypeScript (back) · PostgreSQL + Prisma (datos) · JWT
 
@@ -30,29 +28,9 @@ El Sprint 1 dejó el pedido **creado**. Este sprint lo deja **vivo hasta la entr
 
 ---
 
-## 2. Por qué es el 25% del TP
+## 2. Alcance
 
-El enunciado base tiene **40 RF obligatorios** (`docs/entregables/Requerimientos-funcionales.md`). El Sprint 1 tomó **16 RF** (el hilo configurar menú → confirmar pedido). Este sprint toma **10 RF** que forman el **hilo vertical siguiente**: pedido creado → se sigue, se cancela o se entrega → queda en el historial y se puede repetir.
-
-No es el 25% de pantallas sueltas. Es el 25% que convierte un registro `pending` en un proceso de delivery.
-
-| Módulo del enunciado | Peso sobre el TP base | En Sprint 1 | En Sprint 2 | Qué entra ahora | Qué queda para sprints 3–5 |
-|---|---|---|---|---|---|
-| Usuarios cliente | 12% | 8% | 2% | Consultar pedidos anteriores | Recuperar contraseña, perfil |
-| Usuarios admin | 6% | 4% | 0% | — | Alta de más admins |
-| Sucursales | 10% | 5% | 0% extra | Sigue la regla S1 (activa más cercana). Se muestra en el seguimiento | Radio, horario, listado “disponibles para mi ubicación” fino |
-| Catálogo | 12% | 8% | 0% | — | Configuraciones especiales (extras, tamaños) |
-| Carrito | 10% | 10% | 0% | Se reusa al repetir | — |
-| Pedidos | 15% | 5% | 10% | Máquina de estados, cancelar, cambio de estado en admin | — |
-| Geolocalización | 8% | cubierta con direcciones | 0% extra | Lat/lng ya alimentan la sucursal del pedido | Mapa (optativo) |
-| Seguimiento | 8% | 0% | 8% | Sucursal, timeline, ETA | — |
-| Historial | 5% | 0% | 5% | Listado, detalle, repetir | — |
-| Admin extra (promos, stock, params, estados) | 8% | 0% | 0% | Estados de **pedido** se gestionan en el listado de pedidos, no hay ABM genérico | ABM promociones, stock, parámetros, estados generales, alta de admins |
-| Reportes | 6% | 0% | 0% | — | 4 reportes de productos + extras de extensión |
-| **Total base** | **100%** | **40%** | **25%** | | |
-| Extensión 1 o 2 | fuera del mínimo | 0% | 0% | — | A partir de Sprint 3 |
-
-### RF incluidos (10 / 40 = 25%)
+### RF incluidos
 
 | ID | Requerimiento |
 |---|---|
@@ -69,7 +47,7 @@ No es el 25% de pantallas sueltas. Es el 25% que convierte un registro `pending`
 
 **Incluido sin RF extra:** la sucursal asignada en el Sprint 1 (activa más cercana) se **muestra** en seguimiento y en el detalle del historial. Eso arranca la visibilidad de RF-BRN-03, sin abrir todavía el listado de sucursales disponibles por radio.
 
-### Simplificaciones aceptadas (para no inflar el 25%)
+### Simplificaciones
 
 | Tema | En Sprint 2 | Después |
 |---|---|---|
@@ -92,7 +70,7 @@ RF-CLI-03, RF-CLI-04, RF-ADM-03, RF-ADM-05 a RF-ADM-09, RF-BRN-02/03 más allá 
 
 ## 3. Historias de usuario
 
-Estimación en puntos. Total del sprint: **25 pts** (= 25% de un backlog base de 100).
+Estimación en puntos. Total del sprint: **25 pts**.
 
 **DoD de cada historia:** funciona en frontend y backend, usable en viewport mobile, mergeada a `main` antes del 23/09 23:59.
 
@@ -300,3 +278,4 @@ Preguntas a docentes y respuestas:
 | Versión | Fecha | Qué cambió |
 |---|---|---|
 | 1.0 | 07/09/2026 | Versión inicial en la carpeta |
+| 1.1 | 07/09/2026 | Se saca la justificación del 25% del TP |
