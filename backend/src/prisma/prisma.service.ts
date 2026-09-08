@@ -2,19 +2,31 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 function databaseUrl(): string {
-  const url = process.env.DATABASE_URL?.trim();
-  if (!url) {
+  const raw = process.env.DATABASE_URL?.trim();
+  if (!raw) {
     throw new Error(
       'Falta DATABASE_URL. En Vercel: Project Settings → Environment Variables. En Neon, usá la URL pooled con ?sslmode=require',
     );
   }
-  if (url.includes('sslmode=')) {
-    return url;
+
+  try {
+    const parsed = new URL(raw);
+    parsed.searchParams.delete('channel_binding');
+    if (parsed.hostname.includes('neon.tech')) {
+      if (!parsed.searchParams.get('sslmode')) {
+        parsed.searchParams.set('sslmode', 'require');
+      }
+      if (!parsed.searchParams.get('connect_timeout')) {
+        parsed.searchParams.set('connect_timeout', '20');
+      }
+      if (!parsed.searchParams.get('pool_timeout')) {
+        parsed.searchParams.set('pool_timeout', '20');
+      }
+    }
+    return parsed.toString();
+  } catch {
+    return raw;
   }
-  if (url.includes('neon.tech')) {
-    return `${url}${url.includes('?') ? '&' : '?'}sslmode=require`;
-  }
-  return url;
 }
 
 @Injectable()

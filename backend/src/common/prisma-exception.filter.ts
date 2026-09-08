@@ -43,6 +43,14 @@ export class PrismaExceptionFilter implements ExceptionFilter {
           'El esquema de Neon está desactualizado. En /backend corré: npx prisma migrate deploy',
       });
     }
+    if (exception.code === 'P1001' || exception.code === 'P1017') {
+      return response.status(500).json({
+        statusCode: 500,
+        code: exception.code,
+        message:
+          'La API no puede conectar a Neon. En Vercel (proyecto de la API) DATABASE_URL tiene que ser la URL pooled, con sslmode=require y sin channel_binding. No uses localhost.',
+      });
+    }
 
     return response.status(500).json({
       statusCode: 500,
