@@ -1,6 +1,8 @@
 # Ficha Sprint 2
 
 **Proyecto:** Pedidos en casas de comidas rápidas (Mordi)  
+**Versión:** 1.0  
+**Actualizado:** 07/09/2026  
 **Grupo:** 2 · 5 integrantes (Celeste, Carla, Lucas, Nicolas, Rafael)  
 **Sprint:** 2 de 5  
 **Planning:** 10/09/2026 (misma clase que el review del Sprint 1)  
@@ -292,3 +294,9 @@ Ajustes a las HU:
 Dueños Lucas / Carla / Celeste / Nicolas / Rafael:
 Preguntas a docentes y respuestas:
 ```
+
+## Historial
+
+| Versión | Fecha | Qué cambió |
+|---|---|---|
+| 1.0 | 07/09/2026 | Versión inicial en la carpeta |

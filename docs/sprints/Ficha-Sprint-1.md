@@ -1,6 +1,8 @@
 # Ficha Sprint 1
 
 **Proyecto:** Pedidos en casas de comidas rápidas  
+**Versión:** 1.0  
+**Actualizado:** 07/09/2026  
 **Equipo:** 4 integrantes  
 **Sprint:** 1 de 5  
 **Planning:** 20/08/2026  
@@ -283,3 +285,9 @@ Ajustes a las HU:
 Dueños A / B / C / D:
 Preguntas a docentes y respuestas:
 ```
+
+## Historial
+
+| Versión | Fecha | Qué cambió |
+|---|---|---|
+| 1.0 | 07/09/2026 | Versión inicial en la carpeta |

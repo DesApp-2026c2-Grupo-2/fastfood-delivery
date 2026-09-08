@@ -1,0 +1,31 @@
+---
+description: Subir versión y fecha al editar documentos en docs/
+globs: docs/**/*.md
+alwaysApply: false
+---
+
+# Versionado de documentos
+
+Al modificar cualquier Markdown en `docs/` (salvo este README si el cambio es trivial de índice), actualizar el encabezado y el historial **en el mismo cambio**.
+
+Campos:
+
+```
+**Versión:** 1.1
+**Actualizado:** DD/MM/AAAA
+```
+
+Al final del archivo, agregar una fila en `## Historial` (más nueva arriba):
+
+```
+| 1.1 | 07/09/2026 | Qué cambió, en una frase |
+```
+
+Cómo numerar:
+
+- **Minor** (`1.0` → `1.1`): contenido nuevo o corregido.
+- **Major** (`1.0` → `2.0`): reestructura del documento o cambio de IDs / esquema.
+- No tocar versión si solo se corrige un typo de una letra; sí tocar si cambia el sentido.
+- No versionar `docs/interno/Enunciado.txt`, `Cronograma.txt`, `Caracteristicas-de-la-materia.txt` ni los `.docx`.
+
+Ejemplo: si agregás HU-32 en historias, el doc pasa a `1.1` con fecha de hoy y una fila “Alta HU-32 (… )”.

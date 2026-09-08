@@ -1,6 +1,8 @@
 # Diagrama DER
 
 **Proyecto:** Pedidos en casas de comidas rápidas  
+**Versión:** 1.0  
+**Actualizado:** 07/09/2026  
 **Fuente:** `backend/prisma/schema.prisma`  
 **Notación:** Crow’s Foot (modelo lógico)
 
@@ -131,3 +133,9 @@ erDiagram
 - **Product–Category** es N:N. Prisma no declara la tabla intermedia; en PostgreSQL queda `_ProductCategories`.
 - **Checkout de invitado:** `Order.userId` y `Address.userId` son opcionales. El pedido guarda `guestName` y `guestEmail`. El carrito sigue siendo 1:1 con usuario logueado.
 - **OrderItem.unitPrice** congela el precio al confirmar; no se recálcula si después cambia el producto.
+
+## Historial
+
+| Versión | Fecha | Qué cambió |
+|---|---|---|
+| 1.0 | 07/09/2026 | DER inicial según `schema.prisma` (guest checkout, N:N Product–Category) |

@@ -2,7 +2,8 @@
 
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
 **Fuente:** `docs/interno/Enunciado.txt`  
-**Versión:** 1.0 (07/09/2026)  
+**Versión:** 1.0  
+**Actualizado:** 07/09/2026  
 **Estado:** versión de carpeta Sprint 1. Los IDs son estables. El alcance (qué entra en cada sprint) está en `docs/entregables/Alcance-funcional.md`. Las historias que cubren cada RF están en `docs/entregables/Historias-de-usuario.md`.
 
 ## 1. Cómo leer este documento
@@ -260,3 +261,9 @@ Siguen abiertos (no bloquean Sprint 1):
 1. RF-ADM-05 y RF-ADM-06: el ABM del bloque administrativo base ¿exige usar stock y promos en el checkout, o alcanza cargar los datos hasta abrir Extensión 1?
 2. RF-ADM-08 y RF-ADM-09: ¿pantalla de configuración o valores en BD usados por el sistema?
 3. RF-CLI-03: ¿correo real o flujo demostrable (token visible / consola)?
+
+## Historial
+
+| Versión | Fecha | Qué cambió |
+|---|---|---|
+| 1.0 | 07/09/2026 | Versión inicial en la carpeta |

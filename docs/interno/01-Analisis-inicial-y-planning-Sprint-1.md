@@ -1,6 +1,8 @@
 # Análisis inicial y planning del Sprint 1
 
 **Proyecto:** Pedidos en casas de comidas rápidas  
+**Versión:** 1.0  
+**Actualizado:** 07/09/2026  
 **Arquitectura acordada:** frontend y backend en el mismo repo (`/frontend` y `/backend`), deploy separados, comunicación por API REST.  
 **Equipo:** 4 integrantes.  
 **Documento para:** planning conjunto del 20/08 (consultas de requerimientos + arranque del 1er Sprint).  
@@ -571,3 +573,9 @@ Próxima integración (fecha):
 El enunciado es amplio a propósito. El riesgo de un grupo de 4 no es “no saber React”: es **abrir demasiados frentes y no tener un pedido funcionando el 10/09**.
 
 Prioridad absoluta del Sprint 1: **pedido creado de punta a punta**. Todo lo demás se cuelga de ese hilo.
+
+## Historial
+
+| Versión | Fecha | Qué cambió |
+|---|---|---|
+| 1.0 | 07/09/2026 | Análisis y planning del 20/08 |

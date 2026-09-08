@@ -1,7 +1,8 @@
 # Historias de usuario
 
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
-**Versión:** 1.0 (07/09/2026)  
+**Versión:** 1.0  
+**Actualizado:** 07/09/2026  
 **Estado:** núcleo del Sprint 1 especificado; el resto es backlog de producto.  
 **Relacionados:** `Alcance-funcional.md`, `Requerimientos-funcionales.md`, `docs/sprints/Ficha-Sprint-1.md`
 
@@ -287,3 +288,9 @@ Historias listas para estimar en cada planning. No se implementan en Sprint 1.
 - Upload de imágenes como RF propio (el Sprint 1 cubre imagen por URL).
 - Checkout de invitado: ya está como extra de HU-08; no abre una HU nueva del enunciado.
 - Cualquier ítem de Extensión 2.
+
+## Historial
+
+| Versión | Fecha | Qué cambió |
+|---|---|---|
+| 1.0 | 07/09/2026 | Versión inicial en la carpeta |

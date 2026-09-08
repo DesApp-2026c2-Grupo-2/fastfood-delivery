@@ -1,5 +1,8 @@
 # Documentación
 
+**Versión:** 1.0  
+**Actualizado:** 07/09/2026
+
 La carpeta está partida para no mezclar material de trabajo, sprints, carpeta de la materia y docs técnicos.
 
 | Carpeta | Para qué | Quién lo usa |
@@ -45,3 +48,19 @@ Lo que la materia pide en la carpeta, salvo incrementos (en `sprints/`) y el blo
 ## tecnica/
 
 - `Diagrama-DER.md` — modelo lógico (Crow’s Foot), alineado a `backend/prisma/schema.prisma`
+
+## Cómo versionar
+
+Cada Markdown del equipo lleva **Versión** y **Actualizado** arriba, y un **Historial** al final.
+
+- **Minor** (`1.0` → `1.1`): se agrega o corrige contenido (una sección, un RF, una HU, un cambio de modelo).
+- **Major** (`1.0` → `2.0`): se reestructura el documento o cambian IDs / el esquema del doc.
+- No se versionan las fuentes de la materia (`Enunciado.txt`, `Cronograma.txt`, `Caracteristicas-de-la-materia.txt`) ni los `.docx`.
+
+Al editar un doc: subir la versión, poner la fecha de hoy y agregar una fila al historial. Cursor lo hace si el cambio pasa por el agente.
+
+## Historial
+
+| Versión | Fecha | Qué cambió |
+|---|---|---|
+| 1.0 | 07/09/2026 | Organización de `docs/` y convención de versionado |

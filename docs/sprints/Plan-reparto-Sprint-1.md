@@ -1,6 +1,8 @@
 # Plan de reparto — Sprint 1
 
 **Proyecto:** Mordi (pedidos en casas de comidas rápidas)  
+**Versión:** 1.0  
+**Actualizado:** 07/09/2026  
 **Equipo:** Celeste, Carla, Lucas, Nicolas, Rafael  
 **Sprint:** 1 de 5  
 **Review:** 10/09/2026  
@@ -195,3 +197,9 @@ Fecha:
 Celeste / Carla / Lucas / Nicolas / Rafael: frentes OK (sí/no)
 Cambios de dueño:
 ```
+
+## Historial
+
+| Versión | Fecha | Qué cambió |
+|---|---|---|
+| 1.0 | 07/09/2026 | Versión inicial en la carpeta |

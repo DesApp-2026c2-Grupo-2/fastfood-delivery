@@ -2,7 +2,8 @@
 
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
 **Fuente:** `docs/interno/Enunciado.txt`  
-**Versión:** 1.0 (07/09/2026)  
+**Versión:** 1.0  
+**Actualizado:** 07/09/2026  
 **Estado:** versión de carpeta para el Sprint 1 (review 10/09). Se actualiza si cambia una decisión de negocio.  
 **Documentos relacionados:** `Requerimientos-funcionales.md`, `Historias-de-usuario.md`, `docs/sprints/Ficha-Sprint-1.md`
 
@@ -219,3 +220,9 @@ Si hay que recortar, se recorta mapa, notificaciones y Extensión 2. **No se rec
 | Reportes base | Sí | No |
 | Extensión 1 | Sí (compromiso) | No |
 | Extensión 2 | No (plus) | No |
+
+## Historial
+
+| Versión | Fecha | Qué cambió |
+|---|---|---|
+| 1.0 | 07/09/2026 | Versión inicial en la carpeta |
