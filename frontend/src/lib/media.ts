@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
+import { getApiUrl } from './api-url';
+
+const API_URL = getApiUrl();
 const MEDIA_ORIGIN = API_URL.replace(/\/api\/?$/, '');
 
 export function mediaUrl(url: string | undefined): string {

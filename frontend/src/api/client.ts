@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
+import { getApiUrl } from '../lib/api-url';
+
+const API_URL = getApiUrl();
 
 type ApiOptions = RequestInit & { token?: string };
 
