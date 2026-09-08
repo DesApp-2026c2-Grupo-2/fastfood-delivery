@@ -3,7 +3,7 @@
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
 **Versión:** 1.0 (07/09/2026)  
 **Estado:** núcleo del Sprint 1 especificado; el resto es backlog de producto.  
-**Relacionados:** `Alcance-funcional.md`, `Requerimientos-funcionales.md`, `Ficha-Sprint-1.md`
+**Relacionados:** `Alcance-funcional.md`, `Requerimientos-funcionales.md`, `docs/sprints/Ficha-Sprint-1.md`
 
 ---
 
@@ -49,7 +49,7 @@ Convención: UI en español; rutas y API en inglés.
 | E7 | Reportes | Reportes base y extras de Extensión 1 |
 | E8 | Extensión 1 | Stock en checkout y aplicación de promociones |
 
-La Extensión 2 no tiene épica: está fuera de compromiso (`docs/Alcance-funcional.md` §3).
+La Extensión 2 no tiene épica: está fuera de compromiso (`docs/entregables/Alcance-funcional.md` §3).
 
 ---
 

@@ -30,7 +30,7 @@ El Sprint 1 dejó el pedido **creado**. Este sprint lo deja **vivo hasta la entr
 
 ## 2. Por qué es el 25% del TP
 
-El enunciado base tiene **40 RF obligatorios** (`docs/Requerimientos-funcionales.md`). El Sprint 1 tomó **16 RF** (el hilo configurar menú → confirmar pedido). Este sprint toma **10 RF** que forman el **hilo vertical siguiente**: pedido creado → se sigue, se cancela o se entrega → queda en el historial y se puede repetir.
+El enunciado base tiene **40 RF obligatorios** (`docs/entregables/Requerimientos-funcionales.md`). El Sprint 1 tomó **16 RF** (el hilo configurar menú → confirmar pedido). Este sprint toma **10 RF** que forman el **hilo vertical siguiente**: pedido creado → se sigue, se cancela o se entrega → queda en el historial y se puede repetir.
 
 No es el 25% de pantallas sueltas. Es el 25% que convierte un registro `pending` en un proceso de delivery.
 

@@ -1,10 +1,10 @@
 # Alcance funcional
 
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
-**Fuente:** `docs/Enunciado.txt`  
+**Fuente:** `docs/interno/Enunciado.txt`  
 **Versión:** 1.0 (07/09/2026)  
 **Estado:** versión de carpeta para el Sprint 1 (review 10/09). Se actualiza si cambia una decisión de negocio.  
-**Documentos relacionados:** `Requerimientos-funcionales.md`, `Historias-de-usuario.md`, `Ficha-Sprint-1.md`
+**Documentos relacionados:** `Requerimientos-funcionales.md`, `Historias-de-usuario.md`, `docs/sprints/Ficha-Sprint-1.md`
 
 ---
 

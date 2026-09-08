@@ -527,7 +527,7 @@ No son código. Son el checklist de las próximas 48 h.
 - [ ] Ejecutar la agenda de la sección 12.
 - [ ] Hacer las 5 preguntas a docentes.
 - [ ] Congelar: extensión, asignación de sucursal, estados, stack, dueños A–D.
-- [ ] Copiar las decisiones a `docs/02-Supuestos-y-decisiones.md` (aunque sea una tabla).
+- [ ] Copiar las decisiones a `docs/entregables/02-Supuestos-y-decisiones.md` (aunque sea una tabla).
 
 ### Antes del 27/08 (próxima clase con React/BE)
 

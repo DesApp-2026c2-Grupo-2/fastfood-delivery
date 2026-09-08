@@ -27,7 +27,7 @@ Si ese flujo no cierra, el sprint no está cumplido, aunque haya más pantallas 
 
 ## 2. Por qué es el 40% del TP
 
-El enunciado base tiene **40 RF obligatorios** (`docs/Requerimientos-funcionales.md`). Este sprint toma **16 RF** (40%) que forman el **hilo vertical del negocio**: configurar el menú → armar el pedido → registrarlo.
+El enunciado base tiene **40 RF obligatorios** (`docs/entregables/Requerimientos-funcionales.md`). Este sprint toma **16 RF** (40%) que forman el **hilo vertical del negocio**: configurar el menú → armar el pedido → registrarlo.
 
 No es el 40% de pantallas sueltas. Es el 40% que desbloquea el resto (seguimiento, historial, reportes, stock, promos).
 

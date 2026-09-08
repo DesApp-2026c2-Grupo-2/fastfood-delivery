@@ -1,9 +1,9 @@
 # Requerimientos funcionales
 
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
-**Fuente:** `docs/Enunciado.txt`  
+**Fuente:** `docs/interno/Enunciado.txt`  
 **Versión:** 1.0 (07/09/2026)  
-**Estado:** versión de carpeta Sprint 1. Los IDs son estables. El alcance (qué entra en cada sprint) está en `docs/Alcance-funcional.md`. Las historias que cubren cada RF están en `docs/Historias-de-usuario.md`.
+**Estado:** versión de carpeta Sprint 1. Los IDs son estables. El alcance (qué entra en cada sprint) está en `docs/entregables/Alcance-funcional.md`. Las historias que cubren cada RF están en `docs/entregables/Historias-de-usuario.md`.
 
 ## 1. Cómo leer este documento
 
@@ -19,7 +19,7 @@ Un requerimiento funcional (RF) describe **qué debe hacer el sistema**, no cóm
 | Entidad | Nombre canónico en inglés (código, URLs, API). |
 | Fuente | Cita o párrafo del enunciado. |
 
-Convención de lenguaje (igual que el resto de la carpeta): documentación y UI en español; código, tablas y URLs en inglés. Ver glosario en `docs/01-Analisis-inicial-y-planning-Sprint-1.md`.
+Convención de lenguaje (igual que el resto de la carpeta): documentación y UI en español; código, tablas y URLs en inglés. Ver glosario en `docs/interno/01-Analisis-inicial-y-planning-Sprint-1.md`.
 
 Los RF de extensión **no forman parte del mínimo** del enunciado. El grupo toma **Extensión 1**. La Extensión 2 no es compromiso.
 

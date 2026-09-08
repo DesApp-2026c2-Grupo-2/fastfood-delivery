@@ -136,7 +136,7 @@ Arrancar siempre desde `main` actualizado. No volver a scaffoldar el repo.
 
 - `backend` branches + addresses
 - `frontend` `/admin/branches`, `/account/addresses`
-- `docs/` (ficha, este plan, README)
+- `docs/sprints/` (ficha, este plan) y `docs/README.md`
 
 **No toca:** catálogo.
 
