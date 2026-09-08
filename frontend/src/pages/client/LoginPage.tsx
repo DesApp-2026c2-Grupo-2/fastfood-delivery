@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { LoginResponse } from '../../api/types';
 import { isCustomer, saveSession } from '../../auth/session';
+import { mergeGuestCartIntoAccount } from '../../cart/guestCart';
 import { BrandLogo } from '../../components/BrandLogo';
 
 type LocationState = { from?: string };
@@ -35,6 +36,11 @@ export function LoginPage() {
         return;
       }
       saveSession(data.accessToken, data.user, remember);
+      try {
+        await mergeGuestCartIntoAccount(data.accessToken);
+      } catch {
+        /* el pedido se puede seguir armando desde la cuenta */
+      }
       navigate(from && from !== '/login' ? from : '/products', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo iniciar sesión');
@@ -88,6 +94,9 @@ export function LoginPage() {
           </button>
           <p className="auth-switch">
             ¿No tenés cuenta? <Link to="/register">Registrate</Link>
+          </p>
+          <p className="auth-switch">
+            <Link to="/products">Volver al menú sin cuenta</Link>
           </p>
         </form>
       </main>

@@ -2,14 +2,14 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Cart, Product } from '../../api/types';
-import { getToken } from '../../auth/session';
+import { getToken, isCustomer } from '../../auth/session';
+import { addGuestItem } from '../../cart/guestCart';
 import { ProductTags } from '../../components/ProductTags';
 import { mediaUrl } from '../../lib/media';
 import { formatPrice } from '../../lib/money';
 
 export function ProductDetailPage() {
   const { id } = useParams();
-  const token = getToken() ?? '';
   const [product, setProduct] = useState<Product | null>(null);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
@@ -46,15 +46,20 @@ export function ProductDetailPage() {
     setError('');
     setOk('');
     try {
-      await api<Cart>('/cart/items', {
-        method: 'POST',
-        token,
-        body: JSON.stringify({
-          productId: product.id,
-          quantity,
-          notes: notes.trim(),
-        }),
-      });
+      if (isCustomer()) {
+        const token = getToken() ?? '';
+        await api<Cart>('/cart/items', {
+          method: 'POST',
+          token,
+          body: JSON.stringify({
+            productId: product.id,
+            quantity,
+            notes: notes.trim(),
+          }),
+        });
+      } else {
+        addGuestItem(product, quantity, notes.trim());
+      }
       setOk(
         quantity === 1
           ? 'Agregamos 1 unidad al carrito.'

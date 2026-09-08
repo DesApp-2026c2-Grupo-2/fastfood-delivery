@@ -2,22 +2,27 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Cart, CartItem } from '../../api/types';
-import { getToken } from '../../auth/session';
+import { getToken, isCustomer } from '../../auth/session';
+import { hydrateGuestCart, removeGuestItem, updateGuestItem } from '../../cart/guestCart';
 import { mediaUrl } from '../../lib/media';
 import { formatPrice } from '../../lib/money';
 
 export function CartPage() {
-  const token = getToken() ?? '';
   const [cart, setCart] = useState<Cart | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState('');
+  const loggedIn = isCustomer();
 
   async function load() {
     setLoading(true);
     setError('');
     try {
-      setCart(await api<Cart>('/cart', { token }));
+      if (loggedIn) {
+        setCart(await api<Cart>('/cart', { token: getToken() ?? '' }));
+      } else {
+        setCart(await hydrateGuestCart());
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo cargar el carrito');
     } finally {
@@ -28,18 +33,22 @@ export function CartPage() {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loggedIn]);
 
   async function saveItem(item: CartItem, quantity: number, notes: string) {
     setUpdatingId(item.id);
     setError('');
     try {
-      const next = await api<Cart>(`/cart/items/${item.id}`, {
-        method: 'PATCH',
-        token,
-        body: JSON.stringify({ quantity, notes }),
-      });
-      setCart(next);
+      if (loggedIn) {
+        const next = await api<Cart>(`/cart/items/${item.id}`, {
+          method: 'PATCH',
+          token: getToken() ?? '',
+          body: JSON.stringify({ quantity, notes }),
+        });
+        setCart(next);
+      } else {
+        setCart(updateGuestItem(item.productId, quantity, notes));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo actualizar el ítem');
     } finally {
@@ -59,8 +68,15 @@ export function CartPage() {
     setUpdatingId(item.id);
     setError('');
     try {
-      const next = await api<Cart>(`/cart/items/${item.id}`, { method: 'DELETE', token });
-      setCart(next);
+      if (loggedIn) {
+        const next = await api<Cart>(`/cart/items/${item.id}`, {
+          method: 'DELETE',
+          token: getToken() ?? '',
+        });
+        setCart(next);
+      } else {
+        setCart(removeGuestItem(item.productId));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo quitar el ítem');
     } finally {
@@ -75,7 +91,11 @@ export function CartPage() {
       <header className="page-head">
         <div>
           <h1>Tu carrito</h1>
-          <p className="muted">El total es precio × cantidad. El carrito queda guardado en tu cuenta.</p>
+          <p className="muted">
+            {loggedIn
+              ? 'El total es precio × cantidad. El carrito queda guardado en tu cuenta.'
+              : 'Podés armar el pedido sin cuenta. El carrito queda en este dispositivo.'}
+          </p>
         </div>
       </header>
 

@@ -90,8 +90,8 @@ model Branch {
 
 model Address {
   id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   street    String
   latitude  Decimal  @db.Decimal(10, 7)
   longitude Decimal  @db.Decimal(10, 7)
@@ -130,12 +130,14 @@ model CartItem {
 
 model Order {
   id          String      @id @default(cuid())
-  userId      String
+  userId      String?
   branchId    String
   addressId   String
+  guestName   String?
+  guestEmail  String?
   status      OrderStatus @default(pending)
   totalAmount Decimal     @db.Decimal(10, 2)
-  user        User        @relation(fields: [userId], references: [id])
+  user        User?       @relation(fields: [userId], references: [id])
   branch      Branch      @relation(fields: [branchId], references: [id])
   address     Address     @relation(fields: [addressId], references: [id])
   items       OrderItem[]

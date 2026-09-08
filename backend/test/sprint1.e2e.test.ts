@@ -136,4 +136,43 @@ describe('Sprint 1', () => {
     expect(emptyCart.status).toBe(200);
     expect(emptyCart.body.items).toHaveLength(0);
   });
+
+  it('POST /api/orders/guest happy path without login', async () => {
+    const stamp = Date.now();
+    const category = await prisma.category.upsert({
+      where: { slug: 'e2e-test' },
+      update: {},
+      create: { name: 'E2E Test', slug: 'e2e-test' },
+    });
+
+    const product = await prisma.product.create({
+      data: {
+        name: `Burger Guest ${stamp}`,
+        slug: `burger-guest-${stamp}`,
+        description: 'Producto de prueba guest',
+        price: new Prisma.Decimal('2000.00'),
+        available: true,
+        categories: { connect: { id: category.id } },
+        images: { create: { url: 'https://example.com/guest-burger.png', sortOrder: 0 } },
+      },
+    });
+
+    const order = await request(server).post('/api/orders/guest').send({
+      name: 'Invitado E2E',
+      email: `guest.e2e.${stamp}@rapido.local`,
+      street: 'Av. Santa Fe 1200, CABA',
+      latitude: -34.59,
+      longitude: -58.39,
+      items: [{ productId: product.id, quantity: 1, notes: 'sin ketchup' }],
+    });
+
+    expect(order.status).toBe(201);
+    expect(order.body.status).toBe('pending');
+    expect(order.body.totalAmount).toBe(2000);
+    expect(order.body.guestName).toBe('Invitado E2E');
+    expect(order.body.guestEmail).toBe(`guest.e2e.${stamp}@rapido.local`);
+    expect(order.body.address.street).toBe('Av. Santa Fe 1200, CABA');
+    expect(order.body.items).toHaveLength(1);
+    expect(order.body.items[0].notes).toBe('sin ketchup');
+  });
 });

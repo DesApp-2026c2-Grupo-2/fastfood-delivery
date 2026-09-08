@@ -1,14 +1,14 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { clearSession, getUser } from '../auth/session';
+import { clearSession, isCustomer } from '../auth/session';
 import { BrandLogo } from '../components/BrandLogo';
 
 export function ClientLayout() {
   const navigate = useNavigate();
-  const user = getUser();
+  const customer = isCustomer();
 
   function logout() {
     clearSession();
-    navigate('/login');
+    navigate('/products');
   }
 
   return (
@@ -24,11 +24,17 @@ export function ClientLayout() {
         <nav className="nav">
           <NavLink to="/products">Catálogo</NavLink>
           <NavLink to="/cart">Carrito</NavLink>
-          <NavLink to="/account/addresses">Direcciones</NavLink>
-          {user ? <span className="nav-user">{user.name}</span> : null}
-          <button type="button" className="link-button" onClick={logout}>
-            Salir
-          </button>
+          {customer ? <NavLink to="/account/addresses">Direcciones</NavLink> : null}
+          {customer ? (
+            <button type="button" className="link-button" onClick={logout}>
+              Salir
+            </button>
+          ) : (
+            <>
+              <NavLink to="/login">Entrar</NavLink>
+              <NavLink to="/register">Registrarse</NavLink>
+            </>
+          )}
         </nav>
       </header>
       <main className="main">

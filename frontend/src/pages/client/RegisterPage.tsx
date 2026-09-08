@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { LoginResponse } from '../../api/types';
 import { isCustomer, saveSession } from '../../auth/session';
+import { mergeGuestCartIntoAccount } from '../../cart/guestCart';
 import { BrandLogo } from '../../components/BrandLogo';
 
 export function RegisterPage() {
@@ -28,6 +29,11 @@ export function RegisterPage() {
         body: JSON.stringify({ name, email, password }),
       });
       saveSession(data.accessToken, data.user, remember);
+      try {
+        await mergeGuestCartIntoAccount(data.accessToken);
+      } catch {
+        /* el pedido se puede seguir armando desde la cuenta */
+      }
       navigate('/products', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo crear la cuenta');
@@ -92,6 +98,9 @@ export function RegisterPage() {
           </button>
           <p className="auth-switch">
             ¿Ya tenés cuenta? <Link to="/login">Iniciá sesión</Link>
+          </p>
+          <p className="auth-switch">
+            <Link to="/products">Volver al menú sin cuenta</Link>
           </p>
         </form>
       </main>

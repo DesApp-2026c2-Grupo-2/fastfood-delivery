@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { existsSync } from 'fs';
+import { Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { PrismaExceptionFilter } from './common/prisma-exception.filter';
 import { resolveUploadsDir } from './uploads/upload-dir';
@@ -13,6 +14,9 @@ async function bootstrap() {
     app.useStaticAssets(uploadsDir, { prefix: '/uploads/' });
   }
   app.setGlobalPrefix('api');
+  app.getHttpAdapter().get('/', (_req: Request, res: Response) => {
+    res.json({ ok: true, service: 'mordi-api', api: '/api' });
+  });
   const extraOrigins = (
     process.env.FRONTEND_ORIGIN ??
     'http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174'

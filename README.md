@@ -57,11 +57,12 @@ Copy-Item .env.example .env
 
 URLs:
 
-- App cliente: http://localhost:5173/login
+- App cliente: http://localhost:5173/products
+- Login cliente: http://localhost:5173/login
 - Catálogo: http://localhost:5173/products
 - Carrito: http://localhost:5173/cart
 - Checkout: http://localhost:5173/checkout
-- Direcciones: http://localhost:5173/account/addresses
+- Direcciones (con cuenta): http://localhost:5173/account/addresses
 - Admin: http://localhost:5174/admin/login
 - API: http://localhost:3000/api
 
@@ -90,17 +91,19 @@ Login admin → crear categoría → crear producto (disponible y no disponible)
 ### Pedido de punta a punta
 
 1. Admin: categoría, producto disponible y sucursal activa.
-2. Cliente: `/register` o `/login` → dirección con lat/lng.
-3. Catálogo → detalle → agregar al carrito (cantidad + observaciones).
-4. `/cart`: cambiar cantidad, ver total, quitar ítems.
-5. `/checkout`: elegir dirección y confirmar. El pedido queda `pending`, con sucursal más cercana, y el carrito se vacía.
+2. En el cliente, **sin iniciar sesión**: catálogo → detalle → agregar al carrito.
+3. `/cart`: cambiar cantidad, ver total, quitar ítems.
+4. `/checkout`: nombre, email, dirección con lat/lng y confirmar. El pedido queda `pending`, con sucursal más cercana, y el carrito se vacía.
 
-Convención de sesión cliente:
+Si más tarde iniciás sesión o te registrás, el carrito de invitado se pasa a la cuenta.
+
+Las direcciones guardadas (`/account/addresses`) siguen pidiendo login.
+
+Convención de sesión cliente (opcional):
 
 - Token: `customer_token` en `localStorage` o `sessionStorage`
 - Usuario: `customer_user` (JSON con `role: "customer"`)
-
-Sin sesión de cliente no se entra a `/products`, `/cart` ni `/checkout`.
+- Carrito invitado: `guest_cart` en `localStorage`
 
 ## Endpoints
 
@@ -120,6 +123,7 @@ Sin sesión de cliente no se entra a `/products`, `/cart` ni `/checkout`.
 | POST | `/api/cart/items` | JWT cliente |
 | PATCH/DELETE | `/api/cart/items/:id` | JWT cliente |
 | POST | `/api/orders` | JWT cliente |
+| POST | `/api/orders/guest` | No (pedido como invitado) |
 
 Reglas:
 

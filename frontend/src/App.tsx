@@ -14,16 +14,16 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route element={<RequireCustomer />}>
-        <Route element={<ClientLayout />}>
-          <Route path="/" element={<Navigate to="/products" replace />} />
-          <Route path="/products" element={<ProductListPage />} />
-          <Route path="/products/:id" element={<ProductDetailPage />} />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
+      <Route element={<ClientLayout />}>
+        <Route path="/" element={<Navigate to="/products" replace />} />
+        <Route path="/products" element={<ProductListPage />} />
+        <Route path="/products/:id" element={<ProductDetailPage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route element={<RequireCustomer />}>
           <Route path="/account/addresses" element={<AddressesPage />} />
-          <Route path="*" element={<Navigate to="/products" replace />} />
         </Route>
+        <Route path="*" element={<Navigate to="/products" replace />} />
       </Route>
     </Routes>
   );

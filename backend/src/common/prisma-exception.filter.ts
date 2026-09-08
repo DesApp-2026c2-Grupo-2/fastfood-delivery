@@ -27,9 +27,26 @@ export class PrismaExceptionFilter implements ExceptionFilter {
         message: 'Referencia inválida (por ejemplo, categoría inexistente)',
       });
     }
+    if (exception.code === 'P2021') {
+      return response.status(500).json({
+        statusCode: 500,
+        code: exception.code,
+        message:
+          'Faltan tablas en Neon. En /backend corré: npx prisma migrate deploy (con DATABASE_URL de Neon) y después npm run prisma:seed',
+      });
+    }
+    if (exception.code === 'P2022') {
+      return response.status(500).json({
+        statusCode: 500,
+        code: exception.code,
+        message:
+          'El esquema de Neon está desactualizado. En /backend corré: npx prisma migrate deploy',
+      });
+    }
 
     return response.status(500).json({
       statusCode: 500,
+      code: exception.code,
       message: 'Error de base de datos',
     });
   }

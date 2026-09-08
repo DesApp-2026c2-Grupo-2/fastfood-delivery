@@ -94,6 +94,8 @@ export type Order = {
   status: string;
   totalAmount: number;
   createdAt: string;
+  guestName?: string | null;
+  guestEmail?: string | null;
   branch: {
     id: string;
     name: string;

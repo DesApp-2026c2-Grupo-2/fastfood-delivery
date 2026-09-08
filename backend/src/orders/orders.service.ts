@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Branch, Prisma } from '@prisma/client';
 import { AddressesService } from '../addresses/addresses.service';
 import { BranchesService } from '../branches/branches.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateGuestOrderDto } from './dto/create-guest-order.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { haversineDistanceKm } from './geo';
 
@@ -35,6 +36,8 @@ function serialize(order: OrderWithRelations) {
       id: order.address.id,
       street: order.address.street,
     },
+    guestName: order.guestName,
+    guestEmail: order.guestEmail,
     items: order.items.map((item) => ({
       id: item.id,
       productId: item.productId,
@@ -108,6 +111,68 @@ export class OrdersService {
     });
 
     return serialize(order);
+  }
+
+  async createGuest(dto: CreateGuestOrderDto) {
+    const lines = await this.resolveLines(dto.items);
+    const branch = await this.assignNearestBranch(dto.latitude, dto.longitude);
+    const totalAmount = lines.reduce((sum, line) => sum + Number(line.product.price) * line.quantity, 0);
+
+    const order = await this.prisma.$transaction(async (tx) => {
+      const address = await tx.address.create({
+        data: {
+          street: dto.street.trim(),
+          latitude: dto.latitude,
+          longitude: dto.longitude,
+          isDefault: true,
+        },
+      });
+
+      return tx.order.create({
+        data: {
+          guestName: dto.name.trim(),
+          guestEmail: dto.email.trim().toLowerCase(),
+          branchId: branch.id,
+          addressId: address.id,
+          totalAmount,
+          status: 'pending',
+          items: {
+            create: lines.map((line) => ({
+              productId: line.product.id,
+              quantity: line.quantity,
+              unitPrice: line.product.price,
+              notes: line.notes,
+            })),
+          },
+        },
+        include: withRelations,
+      });
+    });
+
+    return serialize(order);
+  }
+
+  private async resolveLines(items: { productId: string; quantity: number; notes?: string }[]) {
+    const uniqueIds = [...new Set(items.map((item) => item.productId))];
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: uniqueIds } },
+    });
+    const byId = new Map(products.map((product) => [product.id, product]));
+
+    return items.map((item) => {
+      const product = byId.get(item.productId);
+      if (!product) {
+        throw new NotFoundException('Producto no encontrado');
+      }
+      if (!product.available) {
+        throw new BadRequestException(`"${product.name}" ya no está disponible`);
+      }
+      return {
+        product,
+        quantity: item.quantity,
+        notes: item.notes?.trim() ?? '',
+      };
+    });
   }
 
   private async assignNearestBranch(latitude: number, longitude: number): Promise<Branch> {
