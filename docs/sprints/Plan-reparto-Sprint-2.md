@@ -1,15 +1,15 @@
 # Plan de reparto — Sprint 2
 
 **Proyecto:** Mordi (pedidos en casas de comidas rápidas)  
-**Versión:** 1.0  
+**Versión:** 1.1  
 **Actualizado:** 17/09/2026  
 **Equipo:** Carla, Nicolas, Lucas, Celeste, Rafael  
 **Sprint:** 2 de 5  
 **Review:** 24/09/2026  
 **Corte:** 23/09/2026 23:59 (solo cuenta lo mergeado a `main`)
 
-Foco del sprint: ciclo de vida del pedido (HU-09 a HU-13) + devolución del Sprint 1 (DEV-01 a DEV-11).  
-Si el tiempo no alcanza: no se recorta el admin de pedidos ni el API. Lo último es DEV-10 (adicionales).
+Foco del sprint: ciclo de vida del pedido (HU-09 a HU-13) **y** cerrar lo pendiente del review del Sprint 1 (DEV-01 a DEV-11).  
+Si el tiempo no alcanza: no se recorta el admin de pedidos ni el API. De la devolución, lo último es DEV-10 (adicionales).
 
 ---
 
@@ -25,29 +25,62 @@ Arrancar desde `main` actualizado. No reabrir el catálogo ABM ni el checkout sa
 
 ---
 
-## 2. Reparto
+## 2. Pendiente del Sprint 1 — quién lo resuelve
 
-| Integrante | Frente | Historias / DEV | Rama |
+Esto es la devolución del review. Cada ítem tiene dueño.
+
+| ID | Qué quedó mal / faltó | Dueño | Cómo se resuelve |
 |---|---|---|---|
-| **Carla** | Admin pedidos | HU-13 (UI), DEV-01 | `feat/carla-admin-pedidos` |
-| **Nicolas** | Backend | HU-13/10/11/12 (API), DEV-09, DEV-10 (API) | `feat/nicolas-orders-api` |
-| **Lucas** | Frontend cliente (chrome + historial) | HU-09, HU-12, DEV-04, DEV-06, DEV-08, DEV-11 | `feat/lucas-orders-cliente` |
-| **Celeste** | Frontend cliente (seguimiento) | HU-10 (UI), DEV-05, DEV-07, DEV-10 (UI) | `feat/celeste-seguimiento` |
-| **Rafael** | Geo, direcciones, cancelar, docs | HU-11 (UI), DEV-02, DEV-03 + carpeta | `feat/rafael-geo-cancelar` |
+| DEV-01 | Admin no es usable en celular; hay que cambiar el menú | **Carla** | Rediseñar nav/layout en `backend/admin` |
+| DEV-02 | Lat/lng se cargan a mano | **Rafael** | Pedir permiso de geolocalización; si niega, seguir a mano |
+| DEV-03 | Diseño de direcciones | **Rafael** | Rearmar `/account/addresses` |
+| DEV-04 | Carrito: elementos muy pegados | **Lucas** | Más aire entre ítems, total y acciones |
+| DEV-05 | Botón volver al menú, pegado al header | **Celeste** | Separarlo del topbar en el detalle de producto |
+| DEV-06 | Al agregar no volvés al menú; el carrito no muestra cantidad | **Lucas** | “Seguir comprando” → `/products`; badge en el header |
+| DEV-07 | Validaciones solo con `required` HTML | **Celeste** | Validar login, registro y checkout en JS, con mensajes |
+| DEV-08 | Salir no cierra la sesión; no se ve el nombre | **Lucas** | “Hola {nombre}”; Salir borra el token |
+| DEV-09 | Asunto del token | **Nicolas** | JWT en `Authorization`, persistencia, 401 → login |
+| DEV-10 | Adicionales de la hamburguesa | **Nicolas** (API) + **Celeste** (UI) | Extras al agregar al carrito |
+| DEV-11 | Menú mobile tiene que ser bottom bar | **Lucas** | Barra inferior: catálogo, carrito, pedidos/cuenta |
+
+Por persona, el pendiente S1 es:
+
+| Integrante | Ítems DEV que cierra |
+|---|---|
+| **Carla** | DEV-01 |
+| **Nicolas** | DEV-09, DEV-10 (API) |
+| **Lucas** | DEV-04, DEV-06, DEV-08, DEV-11 |
+| **Celeste** | DEV-05, DEV-07, DEV-10 (UI) |
+| **Rafael** | DEV-02, DEV-03 |
 
 ---
 
-## 3. Qué hace cada uno
+## 3. Frente nuevo (ciclo de vida)
+
+| Integrante | Frente | Historias | Rama |
+|---|---|---|---|
+| **Carla** | Admin pedidos | HU-13 (UI) | `feat/carla-admin-pedidos` |
+| **Nicolas** | Backend | HU-13/10/11/12 (API) | `feat/nicolas-orders-api` |
+| **Lucas** | Frontend cliente (chrome + historial) | HU-09, HU-12 | `feat/lucas-orders-cliente` |
+| **Celeste** | Frontend cliente (seguimiento) | HU-10 (UI) | `feat/celeste-seguimiento` |
+| **Rafael** | Cancelar + docs | HU-11 (UI) | `feat/rafael-geo-cancelar` |
+
+---
+
+## 4. Qué hace cada uno
 
 ### Carla — Admin pedidos
 
-**Entrega**
+**Pendiente Sprint 1**
+
+- [ ] **DEV-01** — Admin usable en celular; cambiar el menú (no el nav actual)
+
+**Frente nuevo**
 
 - `/admin/orders` y `/admin/orders/:id`
 - Listado con filtro por estado
 - Botón de **siguiente estado válido** y cancelar (`pending` / `confirmed`)
 - Timeline visible en el detalle
-- **DEV-01:** admin usable en celular; el menú actual se cambia (no un hamburger ilegible)
 
 **Toca**
 
@@ -62,7 +95,12 @@ Arrancar desde `main` actualizado. No reabrir el catálogo ABM ni el checkout sa
 
 ### Nicolas — Backend
 
-**Entrega**
+**Pendiente Sprint 1**
+
+- [ ] **DEV-09** — JWT en `Authorization`, persistencia, 401 → login
+- [ ] **DEV-10 (API)** — adicionales de hamburguesa (modelo + payload en carrito/pedido)
+
+**Frente nuevo**
 
 - Tabla `OrderStatusHistory` (al crear el pedido, primer evento `pending`)
 - Transiciones de la ficha (409 si el salto no es válido)
@@ -70,8 +108,6 @@ Arrancar desde `main` actualizado. No reabrir el catálogo ABM ni el checkout sa
 - `POST /api/orders/:id/cancel`, `POST /api/orders/:id/repeat`
 - `GET /api/admin/orders`, `GET /api/admin/orders/:id`, `POST /api/admin/orders/:id/status`
 - Tests: transición ok, transición inválida, cancel ok / no ok
-- **DEV-09:** token (expiración, 401, header `Authorization`)
-- **DEV-10 (API):** adicionales de hamburguesa (modelo + payload en carrito/pedido)
 
 **Toca**
 
@@ -89,14 +125,17 @@ Arrancar desde `main` actualizado. No reabrir el catálogo ABM ni el checkout sa
 
 ### Lucas — Frontend cliente (chrome + historial)
 
-**Entrega**
+**Pendiente Sprint 1**
+
+- [ ] **DEV-04** — carrito con más aire entre ítems
+- [ ] **DEV-06** — al agregar, volver al catálogo (“Seguir comprando”); badge de cantidad en el carrito
+- [ ] **DEV-08** — logueado muestra **Hola {nombre}**; Salir borra el token de verdad
+- [ ] **DEV-11** — bottom bar en mobile (catálogo, carrito, pedidos/cuenta)
+
+**Frente nuevo**
 
 - `/orders` listado (HU-09)
 - Repetir pedido → carrito (HU-12)
-- **DEV-04:** carrito con más aire entre ítems
-- **DEV-06:** al agregar, volver al catálogo (“Seguir comprando”); badge de cantidad en el carrito
-- **DEV-08:** logueado muestra **Hola {nombre}**; Salir borra el token de verdad
-- **DEV-11:** bottom bar en mobile (catálogo, carrito, pedidos/cuenta)
 
 **Toca**
 
@@ -112,12 +151,15 @@ Arrancar desde `main` actualizado. No reabrir el catálogo ABM ni el checkout sa
 
 ### Celeste — Seguimiento cliente
 
-**Entrega**
+**Pendiente Sprint 1**
+
+- [ ] **DEV-05** — botón volver al menú, separado del header
+- [ ] **DEV-07** — validaciones en JS (login, registro, checkout) con mensajes visibles
+- [ ] **DEV-10 (UI)** — extras de hamburguesa en el detalle, usando el API de Nicolas
+
+**Frente nuevo**
 
 - `/orders/:id`: sucursal, estado en español, timeline, ETA (HU-10)
-- **DEV-05:** botón volver al menú, separado del header
-- **DEV-07:** validaciones en JS (login, registro, checkout) con mensajes visibles; no solo `required` HTML
-- **DEV-10 (UI):** extras de hamburguesa en el detalle, usando el API de Nicolas
 
 **Toca**
 
@@ -132,10 +174,13 @@ Arrancar desde `main` actualizado. No reabrir el catálogo ABM ni el checkout sa
 
 ### Rafael — Geo, direcciones, cancelar, docs
 
-**Entrega**
+**Pendiente Sprint 1**
 
-- **DEV-02:** al cargar dirección, pedir permiso de geolocalización; si niega, se puede seguir a mano
-- **DEV-03:** rediseño de `/account/addresses`
+- [ ] **DEV-02** — al cargar dirección, pedir permiso de geolocalización; si niega, se puede seguir a mano
+- [ ] **DEV-03** — rediseño de `/account/addresses`
+
+**Frente nuevo**
+
 - HU-11: cancelar desde `/orders/:id` si el estado es `pending` o `confirmed` (mensaje si el API da 409)
 - Docs: ficha / RF si se cierra un supuesto
 
@@ -151,7 +196,7 @@ Arrancar desde `main` actualizado. No reabrir el catálogo ABM ni el checkout sa
 
 ---
 
-## 4. Cómo no pisarse
+## 5. Cómo no pisarse
 
 1. Cada uno en **su rama**. `main` solo por merge.
 2. UI en **español**. Código, tablas, JSON y URLs en **inglés**.
@@ -169,7 +214,7 @@ git checkout -b feat/<nombre>-<frente>
 
 ---
 
-## 5. Calendario
+## 6. Calendario
 
 | Fecha | Qué |
 |---|---|
@@ -181,7 +226,7 @@ git checkout -b feat/<nombre>-<frente>
 
 ---
 
-## 6. Checklist de arranque
+## 7. Checklist de arranque
 
 - [ ] `main` al día
 - [ ] Cada uno: rama propia

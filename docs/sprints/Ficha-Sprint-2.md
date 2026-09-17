@@ -1,7 +1,7 @@
 # Ficha Sprint 2
 
 **Proyecto:** Pedidos en casas de comidas rápidas (Mordi)  
-**Versión:** 1.3  
+**Versión:** 1.4  
 **Actualizado:** 17/09/2026  
 **Grupo:** 2 · 5 integrantes (Celeste, Carla, Lucas, Nicolas, Rafael)  
 **Sprint:** 2 de 5  
@@ -35,24 +35,24 @@ Pedidos del review. Entran a este sprint (además del ciclo de vida del pedido).
 
 ### App administrativa
 
-| ID | Qué pidieron | Qué hay que hacer |
-|---|---|---|
-| DEV-01 | Responsividad del admin; cambiaría el menú | El backoffice tiene que usarse en celular. El menú actual no alcanza: hay que rediseñarlo (navegación usable en viewport chico). |
+| ID | Qué pidieron | Dueño | Qué hay que hacer |
+|---|---|---|---|
+| DEV-01 | Responsividad del admin; cambiaría el menú | **Carla** | El backoffice tiene que usarse en celular. El menú actual no alcanza: hay que rediseñarlo. |
 
 ### App cliente
 
-| ID | Qué pidieron | Qué hay que hacer |
-|---|---|---|
-| DEV-02 | Latitud y longitud: pedir permiso para obtener los datos | Al cargar una dirección, pedir geolocalización del dispositivo. El usuario puede aceptar o cargar a mano si niega el permiso. |
-| DEV-03 | Mejorar diseño de las direcciones | La pantalla `/account/addresses` se ve mal; rearmar layout y jerarquía visual. |
-| DEV-04 | Estética del carrito: elementos muy pegados | Más aire entre ítems, total y acciones. |
-| DEV-05 | Botón volver al menú, muy pegado al header | Separarlo del topbar; que no se pise con el header. |
-| DEV-06 | Al agregar al carrito, volver al menú (“Seguir comprando”). Conteo en el header | Tras agregar, ir a `/products` (o un CTA claro). El ícono/link del carrito muestra la cantidad de ítems. |
-| DEV-07 | Validaciones de formularios en HTML; pasarlas a JS | Login, registro, confirmar pedido (y el resto de forms del cliente): validar en JavaScript, con mensajes visibles. No alcanzar con `required` del browser. |
-| DEV-08 | Salir no cierra bien la sesión; logueado tiene que verse el nombre | “Salir” borra el token y vuelve a visitante. Si hay sesión: **Hola {nombre}** (no solo cambiar el botón por “Registrarse”). |
-| DEV-09 | Revisar el asunto del token | El JWT tiene que persistir, ir en `Authorization` y, si expira o es inválido, sacar al usuario al login. |
-| DEV-10 | Los adicionales que sean para la hamburguesa | En el producto hamburguesa: extras / adicionales al agregar al carrito (arranca RF-CAT-04, acotado a ese producto). |
-| DEV-11 | El menú mobile que sea bottom bar | En celular, la navegación del cliente es una barra inferior (catálogo, carrito, cuenta/pedidos). |
+| ID | Qué pidieron | Dueño | Qué hay que hacer |
+|---|---|---|---|
+| DEV-02 | Latitud y longitud: pedir permiso para obtener los datos | **Rafael** | Al cargar una dirección, pedir geolocalización del dispositivo. El usuario puede aceptar o cargar a mano si niega el permiso. |
+| DEV-03 | Mejorar diseño de las direcciones | **Rafael** | La pantalla `/account/addresses` se ve mal; rearmar layout y jerarquía visual. |
+| DEV-04 | Estética del carrito: elementos muy pegados | **Lucas** | Más aire entre ítems, total y acciones. |
+| DEV-05 | Botón volver al menú, muy pegado al header | **Celeste** | Separarlo del topbar; que no se pise con el header. |
+| DEV-06 | Al agregar al carrito, volver al menú (“Seguir comprando”). Conteo en el header | **Lucas** | Tras agregar, ir a `/products` (o un CTA claro). El ícono/link del carrito muestra la cantidad de ítems. |
+| DEV-07 | Validaciones de formularios en HTML; pasarlas a JS | **Celeste** | Login, registro, confirmar pedido: validar en JavaScript, con mensajes visibles. No alcanzar con `required` del browser. |
+| DEV-08 | Salir no cierra bien la sesión; logueado tiene que verse el nombre | **Lucas** | “Salir” borra el token y vuelve a visitante. Si hay sesión: **Hola {nombre}**. |
+| DEV-09 | Revisar el asunto del token | **Nicolas** | El JWT tiene que persistir, ir en `Authorization` y, si expira o es inválido, sacar al usuario al login. |
+| DEV-10 | Los adicionales que sean para la hamburguesa | **Nicolas** (API) + **Celeste** (UI) | En el producto hamburguesa: extras / adicionales al agregar al carrito (arranca RF-CAT-04, acotado a ese producto). |
+| DEV-11 | El menú mobile que sea bottom bar | **Lucas** | En celular, la navegación del cliente es una barra inferior (catálogo, carrito, cuenta/pedidos). |
 
 ---
 
@@ -258,15 +258,35 @@ Nombres en inglés (dominio canónico). UI en español.
 
 Núcleo compartido (hoy / mañana): tabla `OrderStatusHistory`, contrato JSON de `GET /orders/:id` (estado + historial + ETA), etiquetas en español. **Nicolas mergea el modelo primero.** Sin eso, las pantallas se pisan.
 
-| Dueño | Frente | Historias / DEV | Tareas concretas |
-|---|---|---|---|
-| **Carla** | Admin pedidos | HU-13 (UI), DEV-01 | `/admin/orders` listado + detalle + siguiente estado / cancelar. Menú y layout del admin usables en celular. No toca el front del cliente |
-| **Nicolas** | Backend | HU-13/10/11/12 (API), DEV-09, DEV-10 (API) | Prisma `OrderStatusHistory`, transiciones, `GET` cliente/admin, `POST` status/cancel/repeat, ETA, tests, JWT/401, extras de hamburguesa en API |
-| **Lucas** | Frontend cliente (chrome + historial) | HU-09, HU-12, DEV-04, DEV-06, DEV-08, DEV-11 | `/orders` listado, repetir al carrito, estética del carrito, conteo + “Seguir comprando”, “Hola {nombre}” + Salir de verdad, bottom bar |
-| **Celeste** | Frontend cliente (seguimiento) | HU-10 (UI), DEV-05, DEV-07, DEV-10 (UI) | `/orders/:id` sucursal + timeline + ETA, botón volver al menú, validaciones JS, adicionales en el detalle de hamburguesa |
-| **Rafael** | Geo, direcciones, cancelar, docs | HU-11 (UI), DEV-02, DEV-03 + carpeta | Permiso de geolocalización, rediseño de direcciones, botón cancelar en el detalle, ficha/RF al día |
+### Pendiente del Sprint 1 (devolución)
 
-Si aprieta el tiempo: no se recorta HU-13 (admin) ni el API de Nicolas. Lo último es **DEV-10**.
+Cada ítem DEV tiene dueño. No queda “para el que pueda”.
+
+| ID | Pendiente del review | Dueño | Cómo se resuelve |
+|---|---|---|---|
+| DEV-01 | Admin no es usable en celular; hay que cambiar el menú | **Carla** | Nuevo nav/layout en `backend/admin` |
+| DEV-02 | Lat/lng a mano; pedir permiso del dispositivo | **Rafael** | Geolocation API al cargar dirección; fallback a mano |
+| DEV-03 | Diseño de direcciones | **Rafael** | Rearmar `/account/addresses` |
+| DEV-04 | Carrito: elementos pegados | **Lucas** | Spacing en `/cart` |
+| DEV-05 | Botón volver al menú, pegado al header | **Celeste** | Separarlo del topbar en detalle de producto |
+| DEV-06 | Al agregar, volver al menú + conteo en el carrito | **Lucas** | CTA “Seguir comprando” → `/products`; badge en el header |
+| DEV-07 | Validaciones solo HTML | **Celeste** | Validar login, registro y checkout en JS |
+| DEV-08 | Salir no cierra sesión; no se ve el nombre | **Lucas** | “Hola {nombre}”; Salir borra el token |
+| DEV-09 | Asunto del token | **Nicolas** | JWT en header, persistencia, 401 → login |
+| DEV-10 | Adicionales de la hamburguesa | **Nicolas** (API) + **Celeste** (UI) | Extras al agregar al carrito |
+| DEV-11 | Menú mobile = bottom bar | **Lucas** | Barra inferior en el cliente |
+
+### Frente nuevo (ciclo de vida del pedido)
+
+| Dueño | Frente | Historias | Tareas concretas |
+|---|---|---|---|
+| **Carla** | Admin pedidos | HU-13 (UI) | `/admin/orders` listado + detalle + siguiente estado / cancelar. No toca el front del cliente |
+| **Nicolas** | Backend | HU-13/10/11/12 (API) | Prisma `OrderStatusHistory`, transiciones, `GET` cliente/admin, `POST` status/cancel/repeat, ETA, tests |
+| **Lucas** | Frontend cliente | HU-09, HU-12 | `/orders` listado, repetir al carrito |
+| **Celeste** | Frontend cliente | HU-10 (UI) | `/orders/:id` sucursal + timeline + ETA |
+| **Rafael** | Cliente + docs | HU-11 (UI) | Botón cancelar en el detalle, ficha/RF al día |
+
+Si aprieta el tiempo: no se recorta HU-13 (admin) ni el API de Nicolas. De la devolución, lo último es **DEV-10**.
 
 Del 17/09 al 23/09: integrar el flujo de la sección 5 y cerrar DEV-01 a DEV-11.
 
@@ -318,3 +338,4 @@ Preguntas a docentes y respuestas:
 | 1.1 | 07/09/2026 | Se saca la justificación del 25% del TP |
 | 1.2 | 17/09/2026 | Entra la devolución del Sprint 1 (DEV-01 a DEV-11) |
 | 1.3 | 17/09/2026 | Reparto: Carla admin, Nicolas backend, Lucas frontend |
+| 1.4 | 17/09/2026 | El pendiente del Sprint 1 queda asignado ítem por ítem en el reparto |
