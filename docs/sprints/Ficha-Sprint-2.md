@@ -1,8 +1,8 @@
 # Ficha Sprint 2
 
 **Proyecto:** Pedidos en casas de comidas rápidas (Mordi)  
-**Versión:** 1.1  
-**Actualizado:** 07/09/2026  
+**Versión:** 1.3  
+**Actualizado:** 17/09/2026  
 **Grupo:** 2 · 5 integrantes (Celeste, Carla, Lucas, Nicolas, Rafael)  
 **Sprint:** 2 de 5  
 **Planning:** 10/09/2026 (misma clase que el review del Sprint 1)  
@@ -21,14 +21,42 @@ Al 24/09 se puede demostrar, en un celular, este flujo de punta a punta **sobre 
 1. Un **administrador** ve los pedidos, avanza el estado (Pendiente → Confirmado → En preparación → Listo → En camino → Entregado) y cada cambio queda con fecha y hora.
 2. Un **cliente** abre ese pedido y ve: sucursal que lo prepara, estado actual, historial de cambios y tiempo estimado de entrega.
 3. El cliente puede **cancelar** si el pedido todavía lo permite, consultar el **historial** de pedidos y **repetir** uno anterior (el detalle vuelve al carrito).
+4. Quedan resueltas las **mejoras de la devolución del Sprint 1** (sección 2).
 
-Si ese ciclo de vida no cierra, el sprint no está cumplido, aunque haya más pantallas a medias.
+Si el ciclo de vida no cierra, el sprint no está cumplido, aunque haya más pantallas a medias.
 
-El Sprint 1 dejó el pedido **creado**. Este sprint lo deja **vivo hasta la entrega**.
+El Sprint 1 dejó el pedido **creado**. Este sprint lo deja **vivo hasta la entrega** y corrige lo que marcaron en el review.
 
 ---
 
-## 2. Alcance
+## 2. Devolución del Sprint 1
+
+Pedidos del review. Entran a este sprint (además del ciclo de vida del pedido).
+
+### App administrativa
+
+| ID | Qué pidieron | Qué hay que hacer |
+|---|---|---|
+| DEV-01 | Responsividad del admin; cambiaría el menú | El backoffice tiene que usarse en celular. El menú actual no alcanza: hay que rediseñarlo (navegación usable en viewport chico). |
+
+### App cliente
+
+| ID | Qué pidieron | Qué hay que hacer |
+|---|---|---|
+| DEV-02 | Latitud y longitud: pedir permiso para obtener los datos | Al cargar una dirección, pedir geolocalización del dispositivo. El usuario puede aceptar o cargar a mano si niega el permiso. |
+| DEV-03 | Mejorar diseño de las direcciones | La pantalla `/account/addresses` se ve mal; rearmar layout y jerarquía visual. |
+| DEV-04 | Estética del carrito: elementos muy pegados | Más aire entre ítems, total y acciones. |
+| DEV-05 | Botón volver al menú, muy pegado al header | Separarlo del topbar; que no se pise con el header. |
+| DEV-06 | Al agregar al carrito, volver al menú (“Seguir comprando”). Conteo en el header | Tras agregar, ir a `/products` (o un CTA claro). El ícono/link del carrito muestra la cantidad de ítems. |
+| DEV-07 | Validaciones de formularios en HTML; pasarlas a JS | Login, registro, confirmar pedido (y el resto de forms del cliente): validar en JavaScript, con mensajes visibles. No alcanzar con `required` del browser. |
+| DEV-08 | Salir no cierra bien la sesión; logueado tiene que verse el nombre | “Salir” borra el token y vuelve a visitante. Si hay sesión: **Hola {nombre}** (no solo cambiar el botón por “Registrarse”). |
+| DEV-09 | Revisar el asunto del token | El JWT tiene que persistir, ir en `Authorization` y, si expira o es inválido, sacar al usuario al login. |
+| DEV-10 | Los adicionales que sean para la hamburguesa | En el producto hamburguesa: extras / adicionales al agregar al carrito (arranca RF-CAT-04, acotado a ese producto). |
+| DEV-11 | El menú mobile que sea bottom bar | En celular, la navegación del cliente es una barra inferior (catálogo, carrito, cuenta/pedidos). |
+
+---
+
+## 3. Alcance
 
 ### RF incluidos
 
@@ -58,17 +86,19 @@ El Sprint 1 dejó el pedido **creado**. Este sprint lo deja **vivo hasta la entr
 | ETA | Fórmula fija: `prep_base + (ítems × k) + traslado`. Constantes en código (minutos) | Parámetros editables (RF-ADM-09) |
 | Historial de estados | Tabla `OrderStatusHistory` (estado, fecha/hora, actor) | Motivo de cancelación rico, notificaciones |
 | Pedido guest (S1) | No entra al historial ni al seguimiento de cuenta. El hilo de demo es **cliente logueado** | Si se mantiene guest, tracking por id/email |
-| Recuperar contraseña | No (S1 lo anotó acá; con 2 semanas gana el ciclo de vida del pedido) | Sprint 3 |
-| Perfil / alta de admins | No | Sprint 3 |
+| Lat/lng | Sprint 1: se cargaban a mano | **DEV-02:** permiso del dispositivo; fallback a mano si niega |
+| Adicionales | No (solo observaciones) | **DEV-10:** extras en hamburguesa. El resto de configs, después |
+| Recuperar contraseña | No | Sprint 3 |
+| Perfil / alta de admins | No (DEV-08 muestra el nombre que ya está en el login) | Editar perfil: Sprint 3 |
 | Mapa | No | Optativo, post medio término |
 
 ### Fuera de alcance explícito
 
-RF-CLI-03, RF-CLI-04, RF-ADM-03, RF-ADM-05 a RF-ADM-09, RF-BRN-02/03 más allá de la regla simple, RF-CAT-04, RF-GEO-03, RF-RPT-*, toda Extensión 1 y 2.
+RF-CLI-03, RF-CLI-04, RF-ADM-03, RF-ADM-05 a RF-ADM-09, RF-BRN-02/03 más allá de la regla simple, RF-CAT-04 salvo adicionales de hamburguesa (DEV-10), RF-GEO-03, RF-RPT-*, toda Extensión 1 y 2.
 
 ---
 
-## 3. Historias de usuario
+## 4. Historias de usuario
 
 Estimación en puntos. Total del sprint: **25 pts**.
 
@@ -183,7 +213,7 @@ Criterios:
 
 ---
 
-## 4. Incremento visible (review 24/09)
+## 5. Incremento visible (review 24/09)
 
 **Demo (5–7 min):**
 
@@ -193,13 +223,14 @@ Criterios:
 4. Admin pasa a **Entregado**. El cliente refresca: estado final, sin ETA a futuro.
 5. Otro pedido: el cliente lo **cancela** desde Pendiente. Aparece en el historial como Cancelado.
 6. Desde un pedido entregado: **Repetir** → el carrito se llena → se puede ir a checkout.
-7. Mostrar que en celular el layout no se rompe.
+7. Mostrar que en celular el layout no se rompe (cliente con bottom bar; admin usable).
+8. Mostrar dos ítems de la devolución: geo con permiso al cargar dirección, y “Hola {nombre}” + conteo del carrito.
 
-**No se demostra:** reportes, mapa, stock, promociones, recuperar password, alta de admins, configuraciones de producto.
+**No se demostra:** reportes, mapa, stock, promociones, recuperar password, alta de admins.
 
 ---
 
-## 5. Páginas y APIs de este sprint
+## 6. Páginas y APIs de este sprint
 
 **Cliente (nuevo):** `/orders`, `/orders/:id`  
 **Admin (nuevo):** `/admin/orders`, `/admin/orders/:id`
@@ -223,26 +254,31 @@ Nombres en inglés (dominio canónico). UI en español.
 
 ---
 
-## 6. Tareas y reparto (5 integrantes)
+## 7. Tareas y reparto (5 integrantes)
 
-Núcleo compartido (entre todos, primeras 24–48 h): tabla `OrderStatusHistory`, contrato JSON de `GET /orders/:id` (estado + historial + ETA), etiquetas en español. Sin eso, las pantallas se pisan.
+Núcleo compartido (hoy / mañana): tabla `OrderStatusHistory`, contrato JSON de `GET /orders/:id` (estado + historial + ETA), etiquetas en español. **Nicolas mergea el modelo primero.** Sin eso, las pantallas se pisan.
 
-| Dueño | Historias | Tareas concretas |
-|---|---|---|
-| **Lucas — Backend pedidos** | HU-13 (API), HU-10 (ETA + GET), HU-11/12 (API) | Prisma `OrderStatusHistory`, transiciones, `GET` cliente/admin, `POST` status/cancel/repeat, tests de máquina de estados |
-| **Carla — Admin pedidos** | HU-13 (UI) | `/admin/orders` listado + detalle + botones de siguiente estado / cancelar. No toca el front del cliente |
-| **Celeste — Seguimiento cliente** | HU-10 (UI) | `/orders/:id`: sucursal, estado, timeline, ETA. Viewport mobile |
-| **Nicolas — Historial y repetir** | HU-09, HU-12 | `/orders` listado, acción repetir, enganche con el carrito que ya existe |
-| **Rafael — Cancelar + docs** | HU-11 (UI cliente) + carpeta | Botón cancelar en el detalle, mensajes de error 409, actualizar ficha/RF si se cierra un supuesto |
+| Dueño | Frente | Historias / DEV | Tareas concretas |
+|---|---|---|---|
+| **Carla** | Admin pedidos | HU-13 (UI), DEV-01 | `/admin/orders` listado + detalle + siguiente estado / cancelar. Menú y layout del admin usables en celular. No toca el front del cliente |
+| **Nicolas** | Backend | HU-13/10/11/12 (API), DEV-09, DEV-10 (API) | Prisma `OrderStatusHistory`, transiciones, `GET` cliente/admin, `POST` status/cancel/repeat, ETA, tests, JWT/401, extras de hamburguesa en API |
+| **Lucas** | Frontend cliente (chrome + historial) | HU-09, HU-12, DEV-04, DEV-06, DEV-08, DEV-11 | `/orders` listado, repetir al carrito, estética del carrito, conteo + “Seguir comprando”, “Hola {nombre}” + Salir de verdad, bottom bar |
+| **Celeste** | Frontend cliente (seguimiento) | HU-10 (UI), DEV-05, DEV-07, DEV-10 (UI) | `/orders/:id` sucursal + timeline + ETA, botón volver al menú, validaciones JS, adicionales en el detalle de hamburguesa |
+| **Rafael** | Geo, direcciones, cancelar, docs | HU-11 (UI), DEV-02, DEV-03 + carpeta | Permiso de geolocalización, rediseño de direcciones, botón cancelar en el detalle, ficha/RF al día |
 
-Integración obligatoria: **17/09** (clase de seguimiento) el flujo de la sección 4 tiene que existir, aunque esté feo. Del 17/09 al 23/09: bugs, auth y demo.
+Si aprieta el tiempo: no se recorta HU-13 (admin) ni el API de Nicolas. Lo último es **DEV-10**.
+
+Del 17/09 al 23/09: integrar el flujo de la sección 5 y cerrar DEV-01 a DEV-11.
+
+Detalle de ramas y “qué no tocar”: `docs/sprints/Plan-reparto-Sprint-2.md`.
 
 ---
 
-## 7. Definición de terminado del sprint
+## 8. Definición de terminado del sprint
 
 - [ ] Las 5 HU cumplen sus criterios.
-- [ ] Flujo de demo de la sección 4 reproducible en local (y en el deploy de Mordi si da el tiempo; no es bloqueante).
+- [ ] Flujo de demo de la sección 5 reproducible en local (y en el deploy de Mordi si da el tiempo; no es bloqueante).
+- [ ] Los ítems DEV-01 a DEV-11 de la devolución están resueltos.
 - [ ] App usable en viewport mobile.
 - [ ] Tests de backend (además de los del Sprint 1): transiciones válidas, transición inválida (409), cancelación permitida y no permitida. Script `npm test` en backend.
 - [ ] Nada de secretos en git (`.env` ignorado).
@@ -250,26 +286,27 @@ Integración obligatoria: **17/09** (clase de seguimiento) el flujo de la secci�
 
 ---
 
-## 8. Riesgos
+## 9. Riesgos
 
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
 | Abrir stock, promos o recuperar password “porque es fácil” | No llega el seguimiento el 23/09 | Recortar esas HU, nunca el timeline ni el cambio de estado |
+| La devolución (DEV-*) se come el ciclo de vida | Demo sin estados ni historial | El hilo HU-09 a HU-13 no se recorta; si aprieta, DEV-10 (adicionales) queda para el final |
 | HU-13 se come el sprint (listado admin + máquina + historial) | Demo sin que el cliente vea cambios | El 17/09 alcanza con pending → confirmed → preparing visible en cliente |
 | ETA se discute demasiado | HU-10 no cierra | Fórmula de esta ficha, sin parámetros editables |
-| 5 personas en `orders` | Conflictos de merge | Contrato JSON el día 1. Lucas mergea el modelo primero. Ramas por HU |
+| 5 personas en `orders` | Conflictos de merge | Contrato JSON el día 1. **Nicolas** mergea el modelo primero. Rama por frente |
 | Pedidos guest del Sprint 1 | Confusión en el historial | Historial = solo `userId` del cliente logueado |
 
 ---
 
-## 9. Acta (completar en la planning del 10/09)
+## 10. Acta (completar en la planning del 10/09)
 
 ```
 Fecha:
 Presentes:
 Ficha aceptada (sí/no):
 Ajustes a las HU:
-Dueños Lucas / Carla / Celeste / Nicolas / Rafael:
+Dueños Carla / Nicolas / Lucas / Celeste / Rafael:
 Preguntas a docentes y respuestas:
 ```
 
@@ -279,3 +316,5 @@ Preguntas a docentes y respuestas:
 |---|---|---|
 | 1.0 | 07/09/2026 | Versión inicial en la carpeta |
 | 1.1 | 07/09/2026 | Se saca la justificación del 25% del TP |
+| 1.2 | 17/09/2026 | Entra la devolución del Sprint 1 (DEV-01 a DEV-11) |
+| 1.3 | 17/09/2026 | Reparto: Carla admin, Nicolas backend, Lucas frontend |

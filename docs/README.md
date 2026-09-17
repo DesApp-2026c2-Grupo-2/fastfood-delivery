@@ -29,6 +29,7 @@ Un archivo por sprint. Las fichas cubren el entregable **Incrementos de los spri
 - `Ficha-Sprint-1.md` / `.docx`
 - `Ficha-Sprint-2.md` / `.docx`
 - `Plan-reparto-Sprint-1.md`
+- `Plan-reparto-Sprint-2.md`
 
 ## entregables/
 
