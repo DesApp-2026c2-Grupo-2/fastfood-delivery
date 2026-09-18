@@ -35,6 +35,7 @@ async function bootstrap() {
       callback(null, localDev || vercelApp || extraOrigins.includes(origin));
     },
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
   app.useGlobalFilters(new PrismaExceptionFilter());
   app.useGlobalPipes(

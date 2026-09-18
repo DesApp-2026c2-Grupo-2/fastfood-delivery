@@ -32,8 +32,63 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await app.close();
+  try {
+    await cleanupE2eLeftovers();
+  } finally {
+    await app.close();
+  }
 });
+
+async function deleteE2eUsers() {
+  const e2eUsers = await prisma.user.findMany({
+    where: { email: { contains: '.e2e.' } },
+    select: { id: true },
+  });
+  const userIds = e2eUsers.map((user) => user.id);
+  if (userIds.length === 0) {
+    return;
+  }
+  await prisma.address.deleteMany({ where: { userId: { in: userIds } } });
+  await prisma.cart.deleteMany({ where: { userId: { in: userIds } } });
+  await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+}
+
+async function cleanupE2eLeftovers() {
+  const products = await prisma.product.findMany({
+    where: {
+      OR: [
+        { slug: { startsWith: 'burger-e2e-' } },
+        { slug: { startsWith: 'burger-guest-' } },
+        { categories: { some: { slug: 'e2e-test' } } },
+      ],
+    },
+    select: { id: true },
+  });
+  const productIds = products.map((product) => product.id);
+
+  if (productIds.length > 0) {
+    const items = await prisma.orderItem.findMany({
+      where: { productId: { in: productIds } },
+      select: { orderId: true },
+    });
+    const orderIds = [...new Set(items.map((item) => item.orderId))];
+
+    if (orderIds.length > 0) {
+      await prisma.orderStatusHistory.deleteMany({ where: { orderId: { in: orderIds } } });
+      await prisma.orderItem.deleteMany({ where: { orderId: { in: orderIds } } });
+      await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
+    }
+
+    await prisma.cartItem.deleteMany({ where: { productId: { in: productIds } } });
+    await prisma.product.deleteMany({ where: { id: { in: productIds } } });
+  }
+
+  await prisma.address.deleteMany({
+    where: { userId: null, orders: { none: {} } },
+  });
+  await prisma.category.deleteMany({ where: { slug: 'e2e-test' } });
+  await deleteE2eUsers();
+}
 
 describe('Sprint 1', () => {
   it('POST /api/auth/login happy path', async () => {

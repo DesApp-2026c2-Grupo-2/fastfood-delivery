@@ -4,6 +4,8 @@ import { AdminBranchesPage } from './pages/admin/AdminBranchesPage';
 import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage';
 import { AdminHomePage } from './pages/admin/AdminHomePage';
 import { AdminLoginPage } from './pages/admin/AdminLoginPage';
+import { AdminOrderDetailPage } from './pages/admin/AdminOrderDetailPage';
+import { AdminOrdersPage } from './pages/admin/AdminOrdersPage';
 import { AdminProductsPage } from './pages/admin/AdminProductsPage';
 
 export default function App() {
@@ -13,6 +15,8 @@ export default function App() {
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<AdminHomePage />} />
+        <Route path="orders" element={<AdminOrdersPage />} />
+        <Route path="orders/:id" element={<AdminOrderDetailPage />} />
         <Route path="categories" element={<AdminCategoriesPage />} />
         <Route path="products" element={<AdminProductsPage />} />
         <Route path="branches" element={<AdminBranchesPage />} />
