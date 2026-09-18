@@ -10,6 +10,7 @@ import upload from './upload.svg?raw';
 import close from './close.svg?raw';
 import check from './check.svg?raw';
 import store from './store.svg?raw';
+import receipt from './receipt.svg?raw';
 
 const icons = {
   eye,
@@ -18,6 +19,7 @@ const icons = {
   tag,
   bag,
   store,
+  receipt,
   logout,
   'chevron-left': chevronLeft,
   'chevron-right': chevronRight,

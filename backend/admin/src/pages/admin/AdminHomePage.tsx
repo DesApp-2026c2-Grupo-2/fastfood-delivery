@@ -70,17 +70,23 @@ export function AdminHomePage() {
       <header className="page-head">
         <div>
           <h1>Cocina Mordi</h1>
-          <p className="muted">Demo del sprint: armar el menú (categorías y productos).</p>
+          <p className="muted">Pedidos en curso, menú y sucursales.</p>
         </div>
       </header>
 
       <ol className="demo-steps">
-        <li>Creá una categoría (ej. Hamburguesas).</li>
-        <li>Creá un producto con precio y una o más fotos.</li>
-        <li>Marcá uno como no disponible y comprobá que no aparece en el catálogo.</li>
+        <li>Abrí Pedidos y avanzá un pedido: Pendiente → Confirmado → En preparación.</li>
+        <li>En celular, usá la barra de abajo para moverte entre secciones.</li>
       </ol>
 
       <div className="admin-home-links">
+        <article className="home-panel">
+          <Link className="card-link" to="/admin/orders">
+            <span>Pedidos</span>
+            <small>Avanzar estados hasta la entrega</small>
+          </Link>
+        </article>
+
         <article className="home-panel">
           <Link className="card-link" to="/admin/categories">
             <span>Categorías</span>
