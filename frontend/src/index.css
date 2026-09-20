@@ -1229,25 +1229,118 @@ h2 {
   }
 }
 
+.addresses-page {
+  gap: 1.25rem;
+}
+
+.address-form {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.address-form h2 {
+  margin: 0;
+}
+
+.address-location {
+  margin: 0;
+  padding: 1rem 1.1rem;
+  border: 2px dashed var(--line);
+  border-radius: 1.1rem;
+  display: grid;
+  gap: 0.85rem;
+  background: var(--accent-soft);
+}
+
+.address-location legend {
+  padding: 0 0.35rem;
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.address-location-actions {
+  display: grid;
+  gap: 0.45rem;
+  justify-items: start;
+}
+
+.address-location-hint {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.address-form-actions {
+  margin-top: 0.25rem;
+}
+
+.address-empty {
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+  padding: 1.5rem 1.25rem;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 1.4rem;
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+
+.address-empty p {
+  margin: 0;
+}
+
 .address-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 1rem;
+  gap: 1.15rem;
 }
 
 .address-card {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.15rem;
   justify-content: space-between;
+  padding: 1.15rem 1.25rem;
+}
+
+.address-card-body {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.address-card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.address-card-title strong {
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.address-coords {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.address-card-actions {
+  flex-wrap: wrap;
+  gap: 0.65rem;
 }
 
 @media (min-width: 640px) {
   .address-card {
     flex-direction: row;
     align-items: center;
+  }
+
+  .address-card-actions {
+    flex-shrink: 0;
+    justify-content: flex-end;
   }
 }
 
