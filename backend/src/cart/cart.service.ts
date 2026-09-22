@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { byName, ExtrasService } from '../extras/extras.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
@@ -10,6 +11,7 @@ const withRelations = {
       product: {
         include: { images: { orderBy: { sortOrder: 'asc' as const }, take: 1 } },
       },
+      extras: { include: { extra: true } },
     },
     orderBy: { createdAt: 'asc' as const },
   },
@@ -20,13 +22,24 @@ type CartWithRelations = Prisma.CartGetPayload<{ include: typeof withRelations }
 function serialize(cart: CartWithRelations) {
   const items = cart.items.map((item) => {
     const unitPrice = Number(item.product.price);
+    const extras = item.extras
+      .map(({ extra }) => ({
+        id: extra.id,
+        name: extra.name,
+        price: Number(extra.price),
+        available: extra.available,
+      }))
+      .sort(byName);
+    const extrasTotal = extras.reduce((sum, extra) => sum + extra.price, 0);
     return {
       id: item.id,
       productId: item.productId,
       quantity: item.quantity,
       notes: item.notes,
       unitPrice,
-      subtotal: unitPrice * item.quantity,
+      extras,
+      extrasTotal,
+      subtotal: (unitPrice + extrasTotal) * item.quantity,
       product: {
         id: item.product.id,
         name: item.product.name,
@@ -46,7 +59,10 @@ function serialize(cart: CartWithRelations) {
 
 @Injectable()
 export class CartService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly extrasService: ExtrasService,
+  ) {}
 
   async getCart(userId: string) {
     const cart = await this.getOrCreateCart(userId);
@@ -55,17 +71,34 @@ export class CartService {
 
   async addItem(userId: string, dto: AddCartItemDto) {
     const product = await this.assertAvailableProduct(dto.productId);
+    const extras = await this.extrasService.resolve(product, dto.extraIds);
     const cart = await this.getOrCreateCart(userId);
 
     const notes = dto.notes ?? '';
+    // La línea es "producto + adicionales elegidos": misma combinación suma cantidad, otra combinación es otra línea.
+    const extrasKey = extras
+      .map((extra) => extra.id)
+      .sort()
+      .join(',');
 
-    await this.prisma.cartItem.upsert({
-      where: { cartId_productId: { cartId: cart.id, productId: product.id } },
-      create: { cartId: cart.id, productId: product.id, quantity: dto.quantity, notes },
-      update: {
-        quantity: { increment: dto.quantity },
-        ...(dto.notes !== undefined ? { notes } : {}),
-      },
+    await this.prisma.$transaction(async (tx) => {
+      const item = await tx.cartItem.upsert({
+        where: { cartId_productId_extrasKey: { cartId: cart.id, productId: product.id, extrasKey } },
+        create: { cartId: cart.id, productId: product.id, extrasKey, quantity: dto.quantity, notes },
+        update: {
+          quantity: { increment: dto.quantity },
+          ...(dto.notes !== undefined ? { notes } : {}),
+        },
+      });
+
+      // Los adicionales de una línea no cambian (`extrasKey` garantiza que son los mismos), por eso
+      // se insertan aparte y sin duplicar: así el upsert sigue siendo atómico ante doble click.
+      if (extras.length > 0) {
+        await tx.cartItemExtra.createMany({
+          data: extras.map((extra) => ({ cartItemId: item.id, extraId: extra.id })),
+          skipDuplicates: true,
+        });
+      }
     });
 
     return this.getCart(userId);
