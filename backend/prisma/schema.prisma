@@ -32,6 +32,7 @@ model User {
   addresses    Address[]
   cart         Cart?
   orders       Order[]
+  statusChanges OrderStatusHistory[]
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }
@@ -159,6 +160,7 @@ model Order {
   branch      Branch      @relation(fields: [branchId], references: [id])
   address     Address     @relation(fields: [addressId], references: [id])
   items       OrderItem[]
+  statusHistory OrderStatusHistory[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -195,4 +197,17 @@ model OrderItemExtra {
 
   @@index([orderItemId])
   @@index([extraId])
+}
+
+model OrderStatusHistory {
+  id              String      @id @default(cuid())
+  orderId         String
+  status          OrderStatus
+  changedAt       DateTime    @default(now())
+  changedByUserId String?
+  order           Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy       User?       @relation(fields: [changedByUserId], references: [id])
+
+  @@index([orderId])
+  @@index([changedByUserId])
 }

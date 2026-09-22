@@ -16,8 +16,9 @@ function readCollapsed() {
 
 const links = [
   { to: '/admin', label: 'Inicio', icon: 'home' as const, end: true },
-  { to: '/admin/categories', label: 'Categorías', icon: 'tag' as const },
+  { to: '/admin/orders', label: 'Pedidos', icon: 'receipt' as const },
   { to: '/admin/products', label: 'Productos', icon: 'bag' as const },
+  { to: '/admin/categories', label: 'Categorías', icon: 'tag' as const },
   { to: '/admin/branches', label: 'Sucursales', icon: 'store' as const },
 ];
 
@@ -30,6 +31,7 @@ export function AdminLayout() {
   }
 
   const user = getUser();
+  const helloName = user?.name?.trim().split(/\s+/)[0] ?? 'admin';
 
   function logout() {
     clearSession();
@@ -107,11 +109,34 @@ export function AdminLayout() {
         </div>
       </aside>
 
+      <header className="admin-mobile-top">
+        <Link className="brand" to="/admin">
+          <BrandLogo size={36} />
+          <span>
+            Mordi
+            <small>admin</small>
+          </span>
+        </Link>
+        <p className="admin-mobile-hello">Hola {helloName}</p>
+        <button type="button" className="link-button" onClick={logout}>
+          Salir
+        </button>
+      </header>
+
       <div className="admin-body">
         <main id="admin-main" className="main">
           <Outlet />
         </main>
       </div>
+
+      <nav className="admin-bottom-nav" aria-label="Administración">
+        {links.map((link) => (
+          <NavLink key={link.to} to={link.to} end={link.end} className="admin-bottom-link">
+            <SvgIcon name={link.icon} className="admin-bottom-icon" />
+            <span>{link.label}</span>
+          </NavLink>
+        ))}
+      </nav>
     </div>
   );
 }

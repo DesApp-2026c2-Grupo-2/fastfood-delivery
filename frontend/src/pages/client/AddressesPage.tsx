@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Address } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
+import { formatCoordinate, requestDevicePosition } from '../../lib/geolocation';
 
 type FormState = {
   id?: string;
@@ -40,6 +41,8 @@ function AddressesContent({ token }: { token: string }) {
   const [ok, setOk] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [locationHint, setLocationHint] = useState('');
 
   async function load() {
     setLoading(true);
@@ -58,10 +61,35 @@ function AddressesContent({ token }: { token: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function fillFromDevice() {
+    setLocating(true);
+    setLocationHint('');
+    setError('');
+    try {
+      const position = await requestDevicePosition();
+      setForm((current) =>
+        current
+          ? {
+              ...current,
+              latitude: formatCoordinate(position.latitude),
+              longitude: formatCoordinate(position.longitude),
+            }
+          : current,
+      );
+      setLocationHint('Ubicación del dispositivo cargada. Podés ajustarla si hace falta.');
+    } catch (err) {
+      setLocationHint(err instanceof Error ? err.message : 'No pudimos obtener tu ubicación; cargala a mano.');
+    } finally {
+      setLocating(false);
+    }
+  }
+
   function startCreate() {
     setForm(emptyForm);
     setError('');
     setOk('');
+    setLocationHint('');
+    void fillFromDevice();
   }
 
   function startEdit(address: Address) {
@@ -74,11 +102,13 @@ function AddressesContent({ token }: { token: string }) {
     });
     setError('');
     setOk('');
+    setLocationHint('');
   }
 
   function cancelForm() {
     setForm(null);
     setError('');
+    setLocationHint('');
   }
 
   async function onSubmit(event: FormEvent) {
@@ -127,6 +157,7 @@ function AddressesContent({ token }: { token: string }) {
         setOk('Dirección guardada.');
       }
       setForm(null);
+      setLocationHint('');
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar');
@@ -148,16 +179,32 @@ function AddressesContent({ token }: { token: string }) {
     }
   }
 
+  async function makeDefault(address: Address) {
+    setError('');
+    setOk('');
+    try {
+      await api(`/me/addresses/${address.id}`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ isDefault: true }),
+      });
+      setOk('Dirección marcada como predeterminada.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo actualizar');
+    }
+  }
+
   return (
-    <section className="stack">
+    <section className="stack addresses-page">
       <header className="page-head">
         <div>
           <h1>Mis direcciones</h1>
-          <p className="muted">Cargá latitud y longitud a mano. Sin mapa en este sprint.</p>
+          <p className="muted">Guardá dónde querés recibir tus pedidos. Podés usar la ubicación del dispositivo o cargarla a mano.</p>
         </div>
         {!form ? (
           <button type="button" onClick={startCreate}>
-            Agregar dirección
+            Nueva dirección
           </button>
         ) : null}
       </header>
@@ -174,10 +221,11 @@ function AddressesContent({ token }: { token: string }) {
       ) : null}
 
       {form ? (
-        <form className="card form" onSubmit={onSubmit}>
+        <form className="card form address-form" onSubmit={onSubmit}>
           <h2>{form.id ? 'Editar dirección' : 'Nueva dirección'}</h2>
+
           <label>
-            Dirección
+            Calle y número
             <input
               value={form.street}
               onChange={(event) => setForm((current) => current && { ...current, street: event.target.value })}
@@ -186,28 +234,42 @@ function AddressesContent({ token }: { token: string }) {
               placeholder="Av. Rivadavia 5000, CABA"
             />
           </label>
-          <div className="row">
-            <label>
-              Latitud
-              <input
-                value={form.latitude}
-                onChange={(event) => setForm((current) => current && { ...current, latitude: event.target.value })}
-                required
-                inputMode="decimal"
-                placeholder="-34.6037"
-              />
-            </label>
-            <label>
-              Longitud
-              <input
-                value={form.longitude}
-                onChange={(event) => setForm((current) => current && { ...current, longitude: event.target.value })}
-                required
-                inputMode="decimal"
-                placeholder="-58.3816"
-              />
-            </label>
-          </div>
+
+          <fieldset className="address-location">
+            <legend>Ubicación</legend>
+            <p className="field-hint">
+              Usamos latitud y longitud para asignar la sucursal más cercana. Sin mapa en este sprint.
+            </p>
+            <div className="row">
+              <label>
+                Latitud
+                <input
+                  value={form.latitude}
+                  onChange={(event) => setForm((current) => current && { ...current, latitude: event.target.value })}
+                  required
+                  inputMode="decimal"
+                  placeholder="-34.6037"
+                />
+              </label>
+              <label>
+                Longitud
+                <input
+                  value={form.longitude}
+                  onChange={(event) => setForm((current) => current && { ...current, longitude: event.target.value })}
+                  required
+                  inputMode="decimal"
+                  placeholder="-58.3816"
+                />
+              </label>
+            </div>
+            <div className="address-location-actions">
+              <button type="button" className="secondary" onClick={() => void fillFromDevice()} disabled={locating}>
+                {locating ? 'Obteniendo…' : 'Usar mi ubicación'}
+              </button>
+              {locationHint ? <p className="muted address-location-hint">{locationHint}</p> : null}
+            </div>
+          </fieldset>
+
           <label className="checkbox">
             <input
               type="checkbox"
@@ -216,11 +278,12 @@ function AddressesContent({ token }: { token: string }) {
             />
             Usar como dirección principal de entrega
           </label>
-          <div className="row">
-            <button type="submit" disabled={saving}>
+
+          <div className="row address-form-actions">
+            <button type="submit" disabled={saving || locating}>
               {saving ? 'Guardando…' : 'Guardar'}
             </button>
-            <button type="button" className="secondary" onClick={cancelForm}>
+            <button type="button" className="secondary" onClick={cancelForm} disabled={saving}>
               Cancelar
             </button>
           </div>
@@ -228,27 +291,40 @@ function AddressesContent({ token }: { token: string }) {
       ) : null}
 
       {loading ? <p className="muted">Cargando…</p> : null}
-      {!loading && addresses.length === 0 ? (
-        <p className="empty">Todavía no tenés direcciones guardadas.</p>
+
+      {!loading && addresses.length === 0 && !form ? (
+        <div className="empty address-empty">
+          <p>Todavía no tenés direcciones guardadas.</p>
+          <button type="button" onClick={startCreate}>
+            Agregar la primera
+          </button>
+        </div>
       ) : null}
 
       {!loading && addresses.length > 0 ? (
         <ul className="address-list">
           {addresses.map((address) => (
             <li key={address.id} className="card address-card">
-              <div>
-                <strong>{address.street}</strong>
-                {address.isDefault ? <span className="badge">Principal</span> : null}
-                <p className="muted">
+              <div className="address-card-body">
+                <div className="address-card-title">
+                  <strong>{address.street}</strong>
+                  {address.isDefault ? <span className="badge">Predeterminada</span> : null}
+                </div>
+                <p className="muted address-coords">
                   {toNumber(address.latitude).toFixed(4)}, {toNumber(address.longitude).toFixed(4)}
                 </p>
               </div>
-              <div className="row">
+              <div className="row address-card-actions">
+                {!address.isDefault ? (
+                  <button type="button" className="secondary" onClick={() => void makeDefault(address)}>
+                    Usar como predeterminada
+                  </button>
+                ) : null}
                 <button type="button" className="secondary" onClick={() => startEdit(address)}>
                   Editar
                 </button>
                 <button type="button" className="danger" onClick={() => void remove(address)}>
-                  Borrar
+                  Eliminar
                 </button>
               </div>
             </li>
