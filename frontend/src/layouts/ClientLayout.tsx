@@ -69,12 +69,17 @@ export function ClientLayout() {
           </NavLink>
           {customer ? (
             <NavLink to="/account/addresses" className="nav-primary">
-              Direcciones
+              Mis direcciones
+            </NavLink>
+          ) : null}
+            {customer ? (
+            <NavLink to="/orders" className="nav-primary">
+              Mis pedidos
             </NavLink>
           ) : null}
           {customer ? (
             <span className="session-info">
-              Hola {user?.name}
+              ¡Hola, {user?.name}!
               <button type="button" className="link-button" onClick={logout}>
                 Salir
               </button>

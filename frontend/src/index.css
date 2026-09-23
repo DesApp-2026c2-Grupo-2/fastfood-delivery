@@ -1429,9 +1429,11 @@ h2 {
 .order-card {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  margin: 1rem;
   gap: 1rem;
   flex-wrap: wrap;
+  padding: 1rem 1.25rem;
 }
 
 .order-card-title {
@@ -1447,6 +1449,14 @@ h2 {
 
 .order-card-actions {
   flex-shrink: 0;
+  justify-content: center;
+}
+
+.order-card-actions .secondary {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem;
+  justify-content: center;
 }
 
 /*Colores para el badge del pedido acorde a su estado */
