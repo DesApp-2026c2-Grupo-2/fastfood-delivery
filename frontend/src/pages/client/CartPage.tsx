@@ -130,7 +130,7 @@ export function CartPage() {
                     </p>
                   </div>
                 </div>
-                <label>
+                <label className="quantity-label">
                   Cantidad
                   <div className="qty">
                     <button
@@ -154,7 +154,7 @@ export function CartPage() {
                     </button>
                   </div>
                 </label>
-                <label>
+                <label className="notes-label">
                   Observaciones
                   <textarea
                     defaultValue={item.notes}

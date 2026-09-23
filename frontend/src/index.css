@@ -1390,16 +1390,35 @@ h2 {
 
 .cart-list {
   list-style: none;
-  margin: 0;
+  margin: 0 auto;
   padding: 0;
   display: grid;
   gap: 1rem;
+  width: min(100%, 800px);
+  box-sizing: border-box;
 }
 
 .cart-item {
   display: grid;
   gap: 0.85rem;
   padding: 1rem;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.cart-item label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.quantity-label {
+  align-items: center;
+}
+
+.notes-label {
+  align-items: flex-start;
 }
 
 .cart-item-main {
@@ -1422,6 +1441,9 @@ h2 {
   display: grid;
   gap: 0.9rem;
   padding: 1.1rem;
+  width: min(100%, 800px);
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .total-row {
