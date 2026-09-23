@@ -21,9 +21,25 @@ export function BottomNav({ count, customer }: BottomNavProps) {
       </NavLink>
       <NavLink to={customer ? '/account/addresses' : '/login'} className="bottom-nav-item">
         <AccountIcon />
-        <span>{customer ? 'Cuenta' : 'Entrar'}</span>
+        <span>{customer ? 'Mis direcciones' : 'Entrar'}</span>
       </NavLink>
+      {customer ? (
+        <NavLink to="/orders" className="bottom-nav-item">
+          <OrdersIcon />
+          <span>Pedidos</span>
+        </NavLink>
+      ) : null}
+
     </nav>
+  );
+}
+
+function OrdersIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M8 9h8M8 13h5" strokeLinecap="round" />
+    </svg>
   );
 }
 

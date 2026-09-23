@@ -6,6 +6,7 @@ import { AddressesPage } from './pages/client/AddressesPage';
 import { CartPage } from './pages/client/CartPage';
 import { CheckoutPage } from './pages/client/CheckoutPage';
 import { LoginPage } from './pages/client/LoginPage';
+import { OrdersPage } from './pages/client/OrdersPage';
 import { ProductDetailPage } from './pages/client/ProductDetailPage';
 import { ProductListPage } from './pages/client/ProductListPage';
 import { RegisterPage } from './pages/client/RegisterPage';
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route element={<RequireCustomer />}>
             <Route path="/account/addresses" element={<AddressesPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/products" replace />} />
         </Route>
