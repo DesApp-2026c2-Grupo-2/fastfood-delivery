@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useCart } from '../../cart/CartContext';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Cart, CartItem } from '../../api/types';
@@ -8,6 +9,7 @@ import { mediaUrl } from '../../lib/media';
 import { formatPrice } from '../../lib/money';
 
 export function CartPage() {
+  const { refresh } = useCart();
   const [cart, setCart] = useState<Cart | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -46,8 +48,10 @@ export function CartPage() {
           body: JSON.stringify({ quantity, notes }),
         });
         setCart(next);
+        void refresh();
       } else {
         setCart(updateGuestItem(item.productId, quantity, notes));
+        void refresh();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo actualizar el ítem');
@@ -74,8 +78,10 @@ export function CartPage() {
           token: getToken() ?? '',
         });
         setCart(next);
+        void refresh();
       } else {
         setCart(removeGuestItem(item.productId));
+        void refresh();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo quitar el ítem');

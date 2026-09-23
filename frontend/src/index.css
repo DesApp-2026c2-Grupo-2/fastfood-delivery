@@ -1485,3 +1485,22 @@ h2 {
 .address-choice {
   align-items: flex-start;
 }
+
+.cart-link {
+  position: relative;
+}
+.cart-badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  background: #ea580c;
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}

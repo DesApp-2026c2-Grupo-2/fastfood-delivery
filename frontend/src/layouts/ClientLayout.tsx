@@ -1,3 +1,4 @@
+import { useCart } from '../cart/CartContext';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { clearSession, isCustomer } from '../auth/session';
 import { BrandLogo } from '../components/BrandLogo';
@@ -5,6 +6,7 @@ import { BrandLogo } from '../components/BrandLogo';
 export function ClientLayout() {
   const navigate = useNavigate();
   const customer = isCustomer();
+  const { count } = useCart();
 
   function logout() {
     clearSession();
@@ -23,7 +25,10 @@ export function ClientLayout() {
         </Link>
         <nav className="nav">
           <NavLink to="/products">Catálogo</NavLink>
-          <NavLink to="/cart">Carrito</NavLink>
+          <NavLink to="/cart" className="cart-link">
+            Carrito
+            {count > 0 ? <span className="cart-badge">{count}</span> : null}
+          </NavLink>
           {customer ? <NavLink to="/account/addresses">Direcciones</NavLink> : null}
           {customer ? (
             <button type="button" className="link-button" onClick={logout}>
