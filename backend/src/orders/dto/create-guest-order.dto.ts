@@ -13,6 +13,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { ExtraIds } from '../../extras/extra-ids.decorator';
 
 export class GuestOrderItemDto {
   @IsString()
@@ -28,6 +29,9 @@ export class GuestOrderItemDto {
   @IsString()
   @MaxLength(300)
   notes?: string;
+
+  @ExtraIds()
+  extraIds?: string[];
 }
 
 export class CreateGuestOrderDto {

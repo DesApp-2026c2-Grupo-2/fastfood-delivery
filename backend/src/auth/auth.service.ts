@@ -7,6 +7,8 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtPayload } from './jwt-payload';
 
+type PublicUser = { id: string; email: string; name: string; role: Role };
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -51,7 +53,15 @@ export class AuthService {
     return this.tokenResponse(user);
   }
 
-  private tokenResponse(user: { id: string; email: string; name: string; role: Role }) {
+  async me(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('Token inválido');
+    }
+    return this.publicUser(user);
+  }
+
+  private tokenResponse(user: PublicUser) {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -60,12 +70,16 @@ export class AuthService {
 
     return {
       accessToken: this.jwt.sign(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
+      user: this.publicUser(user),
+    };
+  }
+
+  private publicUser(user: PublicUser) {
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
     };
   }
 }
