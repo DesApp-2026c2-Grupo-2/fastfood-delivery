@@ -77,7 +77,11 @@ export function ProductDetailPage() {
     return (
       <section>
         <p className="error">{error}</p>
-        <Link to="/products">← volvamos al menú</Link>
+        <div className="detail-back-action">
+          <Link to="/products" className="back-link">
+            ← volvamos al menú
+          </Link>
+        </div>
       </section>
     );
   }
@@ -91,7 +95,12 @@ export function ProductDetailPage() {
 
   return (
     <article className="detail">
-      <Link to="/products">← volvamos al menú</Link>
+      <div className="detail-back-action">
+        <Link to="/products" className="back-link">
+          ← volvamos al menú
+        </Link>
+      </div>
+
       {images.length ? (
         <div className={images.length > 1 ? 'detail-gallery' : undefined}>
           {images.map((image) => (
