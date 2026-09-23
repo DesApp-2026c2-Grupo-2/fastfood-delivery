@@ -111,30 +111,66 @@ Convención de sesión cliente (opcional):
 - Usuario: `customer_user` (JSON con `role: "customer"`)
 - Carrito invitado: `guest_cart` en `localStorage`
 
+Sesión y token (API):
+
+- El JWT viaja en `Authorization: Bearer <token>` y dura lo que diga `JWT_EXPIRES_IN` (7 días por defecto).
+- Un pedido protegido responde **401** si el token falta (`Token requerido`), venció (`La sesión expiró`) o es inválido (`Token inválido`, también cuando el usuario ya no existe).
+- En cada pedido protegido el API confirma que el usuario existe y toma su rol de la base, no del token.
+
 ## Endpoints
 
 | Método | Ruta | Auth |
 |---|---|---|
 | POST | `/api/auth/register` | No (crea cliente y devuelve JWT) |
 | POST | `/api/auth/login` | No |
+| GET | `/api/auth/me` | JWT (cliente o admin). Devuelve `{ id, email, name, role }`; 401 si el token venció, es inválido o el usuario ya no existe |
 | GET | `/api/categories` | No |
 | GET | `/api/products` | No (`?categoryId=` opcional; solo `available=true`) |
-| GET | `/api/products/:id` | No (404 si no está disponible) |
+| GET | `/api/products/:id` | No (404 si no está disponible). Incluye `extras`: los adicionales que se pueden elegir (`[]` si el producto no admite) |
 | CRUD | `/api/admin/categories` | JWT admin |
 | CRUD | `/api/admin/products` | JWT admin |
 | CRUD | `/api/admin/branches` | JWT admin |
 | GET/POST | `/api/me/addresses` | JWT cliente |
 | PATCH/DELETE | `/api/me/addresses/:id` | JWT cliente |
 | GET | `/api/cart` | JWT cliente |
-| POST | `/api/cart/items` | JWT cliente |
+| POST | `/api/cart/items` | JWT cliente (acepta `extraIds`) |
 | PATCH/DELETE | `/api/cart/items/:id` | JWT cliente |
 | POST | `/api/orders` | JWT cliente |
-| POST | `/api/orders/guest` | No (pedido como invitado) |
+| POST | `/api/orders/guest` | No (pedido como invitado; cada ítem acepta `extraIds`) |
 
 Reglas:
 
 - No se puede borrar una categoría que tenga productos (409).
 - Las sucursales inactivas no se asignan a pedidos nuevos.
 - Cada cliente solo ve y edita sus propias direcciones.
-- El total del carrito es `suma(precio × cantidad)`.
+- El total del carrito es `suma((precio + adicionales) × cantidad)`.
 - Al confirmar un pedido se asigna la sucursal **activa más cercana** a la dirección. Si no hay ninguna activa, no se crea el pedido.
+
+### Adicionales de hamburguesa
+
+Un adicional es un producto de la categoría **Adicional** (Bacon, Cheddar…) y se ofrece en los productos de la categoría **Hamburguesas**. No hay que configurar nada en el admin: se identifican por el slug de la categoría (`adicional`, `hamburguesas`), que no conviene cambiar. Cada adicional suma su precio como recargo.
+
+- `GET /api/products/:id` devuelve `extras` con los adicionales disponibles: `[{ "id", "name", "price" }]`, ordenados por nombre (`[]` si el producto no admite).
+- `POST /api/cart/items` y cada ítem de `POST /api/orders/guest` aceptan `extraIds` (hasta 10, sin repetir). Sin `extraIds` todo sigue igual que antes.
+- La línea del carrito es **producto + adicionales**: la misma hamburguesa con los mismos adicionales suma cantidad; con otros adicionales, o sin ninguno, es otra línea. Los adicionales de una línea no se editan: se quita la línea y se agrega de nuevo.
+- `unitPrice` es el precio base del producto. `extras` son los adicionales de la línea, `extrasTotal` su recargo por unidad y `subtotal = (unitPrice + extrasTotal) × quantity`. Lo mismo en los ítems del pedido.
+- Al confirmar se congelan nombre y precio de cada adicional (`OrderItemExtra`), igual que `unitPrice`. Si un adicional del carrito dejó de estar disponible, no se confirma (400).
+- 400 si el producto no admite adicionales, o si alguno no existe, no es un adicional o no está disponible.
+
+```jsonc
+// POST /api/cart/items
+{ "productId": "…", "quantity": 2, "notes": "sin cebolla", "extraIds": ["<id de Bacon>", "<id de Cheddar>"] }
+
+// ítem del carrito en la respuesta (en el pedido, extras no trae "available")
+{
+  "id": "…", "productId": "…", "quantity": 2, "notes": "sin cebolla",
+  "unitPrice": 20000,
+  "extras": [
+    { "id": "…", "name": "Bacon", "price": 2000, "available": true },
+    { "id": "…", "name": "Cheddar", "price": 2000, "available": true }
+  ],
+  "extrasTotal": 4000,
+  "subtotal": 48000,
+  "product": { "id": "…", "name": "Hamburguesa doble", "available": true, "imageUrl": "…" }
+}
+```

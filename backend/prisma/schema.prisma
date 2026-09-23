@@ -47,18 +47,21 @@ model Category {
 }
 
 model Product {
-  id          String         @id @default(cuid())
-  name        String
-  slug        String         @unique
-  description String
-  price       Decimal        @db.Decimal(10, 2)
-  available   Boolean        @default(true)
-  images      ProductImage[]
-  cartItems   CartItem[]
-  orderItems  OrderItem[]
-  categories  Category[]     @relation("ProductCategories")
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id              String           @id @default(cuid())
+  name            String
+  slug            String           @unique
+  description     String
+  price           Decimal          @db.Decimal(10, 2)
+  available       Boolean          @default(true)
+  images          ProductImage[]
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
+  categories      Category[]       @relation("ProductCategories")
+  // Cuando el producto se usa como adicional de otro (categoría "Adicional").
+  cartItemExtras  CartItemExtra[]
+  orderItemExtras OrderItemExtra[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@index([available])
 }
@@ -114,19 +117,34 @@ model Cart {
 }
 
 model CartItem {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   cartId    String
   productId String
   quantity  Int
-  notes     String   @default("")
-  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  notes     String          @default("")
+  // Ids de los adicionales elegidos, ordenados y separados por coma ("" si no eligió ninguno).
+  // Junto con carrito y producto define la línea: la misma hamburguesa con otros adicionales es otra línea.
+  extrasKey String          @default("")
+  cart      Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product         @relation(fields: [productId], references: [id])
+  extras    CartItemExtra[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
 
-  @@unique([cartId, productId])
+  @@unique([cartId, productId, extrasKey])
   @@index([cartId])
   @@index([productId])
+}
+
+// Adicional elegido en una línea del carrito. El adicional es un producto de la categoría "Adicional".
+model CartItemExtra {
+  cartItemId String
+  extraId    String
+  cartItem   CartItem @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+  extra      Product  @relation(fields: [extraId], references: [id], onDelete: Cascade)
+
+  @@id([cartItemId, extraId])
+  @@index([extraId])
 }
 
 model Order {
@@ -153,17 +171,32 @@ model Order {
 }
 
 model OrderItem {
-  id        String  @id @default(cuid())
+  id        String           @id @default(cuid())
   orderId   String
   productId String
   quantity  Int
-  unitPrice Decimal @db.Decimal(10, 2)
-  notes     String  @default("")
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product   Product @relation(fields: [productId], references: [id])
+  unitPrice Decimal          @db.Decimal(10, 2)
+  notes     String           @default("")
+  order     Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product          @relation(fields: [productId], references: [id])
+  extras    OrderItemExtra[]
 
   @@index([orderId])
   @@index([productId])
+}
+
+// Adicional de una línea del pedido. Nombre y precio se congelan al confirmar, como OrderItem.unitPrice.
+model OrderItemExtra {
+  id          String    @id @default(cuid())
+  orderItemId String
+  extraId     String
+  name        String
+  price       Decimal   @db.Decimal(10, 2)
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  extra       Product   @relation(fields: [extraId], references: [id])
+
+  @@index([orderItemId])
+  @@index([extraId])
 }
 
 model OrderStatusHistory {

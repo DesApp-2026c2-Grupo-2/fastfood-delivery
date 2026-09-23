@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { ExtraIds } from '../../extras/extra-ids.decorator';
 
 const trimNotes = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -19,4 +20,7 @@ export class AddCartItemDto {
   @IsString()
   @MaxLength(300)
   notes?: string;
+
+  @ExtraIds()
+  extraIds?: string[];
 }

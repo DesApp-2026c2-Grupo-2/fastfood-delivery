@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { Prisma } from '@prisma/client';
 import { slugify } from '../categories/slug';
 import { CategoriesService } from '../categories/categories.service';
+import { ExtrasService } from '../extras/extras.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -49,6 +50,7 @@ export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly categoriesService: CategoriesService,
+    private readonly extrasService: ExtrasService,
   ) {}
 
   async findPublic(categoryId?: string) {
@@ -71,7 +73,7 @@ export class ProductsService {
     if (!product) {
       throw new NotFoundException('Producto no encontrado');
     }
-    return serialize(product);
+    return { ...serialize(product), extras: await this.extrasService.listFor(product.id) };
   }
 
   async findAllAdmin(categoryId?: string) {
