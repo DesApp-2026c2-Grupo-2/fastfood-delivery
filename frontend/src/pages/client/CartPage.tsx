@@ -130,7 +130,7 @@ export function CartPage() {
                     </p>
                   </div>
                 </div>
-                <label className="quantity-label">
+                <div className="quantity-label">
                   Cantidad
                   <div className="qty">
                     <button
@@ -153,7 +153,7 @@ export function CartPage() {
                       +
                     </button>
                   </div>
-                </label>
+                </div>
                 <label className="notes-label">
                   Observaciones
                   <textarea
