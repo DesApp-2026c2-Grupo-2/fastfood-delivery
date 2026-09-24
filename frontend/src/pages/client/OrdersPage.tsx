@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
-import type { Order } from '../../api/types';
+import type { OrderSummary, RepeatOrderResult } from '../../api/types';
+import { useCart } from '../../cart/CartContext';
 import { getToken, isCustomer } from '../../auth/session';
 import { formatPrice } from '../../lib/money';
 
@@ -9,6 +10,7 @@ const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente',
   confirmed: 'Confirmado',
   preparing: 'En preparación',
+  ready: 'Listo para entregar',
   on_the_way: 'En camino',
   delivered: 'Entregado',
   cancelled: 'Cancelado',
@@ -28,33 +30,6 @@ function formatDate(iso: string): string {
   });
 }
 
-// TODO: mocks temporales mientras Nicolas termina GET /api/orders — reemplazar por fetch real
-const MOCK_ORDERS: Order[] = [
-  {
-    id: 'mock-1',
-    status: 'delivered',
-    totalAmount: 8200,
-    createdAt: '2026-09-18T20:14:00.000Z',
-    branch: { id: 'b1', name: 'Mordi Caballito', address: 'Av. Rivadavia 5200' },
-    address: { id: 'a1', street: 'Av. Rivadavia 5000' },
-    items: [
-      { id: 'i1', productId: 'p1', quantity: 2, notes: '', unitPrice: 3200, subtotal: 6400, product: { id: 'p1', name: 'Mordi Clásica', imageUrl: '' } },
-      { id: 'i2', productId: 'p2', quantity: 1, notes: 'sin cebolla', unitPrice: 1800, subtotal: 1800, product: { id: 'p2', name: 'Papas fritas', imageUrl: '' } },
-    ],
-  },
-  {
-    id: 'mock-2',
-    status: 'pending',
-    totalAmount: 3200,
-    createdAt: '2026-09-22T13:40:00.000Z',
-    branch: { id: 'b2', name: 'Mordi Palermo', address: 'Av. Santa Fe 3400' },
-    address: { id: 'a1', street: 'Av. Rivadavia 5000' },
-    items: [
-      { id: 'i3', productId: 'p1', quantity: 1, notes: '', unitPrice: 3200, subtotal: 3200, product: { id: 'p1', name: 'Mordi Clásica', imageUrl: '' } },
-    ],
-  },
-];
-
 export function OrdersPage() {
   const token = getToken();
 
@@ -66,7 +41,9 @@ export function OrdersPage() {
 }
 
 function OrdersContent({ token }: { token: string }) {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const navigate = useNavigate();
+  const { refresh } = useCart();
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [repeatingId, setRepeatingId] = useState('');
@@ -75,10 +52,7 @@ function OrdersContent({ token }: { token: string }) {
     setLoading(true);
     setError('');
     try {
-      // TODO: reemplazar por `await api<Order[]>('/orders', { token })` cuando esté el endpoint
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      setOrders(MOCK_ORDERS);
-      void token;
+      setOrders(await api<OrderSummary[]>('/orders', { token }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar los pedidos');
     } finally {
@@ -91,14 +65,19 @@ function OrdersContent({ token }: { token: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function repeatOrder(order: Order) {
+  async function repeatOrder(order: OrderSummary) {
     setRepeatingId(order.id);
     setError('');
     try {
-      // TODO: reemplazar por `await api(`/orders/${order.id}/repeat`, { method: 'POST', token })`
-      // y luego `navigate('/cart')` cuando esté el endpoint
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      setError('Repetir pedido todavía no está disponible (falta el endpoint).');
+      const result = await api<RepeatOrderResult>(`/orders/${order.id}/repeat`, {
+        method: 'POST',
+        token,
+      });
+      await refresh();
+      const notice = result.skipped.length > 0 ? result.skipped.map((s) => s.message).join(' ') : undefined;
+      navigate('/cart', { state: notice ? { notice } : undefined });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo repetir el pedido');
     } finally {
       setRepeatingId('');
     }
@@ -140,9 +119,6 @@ function OrdersContent({ token }: { token: string }) {
                 <p className="order-card-total">{formatPrice(order.totalAmount)}</p>
               </div>
               <div className="row order-card-actions">
-                <Link className="secondary" to={`/orders/${order.id}`}>
-                  Ver detalle
-                </Link>
                 <button
                   type="button"
                   disabled={repeatingId === order.id}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useCart } from '../../cart/CartContext';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Cart, CartItem } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
@@ -10,6 +10,8 @@ import { formatPrice } from '../../lib/money';
 
 export function CartPage() {
   const { refresh } = useCart();
+  const location = useLocation();
+  const notice = (location.state as { notice?: string } | null)?.notice;
   const [cart, setCart] = useState<Cart | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -108,6 +110,11 @@ export function CartPage() {
       {error ? (
         <p className="error" role="alert">
           {error}
+        </p>
+      ) : null}
+      {notice ? (
+        <p className="warning" role="status">
+          {notice}
         </p>
       ) : null}
       {loading ? <p className="muted">Cargando…</p> : null}
