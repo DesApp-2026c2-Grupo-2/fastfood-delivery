@@ -1490,6 +1490,16 @@ h2 {
   color: #991b1b;
 }
 
+.warning {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  max-width: 500px;
+  text-align: center;
+}
+
 @media (min-width: 800px) {
   .admin-home-links {
     grid-template-columns: 1fr 1fr;
