@@ -21,6 +21,8 @@ export function OrderDetailPage() {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -46,6 +48,23 @@ export function OrderDetailPage() {
     };
   }, [id, token]);
 
+  async function handleCancel() {
+    if (!id) return;
+    setCancelling(true);
+    setCancelError('');
+    try {
+      const updated = await api<OrderDetail>(`/orders/${id}/cancel`, {
+        method: 'POST',
+        token,
+      });
+      setOrder(updated);
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : 'No se pudo cancelar el pedido');
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   if (loading) return <p className="muted">Buscando tu pedido…</p>;
 
   if (error || !order) {
@@ -60,7 +79,8 @@ export function OrderDetailPage() {
   }
 
   const isTerminal = order.status === 'delivered' || order.status === 'cancelled';
-  const canCancel = order.status === 'pending' || order.status === 'confirmed';
+  const showCancel =
+    order.canCancel ?? (order.status === 'pending' || order.status === 'confirmed');
 
   return (
     <section className="stack">
@@ -143,12 +163,23 @@ export function OrderDetailPage() {
         </p>
       </div>
 
-      {/* Espacio reservado para HU-11 */}
-      <div id="order-actions">
-        {canCancel ? (
-          <div className="cancel-placeholder">
-            {/* Rafael montará acá la cancelación */}
-          </div>
+      <div id="order-actions" className="order-actions">
+        {showCancel ? (
+          <>
+            <button
+              type="button"
+              className="danger"
+              disabled={cancelling}
+              onClick={() => void handleCancel()}
+            >
+              {cancelling ? 'Cancelando…' : 'Cancelar pedido'}
+            </button>
+            {cancelError ? (
+              <p className="error" role="alert">
+                {cancelError}
+              </p>
+            ) : null}
+          </>
         ) : null}
       </div>
     </section>
