@@ -79,7 +79,12 @@ export function ClientLayout() {
           ) : null}
           {customer ? (
             <span className="session-info">
-              <span className="session-greeting">Hola {user?.name}</span>
+              <span className="session-greeting">
+                <span className="session-avatar" data-name={user?.name} aria-hidden="true">
+                  {user?.name?.charAt(0).toUpperCase()}
+                </span>
+                <span className="session-name-full">{user?.name}</span>
+              </span>
               <button type="button" className="link-button session-logout" onClick={logout}>
                 Salir
               </button>
