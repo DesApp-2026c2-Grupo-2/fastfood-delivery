@@ -107,3 +107,25 @@ export type Order = {
   };
   items: OrderItem[];
 };
+
+// Extensiones para seguimiento de pedidos (HU-10)
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'preparing'
+  | 'ready'
+  | 'on_the_way'
+  | 'delivered'
+  | 'cancelled';
+
+export interface OrderHistoryItem {
+  id: string;
+  status: OrderStatus;
+  changedAt: string;
+  changedByName?: string;
+}
+
+export type OrderDetail = Order & {
+  history?: OrderHistoryItem[];
+  etaMinutes?: number | null;
+};

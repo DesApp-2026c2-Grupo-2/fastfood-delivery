@@ -203,12 +203,15 @@ export function CheckoutPage() {
             <strong>Fecha:</strong> {formatDateTime(order.createdAt)}
           </p>
           <ul className="order-items">
-            {order.items.map((item) => (
-              <li key={item.id}>
-                {item.quantity} × {item.product.name} — {formatPrice(item.subtotal)}
-                {item.notes ? <small className="muted"> ({item.notes})</small> : null}
-              </li>
-            ))}
+            {order.items.map((item) => {
+              const itemTotal = item.subtotal ?? item.quantity * item.unitPrice;
+              return (
+                <li key={item.id}>
+                  {item.quantity} × {item.product.name} — {formatPrice(itemTotal)}
+                  {item.notes ? <small className="muted"> ({item.notes})</small> : null}
+                </li>
+              );
+            })}
           </ul>
           <p className="total-row">
             <span>Importe</span>
