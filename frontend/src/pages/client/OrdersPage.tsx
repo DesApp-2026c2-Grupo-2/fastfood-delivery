@@ -119,6 +119,9 @@ function OrdersContent({ token }: { token: string }) {
                 <p className="order-card-total">{formatPrice(order.totalAmount)}</p>
               </div>
               <div className="row order-card-actions">
+                <Link className="secondary" to={`/orders/${order.id}`}>
+                  Ver detalle
+                </Link>
                 <button
                   type="button"
                   disabled={repeatingId === order.id}
