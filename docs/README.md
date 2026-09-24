@@ -1,7 +1,7 @@
 # Documentación
 
-**Versión:** 1.0  
-**Actualizado:** 07/09/2026
+**Versión:** 1.1  
+**Actualizado:** 24/09/2026
 
 La carpeta está partida para no mezclar material de trabajo, sprints, carpeta de la materia y docs técnicos.
 
@@ -28,6 +28,7 @@ Un archivo por sprint. Las fichas cubren el entregable **Incrementos de los spri
 
 - `Ficha-Sprint-1.md` / `.docx`
 - `Ficha-Sprint-2.md` / `.docx`
+- `Ficha-Sprint-3.md`
 - `Plan-reparto-Sprint-1.md`
 - `Plan-reparto-Sprint-2.md`
 
@@ -64,4 +65,5 @@ Al editar un doc: subir la versión, poner la fecha de hoy y agregar una fila al
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.1 | 24/09/2026 | Índice: entra `Ficha-Sprint-3.md` |
 | 1.0 | 07/09/2026 | Organización de `docs/` y convención de versionado |

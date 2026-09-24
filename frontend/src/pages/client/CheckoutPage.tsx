@@ -7,6 +7,14 @@ import { getToken, isCustomer } from '../../auth/session';
 import { clearGuestCart, getGuestCart, hydrateGuestCart } from '../../cart/guestCart';
 import { formatDateTime, formatPrice } from '../../lib/money';
 
+type GuestFormErrors = {
+  name?: string;
+  email?: string;
+  street?: string;
+  latitude?: string;
+  longitude?: string;
+};
+
 export function CheckoutPage() {
   const loggedIn = isCustomer();
   const token = getToken() ?? '';
@@ -21,6 +29,7 @@ export function CheckoutPage() {
   const [longitude, setLongitude] = useState('');
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState('');
+  const [guestErrors, setGuestErrors] = useState<GuestFormErrors>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -80,34 +89,65 @@ export function CheckoutPage() {
     }
   }
 
+  function validateGuest(): boolean {
+    const nextErrors: GuestFormErrors = {};
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    const trimmedStreet = street.trim();
+    const trimmedLat = latitude.trim();
+    const trimmedLng = longitude.trim();
+
+    if (!trimmedName) {
+      nextErrors.name = 'Completá tu nombre.';
+    } else if (trimmedName.length < 2) {
+      nextErrors.name = 'El nombre debe tener al menos 2 caracteres.';
+    }
+
+    if (!trimmedEmail) {
+      nextErrors.email = 'Completá tu email.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      nextErrors.email = 'El formato del email no es válido.';
+    }
+
+    if (!trimmedStreet) {
+      nextErrors.street = 'Completá la dirección de entrega.';
+    }
+
+    if (!trimmedLat) {
+      nextErrors.latitude = 'Ingresá la latitud.';
+    } else {
+      const lat = Number(trimmedLat);
+      if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+        nextErrors.latitude = 'Latitud inválida (-90 a 90).';
+      }
+    }
+
+    if (!trimmedLng) {
+      nextErrors.longitude = 'Ingresá la longitud.';
+    } else {
+      const lng = Number(trimmedLng);
+      if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+        nextErrors.longitude = 'Longitud inválida (-180 a 180).';
+      }
+    }
+
+    setGuestErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }
+
   async function confirmGuest(event: FormEvent) {
     event.preventDefault();
-    const lat = Number(latitude);
-    const lng = Number(longitude);
-    if (!name.trim()) {
-      setError('Completá tu nombre.');
-      return;
-    }
-    if (!email.trim()) {
-      setError('Completá tu email.');
-      return;
-    }
-    if (!street.trim()) {
-      setError('Completá la dirección.');
-      return;
-    }
-    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
-      setError('Latitud inválida (-90 a 90).');
-      return;
-    }
-    if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
-      setError('Longitud inválida (-180 a 180).');
+    setError('');
+
+    if (!validateGuest()) {
       return;
     }
 
+    const lat = Number(latitude);
+    const lng = Number(longitude);
     const current = cart ?? getGuestCart();
+
     setSaving(true);
-    setError('');
     try {
       const created = await api<Order>('/orders/guest', {
         method: 'POST',
@@ -168,12 +208,15 @@ export function CheckoutPage() {
             <strong>Fecha:</strong> {formatDateTime(order.createdAt)}
           </p>
           <ul className="order-items">
-            {order.items.map((item) => (
-              <li key={item.id}>
-                {item.quantity} × {item.product.name} — {formatPrice(item.subtotal)}
-                {item.notes ? <small className="muted"> ({item.notes})</small> : null}
-              </li>
-            ))}
+            {order.items.map((item) => {
+              const itemTotal = item.subtotal ?? item.quantity * item.unitPrice;
+              return (
+                <li key={item.id}>
+                  {item.quantity} × {item.product.name} — {formatPrice(itemTotal)}
+                  {item.notes ? <small className="muted"> ({item.notes})</small> : null}
+                </li>
+              );
+            })}
           </ul>
           <p className="total-row">
             <span>Importe</span>
@@ -217,7 +260,7 @@ export function CheckoutPage() {
       ) : null}
 
       {loggedIn && addresses.length > 0 ? (
-        <form className="card form" onSubmit={(event) => void confirmLoggedIn(event)}>
+        <form className="card form" onSubmit={(event) => void confirmLoggedIn(event)} noValidate>
           <h2>Dirección de entrega</h2>
           {addresses.map((address) => (
             <label key={address.id} className="checkbox address-choice">
@@ -238,52 +281,94 @@ export function CheckoutPage() {
       ) : null}
 
       {!loggedIn ? (
-        <form className="card form" onSubmit={(event) => void confirmGuest(event)}>
+        <form className="card form" onSubmit={(event) => void confirmGuest(event)} noValidate>
           <h2>Tus datos</h2>
           <label>
             Nombre
-            <input value={name} onChange={(event) => setName(event.target.value)} required maxLength={80} />
+            <input
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+                if (guestErrors.name) setGuestErrors((prev) => ({ ...prev, name: undefined }));
+              }}
+              maxLength={80}
+            />
+            {guestErrors.name ? (
+              <small className="error" role="alert">
+                {guestErrors.name}
+              </small>
+            ) : null}
           </label>
           <label>
             Email
             <input
               type="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
+              onChange={(event) => {
+                setEmail(event.target.value);
+                if (guestErrors.email) setGuestErrors((prev) => ({ ...prev, email: undefined }));
+              }}
             />
+            {guestErrors.email ? (
+              <small className="error" role="alert">
+                {guestErrors.email}
+              </small>
+            ) : null}
           </label>
+
           <h2>Dirección de entrega</h2>
           <label>
             Dirección
             <input
               value={street}
-              onChange={(event) => setStreet(event.target.value)}
-              required
+              onChange={(event) => {
+                setStreet(event.target.value);
+                if (guestErrors.street) setGuestErrors((prev) => ({ ...prev, street: undefined }));
+              }}
               maxLength={200}
               placeholder="Av. Rivadavia 5000, CABA"
             />
+            {guestErrors.street ? (
+              <small className="error" role="alert">
+                {guestErrors.street}
+              </small>
+            ) : null}
           </label>
+
           <div className="row">
             <label>
               Latitud
               <input
                 value={latitude}
-                onChange={(event) => setLatitude(event.target.value)}
-                required
+                onChange={(event) => {
+                  setLatitude(event.target.value);
+                  if (guestErrors.latitude) setGuestErrors((prev) => ({ ...prev, latitude: undefined }));
+                }}
                 inputMode="decimal"
                 placeholder="-34.6037"
               />
+              {guestErrors.latitude ? (
+                <small className="error" role="alert">
+                  {guestErrors.latitude}
+                </small>
+              ) : null}
             </label>
             <label>
               Longitud
               <input
                 value={longitude}
-                onChange={(event) => setLongitude(event.target.value)}
-                required
+                onChange={(event) => {
+                  setLongitude(event.target.value);
+                  if (guestErrors.longitude) setGuestErrors((prev) => ({ ...prev, longitude: undefined }));
+                }}
                 inputMode="decimal"
                 placeholder="-58.3816"
               />
+              {guestErrors.longitude ? (
+                <small className="error" role="alert">
+                  {guestErrors.longitude}
+                </small>
+              ) : null}
             </label>
           </div>
           <p className="field-hint">En este sprint latitud y longitud se cargan a mano. Sin mapa.</p>

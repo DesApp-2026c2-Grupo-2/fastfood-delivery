@@ -1799,3 +1799,70 @@ h2 {
   }
 }
 
+
+/* DEV-05: Separación del botón Volver al menú */
+.detail-back-action {
+  margin-top: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 800;
+  padding: 0.25rem 0;
+}
+
+/* Timeline de seguimiento (HU-10) */
+.timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.timeline-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--color-primary, #e65100);
+  flex-shrink: 0;
+}
+
+.timeline-content {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.timeline-content strong {
+  font-weight: 600;
+}
+
+/* Separación superior para la vista de seguimiento */
+.page-head .detail-back-action {
+  margin-top: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+/* HU-11: cancelar pedido */
+.order-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.65rem;
+  margin-top: 0.25rem;
+}
+
+.order-actions .error {
+  margin: 0;
+}
