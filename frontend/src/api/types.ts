@@ -108,6 +108,27 @@ export type Order = {
   items: OrderItem[];
 };
 
+// Lo que devuelve GET /orders (listado): más liviano que el detalle de /orders/:id
+export type OrderSummary = {
+  id: string;
+  status: string;
+  totalAmount: number;
+  createdAt: string;
+  branch: { id: string; name: string };
+  itemCount: number;
+};
+
+export type RepeatSkipped = {
+  kind: 'product' | 'extra';
+  name: string;
+  message: string;
+};
+
+export type RepeatOrderResult = {
+  cart: Cart;
+  skipped: RepeatSkipped[];
+};
+
 // Extensiones para seguimiento de pedidos (HU-10)
 export type OrderStatus =
   | 'pending'

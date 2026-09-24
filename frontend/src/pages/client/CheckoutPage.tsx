@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Address, Cart, Order } from '../../api/types';
+import { useCart } from '../../cart/CartContext';
 import { getToken, isCustomer } from '../../auth/session';
 import { clearGuestCart, getGuestCart, hydrateGuestCart } from '../../cart/guestCart';
 import { formatDateTime, formatPrice } from '../../lib/money';
@@ -17,6 +18,7 @@ type GuestFormErrors = {
 export function CheckoutPage() {
   const loggedIn = isCustomer();
   const token = getToken() ?? '';
+  const { refresh } = useCart();
   const [cart, setCart] = useState<Cart | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressId, setAddressId] = useState('');
@@ -77,6 +79,8 @@ export function CheckoutPage() {
         token,
         body: JSON.stringify({ addressId }),
       });
+      await refresh();
+
       setOrder(created);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo confirmar el pedido');
@@ -161,6 +165,7 @@ export function CheckoutPage() {
         }),
       });
       clearGuestCart();
+      await refresh();
       setOrder(created);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo confirmar el pedido');

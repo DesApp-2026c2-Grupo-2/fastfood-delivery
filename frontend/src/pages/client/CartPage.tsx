@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCart } from '../../cart/CartContext';
+import { Link, useLocation } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Cart, CartItem } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
@@ -8,6 +9,9 @@ import { mediaUrl } from '../../lib/media';
 import { formatPrice } from '../../lib/money';
 
 export function CartPage() {
+  const { refresh } = useCart();
+  const location = useLocation();
+  const notice = (location.state as { notice?: string } | null)?.notice;
   const [cart, setCart] = useState<Cart | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -46,8 +50,10 @@ export function CartPage() {
           body: JSON.stringify({ quantity, notes }),
         });
         setCart(next);
+        void refresh();
       } else {
         setCart(updateGuestItem(item.productId, quantity, notes));
+        void refresh();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo actualizar el ítem');
@@ -74,8 +80,10 @@ export function CartPage() {
           token: getToken() ?? '',
         });
         setCart(next);
+        void refresh();
       } else {
         setCart(removeGuestItem(item.productId));
+        void refresh();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo quitar el ítem');
@@ -104,6 +112,11 @@ export function CartPage() {
           {error}
         </p>
       ) : null}
+      {notice ? (
+        <p className="warning" role="status">
+          {notice}
+        </p>
+      ) : null}
       {loading ? <p className="muted">Cargando…</p> : null}
 
       {!loading && items.length === 0 ? (
@@ -130,7 +143,7 @@ export function CartPage() {
                     </p>
                   </div>
                 </div>
-                <label>
+                <div className="quantity-label">
                   Cantidad
                   <div className="qty">
                     <button
@@ -153,8 +166,8 @@ export function CartPage() {
                       +
                     </button>
                   </div>
-                </label>
-                <label>
+                </div>
+                <label className="notes-label">
                   Observaciones
                   <textarea
                     defaultValue={item.notes}
