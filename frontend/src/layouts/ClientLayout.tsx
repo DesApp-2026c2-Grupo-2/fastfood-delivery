@@ -79,8 +79,8 @@ export function ClientLayout() {
           ) : null}
           {customer ? (
             <span className="session-info">
-              ¡Hola, {user?.name}!
-              <button type="button" className="link-button" onClick={logout}>
+              <span className="session-greeting">Hola {user?.name}</span>
+              <button type="button" className="link-button session-logout" onClick={logout}>
                 Salir
               </button>
             </span>
@@ -99,7 +99,7 @@ export function ClientLayout() {
       <main className="main">
         <Outlet />
       </main>
-      <BottomNav count={count} customer={customer} />
+      <BottomNav count={count} customer={customer} onLogout={logout} />
     </div>
   );
 }

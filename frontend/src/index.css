@@ -1500,6 +1500,22 @@ h2 {
   text-align: center;
 }
 
+.bottom-nav-button {
+  background: none;
+  color: #9a3412;
+  border: none;
+  border-radius: 0;
+  padding: 0.3rem 0;
+  box-shadow: none;
+  cursor: pointer;
+  font-weight: inherit;
+}
+
+.bottom-nav-button:active {
+  transform: none;
+  box-shadow: none;
+}
+
 @media (min-width: 800px) {
   .admin-home-links {
     grid-template-columns: 1fr 1fr;
@@ -1545,10 +1561,18 @@ h2 {
   }
 
   .nav {
-    position: absolute;
-    right: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
+    display: flex;
+    justify-content: center;
+  }
+
+  .session-logout {
+    display: none;
+  }
+
+  .session-greeting {
+    width: 100%;
+    text-align: center;
+    display: block;
   }
 
   .bottom-nav {
@@ -1660,3 +1684,4 @@ h2 {
     justify-content: flex-end;
   }
 }
+

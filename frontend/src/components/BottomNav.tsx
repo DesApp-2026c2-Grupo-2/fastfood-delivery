@@ -3,9 +3,10 @@ import { NavLink } from 'react-router-dom';
 type BottomNavProps = {
   count: number;
   customer: boolean;
+  onLogout: () => void;
 };
 
-export function BottomNav({ count, customer }: BottomNavProps) {
+export function BottomNav({ count, customer, onLogout }: BottomNavProps) {
   return (
     <nav className="bottom-nav" aria-label="Navegación principal">
       <NavLink to="/products" className="bottom-nav-item" end>
@@ -21,7 +22,7 @@ export function BottomNav({ count, customer }: BottomNavProps) {
       </NavLink>
       <NavLink to={customer ? '/account/addresses' : '/login'} className="bottom-nav-item">
         <AccountIcon />
-        <span>{customer ? 'Mis direcciones' : 'Entrar'}</span>
+        <span>{customer ? 'Direcciones' : 'Entrar'}</span>
       </NavLink>
       {customer ? (
         <NavLink to="/orders" className="bottom-nav-item">
@@ -29,8 +30,22 @@ export function BottomNav({ count, customer }: BottomNavProps) {
           <span>Pedidos</span>
         </NavLink>
       ) : null}
-
+      {customer ? (
+        <button type="button" className="bottom-nav-item bottom-nav-button" onClick={onLogout}>
+          <LogoutIcon />
+          <span>Salir</span>
+        </button>
+      ) : null}
     </nav>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
