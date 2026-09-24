@@ -128,4 +128,5 @@ export interface OrderHistoryItem {
 export type OrderDetail = Order & {
   history?: OrderHistoryItem[];
   etaMinutes?: number | null;
+  canCancel?: boolean;
 };
