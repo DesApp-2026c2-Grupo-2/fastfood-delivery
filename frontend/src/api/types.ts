@@ -1,73 +1,114 @@
-export type Role = 'admin' | 'customer';
+export type Role = 'customer' | 'admin';
 
-export interface User {
+export type User = {
   id: string;
-  name: string;
   email: string;
+  name: string;
   role: Role;
-}
+};
 
-export interface LoginResponse {
-  accessToken: string;
-  user: User;
-}
-
-export interface Category {
+export type Category = {
   id: string;
   name: string;
-}
+  slug: string;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { products: number };
+};
 
-export interface ProductImage {
+export type ProductImage = {
   id: string;
   url: string;
   sortOrder: number;
-}
+};
 
-export interface ProductExtra {
+export type Product = {
   id: string;
   name: string;
-  price: number;
-}
-
-export interface Product {
-  id: string;
-  name: string;
+  slug: string;
   description: string;
   price: number;
   available: boolean;
-  categoryId: string;
-  category?: Category;
   images: ProductImage[];
-  imageUrl?: string;
-  extras?: ProductExtra[];
-}
+  categories: Category[];
+  imageUrl: string;
+  categoryId?: string;
+  category?: Category;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
-export interface CartItem {
+export type LoginResponse = {
+  accessToken: string;
+  user: User;
+};
+
+export type Address = {
+  id: string;
+  street: string;
+  latitude: number | string;
+  longitude: number | string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CartItem = {
   id: string;
   productId: string;
   quantity: number;
-  notes?: string;
-  product: Product;
-  unitPrice?: number;
-  subtotal?: number;
-}
+  notes: string;
+  unitPrice: number;
+  subtotal: number;
+  product: {
+    id: string;
+    name: string;
+    available: boolean;
+    imageUrl: string;
+  };
+};
 
-export interface Cart {
+export type Cart = {
   id: string;
-  userId?: string;
   items: CartItem[];
-  total?: number;
-  totalAmount?: number;
-}
+  itemCount: number;
+  total: number;
+};
 
-export interface Address {
+export type OrderItem = {
   id: string;
-  street: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  isDefault?: boolean;
-}
+  productId: string;
+  quantity: number;
+  notes: string;
+  unitPrice: number;
+  subtotal: number;
+  product: {
+    id: string;
+    name: string;
+    imageUrl: string;
+  };
+};
 
+export type Order = {
+  id: string;
+  status: string;
+  totalAmount: number;
+  createdAt: string;
+  guestName?: string | null;
+  guestEmail?: string | null;
+  branch: {
+    id: string;
+    name: string;
+    address: string;
+  };
+  address: {
+    id: string;
+    street: string;
+  };
+  items: OrderItem[];
+};
+
+// Extensiones para seguimiento de pedidos (HU-10)
 export type OrderStatus =
   | 'pending'
   | 'confirmed'
@@ -84,47 +125,7 @@ export interface OrderHistoryItem {
   changedByName?: string;
 }
 
-export interface OrderItemProduct {
-  id: string;
-  name: string;
-  imageUrl?: string;
-}
-
-export interface OrderItem {
-  id: string;
-  productId: string;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
-  notes?: string;
-  product: OrderItemProduct;
-}
-
-export interface OrderBranch {
-  id: string;
-  name: string;
-  address?: string;
-}
-
-export interface OrderAddress {
-  id: string;
-  street: string;
-}
-
-export interface Order {
-  id: string;
-  status: OrderStatus;
-  totalAmount: number;
-  createdAt: string;
-  branch: OrderBranch;
-  address: OrderAddress;
-  items: OrderItem[];
+export type OrderDetail = Order & {
   history?: OrderHistoryItem[];
   etaMinutes?: number | null;
-  customerName?: string;
-  customerEmail?: string;
-  guestName?: string | null;
-  guestEmail?: string | null;
-}
-
-export type OrderDetail = Order;
+};

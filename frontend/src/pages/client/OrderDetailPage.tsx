@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
-import type { OrderDetail, OrderStatus } from '../../api/types';
+import type { OrderDetail } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { formatDateTime, formatPrice } from '../../lib/money';
 
-const STATUS_LABELS: Record<OrderStatus, string> = {
+const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente',
   confirmed: 'Confirmado',
   preparing: 'En preparación',
