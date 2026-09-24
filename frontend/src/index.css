@@ -1624,7 +1624,7 @@ h2 {
   .session-logout, .session-greeting {
     display: none;
   }
-  
+
   .session-greeting {
     margin:0 auto;
   }
@@ -1692,7 +1692,49 @@ h2 {
   .list-actions button {
     flex: 1;
   }
-}
+
+  .order-card {
+    position: relative;
+    text-align: center;
+    padding-top: 2.75rem;
+  }
+
+  .order-card-title {
+    display: block;
+  }
+
+  .order-card-title .badge {
+    position: absolute;
+    top: 1rem;
+    right: 1.25rem;
+    margin-top: 0;
+  }
+
+  .order-card-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .order-card-body .muted {
+    max-width: 85%;
+  }
+
+  .order-card-total {
+    max-width: 70%;
+  }
+
+  .order-card-actions {
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .order-card-actions .secondary,
+  .order-card-actions button {
+    width: 80%;
+  }}
 
 @media (min-width: 720px) {
   .product-grid {
