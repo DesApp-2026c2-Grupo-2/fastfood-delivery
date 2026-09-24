@@ -1,109 +1,130 @@
-export type Role = 'customer' | 'admin';
+export type Role = 'admin' | 'customer';
 
-export type User = {
+export interface User {
   id: string;
+  name: string;
   email: string;
-  name: string;
   role: Role;
-};
+}
 
-export type Category = {
+export interface LoginResponse {
+  accessToken: string;
+  user: User;
+}
+
+export interface Category {
   id: string;
   name: string;
-  slug: string;
-  createdAt: string;
-  updatedAt: string;
-  _count?: { products: number };
-};
+}
 
-export type ProductImage = {
+export interface ProductImage {
   id: string;
   url: string;
   sortOrder: number;
-};
+}
 
-export type Product = {
+export interface ProductExtra {
   id: string;
   name: string;
-  slug: string;
+  price: number;
+}
+
+export interface Product {
+  id: string;
+  name: string;
   description: string;
   price: number;
   available: boolean;
-  images: ProductImage[];
-  categories: Category[];
-  imageUrl: string;
-  categoryId?: string;
+  categoryId: string;
   category?: Category;
-  createdAt?: string;
-  updatedAt?: string;
-};
+  images: ProductImage[];
+  imageUrl?: string;
+  extras?: ProductExtra[];
+}
 
-export type LoginResponse = {
-  accessToken: string;
-  user: User;
-};
+export interface CartItem {
+  id: string;
+  productId: string;
+  quantity: number;
+  notes?: string;
+  product: Product;
+  unitPrice?: number;
+  subtotal?: number;
+}
 
-export type Address = {
+export interface Cart {
+  id: string;
+  userId?: string;
+  items: CartItem[];
+  total?: number;
+  totalAmount?: number;
+}
+
+export interface Address {
   id: string;
   street: string;
-  latitude: number | string;
-  longitude: number | string;
-  isDefault: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
+  latitude?: number | null;
+  longitude?: number | null;
+  isDefault?: boolean;
+}
 
-export type CartItem = {
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'preparing'
+  | 'ready'
+  | 'on_the_way'
+  | 'delivered'
+  | 'cancelled';
+
+export interface OrderHistoryItem {
+  id: string;
+  status: OrderStatus;
+  changedAt: string;
+  changedByName?: string;
+}
+
+export interface OrderItemProduct {
+  id: string;
+  name: string;
+  imageUrl?: string;
+}
+
+export interface OrderItem {
   id: string;
   productId: string;
   quantity: number;
-  notes: string;
   unitPrice: number;
   subtotal: number;
-  product: {
-    id: string;
-    name: string;
-    available: boolean;
-    imageUrl: string;
-  };
-};
+  notes?: string;
+  product: OrderItemProduct;
+}
 
-export type Cart = {
+export interface OrderBranch {
   id: string;
-  items: CartItem[];
-  itemCount: number;
-  total: number;
-};
+  name: string;
+  address?: string;
+}
 
-export type OrderItem = {
+export interface OrderAddress {
   id: string;
-  productId: string;
-  quantity: number;
-  notes: string;
-  unitPrice: number;
-  subtotal: number;
-  product: {
-    id: string;
-    name: string;
-    imageUrl: string;
-  };
-};
+  street: string;
+}
 
-export type Order = {
+export interface Order {
   id: string;
-  status: string;
+  status: OrderStatus;
   totalAmount: number;
   createdAt: string;
+  branch: OrderBranch;
+  address: OrderAddress;
+  items: OrderItem[];
+  history?: OrderHistoryItem[];
+  etaMinutes?: number | null;
+  customerName?: string;
+  customerEmail?: string;
   guestName?: string | null;
   guestEmail?: string | null;
-  branch: {
-    id: string;
-    name: string;
-    address: string;
-  };
-  address: {
-    id: string;
-    street: string;
-  };
-  items: OrderItem[];
-};
+}
+
+export type OrderDetail = Order;
