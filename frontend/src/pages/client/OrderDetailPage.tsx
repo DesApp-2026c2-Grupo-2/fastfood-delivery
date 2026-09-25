@@ -173,7 +173,7 @@ export function OrderDetailPage() {
         </div>
 
         <div className="items-list">
-          {order.items.map((item) => {
+          {order.items.map((item, itemIdx) => {
             const extraNames = item.notes
               ? item.notes
                   .replace(/^(con|extras?:?)\s*/i, '')
@@ -182,10 +182,29 @@ export function OrderDetailPage() {
                   .filter(Boolean)
               : [];
 
+            const isLast = itemIdx === order.items.length - 1;
+
             return (
-              <div key={item.id} className="item-entry">
-                {/* Renglón del producto */}
-                <div className="item-row">
+              <div
+                key={item.id}
+                className="item-entry"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  padding: '0.65rem 0',
+                  borderBottom: isLast ? 'none' : '1px solid #f1f5f9',
+                }}
+              >
+                {/* Renglón del producto sin borde propio */}
+                <div
+                  className="item-row"
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderBottom: 'none',
+                  }}
+                >
                   <div className="item-main">
                     {item.product.imageUrl ? (
                       <img
@@ -210,7 +229,7 @@ export function OrderDetailPage() {
                   <strong className="item-subtotal">{formatPrice(item.subtotal)}</strong>
                 </div>
 
-                {/* Subrenglón con cada extra en miniatura compacta */}
+                {/* Adicionales solo si existen */}
                 {extraNames.length > 0 && (
                   <div
                     className="item-extras-list"
