@@ -13,6 +13,8 @@ export function ProductDetailPage() {
   const { id } = useParams();
   const { refresh } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
+  const [availableExtras, setAvailableExtras] = useState<Product[]>([]);
+  const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   const [loading, setLoading] = useState(true);
@@ -28,7 +30,29 @@ export function ProductDetailPage() {
       setError('');
       try {
         const data = await api<Product>(`/products/${id}`);
-        if (!cancelled) setProduct(data);
+        if (!cancelled) {
+          setProduct(data);
+
+          // Verificar si es hamburguesa para habilitar los adicionales
+          const isBurger =
+            data.slug?.includes('hamburguesa') ||
+            data.name?.toLowerCase().includes('hamburguesa') ||
+            data.categories?.some((c) => c.slug === 'hamburguesas');
+
+          if (isBurger) {
+            try {
+              const allProducts = await api<Product[]>('/products');
+              const extras = allProducts.filter(
+                (p) =>
+                  p.categories?.some((c) => c.slug === 'adicional') ||
+                  p.category?.name?.toLowerCase() === 'adicional',
+              );
+              if (!cancelled) setAvailableExtras(extras);
+            } catch {
+              // Si falla la consulta de extras, permite seguir comprando el producto base
+            }
+          }
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'No se encontró el producto');
       } finally {
@@ -41,12 +65,32 @@ export function ProductDetailPage() {
     };
   }, [id]);
 
+  function handleToggleExtra(extraId: string) {
+    setSelectedExtraIds((prev) =>
+      prev.includes(extraId) ? prev.filter((item) => item !== extraId) : [...prev, extraId],
+    );
+  }
+
+  // Cálculo del total de adicionales por unidad y precio final unitario
+  const extrasTotalPerUnit = availableExtras
+    .filter((extra) => selectedExtraIds.includes(extra.id))
+    .reduce((sum, extra) => sum + Number(extra.price || 0), 0);
+
+  const unitPriceWithExtras = (product ? Number(product.price) : 0) + extrasTotalPerUnit;
+
   async function addToCart(event: FormEvent) {
     event.preventDefault();
     if (!product) return;
     setSaving(true);
     setError('');
     setOk('');
+
+    const selectedExtrasObj = availableExtras.filter((e) => selectedExtraIds.includes(e.id));
+    const extrasSummary = selectedExtrasObj.length
+      ? `Extras: ${selectedExtrasObj.map((e) => e.name).join(', ')}`
+      : '';
+    const finalNotes = [notes.trim(), extrasSummary].filter(Boolean).join(' | ');
+
     try {
       if (isCustomer()) {
         const token = getToken() ?? '';
@@ -56,11 +100,12 @@ export function ProductDetailPage() {
           body: JSON.stringify({
             productId: product.id,
             quantity,
-            notes: notes.trim(),
+            notes: finalNotes,
+            extraIds: selectedExtraIds,
           }),
         });
       } else {
-        addGuestItem(product, quantity, notes.trim());
+        addGuestItem(product, quantity, finalNotes);
       }
       await refresh();
       setOk(
@@ -119,13 +164,74 @@ export function ProductDetailPage() {
           ))}
         </div>
       ) : null}
+
       <h1>{product.name}</h1>
       <ProductTags product={product} />
-      <p className="price">{formatPrice(product.price)}</p>
+
+      <p className="price">
+        {formatPrice(unitPriceWithExtras)}
+        {extrasTotalPerUnit > 0 && (
+          <small style={{ fontSize: '0.85rem', color: '#64748b', marginLeft: '0.5rem' }}>
+            (base {formatPrice(product.price)} + {formatPrice(extrasTotalPerUnit)} extras)
+          </small>
+        )}
+      </p>
       <p>{product.description}</p>
 
       <form className="card form" onSubmit={(event) => void addToCart(event)}>
         <h2>Agregar al carrito</h2>
+
+        {/* Tarjetas de adicionales con recorte centrado */}
+        {availableExtras.length > 0 && (
+          <div className="extras-wrapper">
+            <span className="extras-title">¿Querés sumarle algún adicional?</span>
+            <div className="extras-grid">
+              {availableExtras.map((extra) => {
+                const isSelected = selectedExtraIds.includes(extra.id);
+                const extraImg = extra.images?.[0]?.url || extra.imageUrl;
+
+                return (
+                  <div
+                    key={extra.id}
+                    role="button"
+                    tabIndex={0}
+                    className={`extra-card ${isSelected ? 'extra-card-selected' : ''}`}
+                    onClick={() => handleToggleExtra(extra.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleToggleExtra(extra.id);
+                      }
+                    }}
+                  >
+                    <div className="extra-check">
+                      {isSelected ? <span>✓</span> : null}
+                    </div>
+
+                    <div className="extra-thumb-box">
+                      {extraImg ? (
+                        <img
+                          src={mediaUrl(extraImg)}
+                          alt={extra.name}
+                          className="extra-thumb"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="extra-thumb-placeholder" />
+                      )}
+                    </div>
+
+                    <span className="extra-item-name">{extra.name}</span>
+                    <span className="extra-item-price">+{formatPrice(extra.price)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <label>
           Cantidad
           <div className="qty">
@@ -143,11 +249,17 @@ export function ProductDetailPage() {
               value={quantity}
               onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))}
             />
-            <button type="button" className="secondary" onClick={() => setQuantity((current) => current + 1)} aria-label="Más">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setQuantity((current) => current + 1)}
+              aria-label="Más"
+            >
               +
             </button>
           </div>
         </label>
+
         <label>
           Observaciones
           <textarea
@@ -158,18 +270,21 @@ export function ProductDetailPage() {
             placeholder="Sin cebolla, punto de cocción, etc."
           />
         </label>
+
         {error ? (
           <p className="error" role="alert">
             {error}
           </p>
         ) : null}
+
         {ok ? (
           <p className="success" role="status">
             {ok} <Link to="/products">Seguir comprando</Link> · <Link to="/cart">Ver carrito</Link>
           </p>
         ) : null}
+
         <button type="submit" disabled={saving}>
-          {saving ? 'Agregando…' : 'Agregar al carrito'}
+          {saving ? 'Agregando…' : `Agregar al carrito (${formatPrice(unitPriceWithExtras * quantity)})`}
         </button>
       </form>
     </article>

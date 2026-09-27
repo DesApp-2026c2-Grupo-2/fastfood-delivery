@@ -25,8 +25,22 @@ export function ProductListPage() {
           api<Product[]>(categoryId ? `/products?categoryId=${encodeURIComponent(categoryId)}` : '/products'),
         ]);
         if (!cancelled) {
-          setCategories(categoryList);
-          setProducts(productList);
+          // Excluir la categoría 'adicional' de los chips de navegación
+          const visibleCategories = categoryList.filter(
+            (c) => c.slug !== 'adicional' && c.name?.toLowerCase() !== 'adicional'
+          );
+          setCategories(visibleCategories);
+
+          // Excluir productos que pertenezcan a 'adicional' para que no se compren sueltos
+          const visibleProducts = productList.filter((p) => {
+            const hasExtraCategory = p.categories?.some(
+              (c) => c.slug === 'adicional' || c.name?.toLowerCase() === 'adicional'
+            );
+            const singleCategoryExtra = p.category?.name?.toLowerCase() === 'adicional';
+            return !hasExtraCategory && !singleCategoryExtra;
+          });
+
+          setProducts(visibleProducts);
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'No se pudo cargar el catálogo');
