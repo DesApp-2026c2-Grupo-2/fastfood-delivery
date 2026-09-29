@@ -323,6 +323,81 @@ async function main() {
   }
 
   console.log('Categorías y productos de prueba cargados.');
+
+  await seedDelayedOrders(testCustomerId);
+}
+
+const MINUTE_MS = 60_000;
+
+/**
+ * Pedidos del cliente de prueba para mostrar la demora (DEV-15): uno en camino que ya pasó su hora
+ * estimada y uno entregado tarde. Se recrean en cada seed, con horas relativas a ahora.
+ */
+async function seedDelayedOrders(customerId: string) {
+  const branch = await prisma.branch.findFirstOrThrow({ where: { name: DEFAULT_BRANCH.name } });
+  const burger = await prisma.product.findUniqueOrThrow({ where: { slug: 'hamburguesa-simple' } });
+  const address = await prisma.address.upsert({
+    where: { id: 'demo-address-cliente' },
+    update: {},
+    create: {
+      id: 'demo-address-cliente',
+      userId: customerId,
+      street: 'Av. Rivadavia 2000, CABA',
+      latitude: -34.6094,
+      longitude: -58.3960,
+    },
+  });
+
+  const now = Date.now();
+  const demos = [
+    {
+      id: 'demo-order-demorado',
+      createdMinutesAgo: 60,
+      etaMinutes: 35,
+      statuses: ['pending', 'confirmed', 'preparing', 'ready', 'on_the_way'] as const,
+    },
+    {
+      id: 'demo-order-entregado-tarde',
+      createdMinutesAgo: 180,
+      etaMinutes: 35,
+      statuses: ['pending', 'confirmed', 'preparing', 'ready', 'on_the_way', 'delivered'] as const,
+      deliveredAfterMinutes: 55,
+    },
+  ];
+
+  for (const demo of demos) {
+    const createdAt = new Date(now - demo.createdMinutesAgo * MINUTE_MS);
+    const status = demo.statuses[demo.statuses.length - 1];
+    await prisma.order.deleteMany({ where: { id: demo.id } });
+    await prisma.order.create({
+      data: {
+        id: demo.id,
+        userId: customerId,
+        branchId: branch.id,
+        addressId: address.id,
+        status,
+        totalAmount: burger.price,
+        createdAt,
+        estimatedDeliveryAt: new Date(createdAt.getTime() + demo.etaMinutes * MINUTE_MS),
+        items: { create: [{ productId: burger.id, quantity: 1, unitPrice: burger.price }] },
+        statusHistory: {
+          // Un cambio cada 10 minutos; el de entrega, cuando indica la demo.
+          create: demo.statuses.map((historyStatus, index) => ({
+            status: historyStatus,
+            changedAt: new Date(
+              createdAt.getTime() +
+                (historyStatus === 'delivered' && demo.deliveredAfterMinutes
+                  ? demo.deliveredAfterMinutes
+                  : index * 10) *
+                  MINUTE_MS,
+            ),
+          })),
+        },
+      },
+    });
+  }
+
+  console.log('Pedidos demorados de prueba cargados (cliente de prueba).');
 }
 
 main()

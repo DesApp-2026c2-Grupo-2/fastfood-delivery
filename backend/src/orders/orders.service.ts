@@ -7,6 +7,7 @@ import { byName, ExtrasService } from '../extras/extras.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateGuestOrderDto } from './dto/create-guest-order.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { deliveryTiming, estimateDeliveryAt } from './eta';
 import { haversineDistanceKm } from './geo';
 import { OrderEvents } from './order-events';
 import { canTransition, nextStatuses } from './order-status';
@@ -30,6 +31,10 @@ function sumPrices(prices: Array<Prisma.Decimal | number>) {
   return prices.reduce<number>((sum, price) => sum + Number(price), 0);
 }
 
+function distanceKm(latitude: number, longitude: number, branch: Branch) {
+  return haversineDistanceKm(latitude, longitude, Number(branch.latitude), Number(branch.longitude));
+}
+
 const adminDetailInclude = {
   user: { select: { id: true, name: true, email: true } },
   branch: true,
@@ -49,6 +54,12 @@ const adminDetailInclude = {
 };
 
 type OrderAdminDetail = Prisma.OrderGetPayload<{ include: typeof adminDetailInclude }>;
+
+// En los listados solo hace falta saber cuándo se entregó, para la demora.
+const deliveredEvent = {
+  where: { status: OrderStatus.delivered },
+  select: { status: true, changedAt: true },
+};
 
 const ADMIN_ORDER_PAGE_SIZE = 20;
 
@@ -161,30 +172,8 @@ function serialize(order: OrderWithRelations) {
     guestName: order.guestName,
     guestEmail: order.guestEmail,
     items: serializeItems(order.items),
+    ...deliveryTiming(order),
   };
-}
-
-type Coordinates = { latitude: Prisma.Decimal; longitude: Prisma.Decimal };
-
-function etaMinutes(order: {
-  status: OrderStatus;
-  items: { quantity: number }[];
-  address: Coordinates;
-  branch: Coordinates;
-}): number | null {
-  if (order.status === OrderStatus.delivered || order.status === OrderStatus.cancelled) {
-    return null;
-  }
-  const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
-  const travel = Math.ceil(
-    haversineDistanceKm(
-      Number(order.address.latitude),
-      Number(order.address.longitude),
-      Number(order.branch.latitude),
-      Number(order.branch.longitude),
-    ) / 0.5,
-  );
-  return 15 + itemCount * 3 + travel;
 }
 
 function serializeAdmin(order: OrderAdminDetail) {
@@ -214,7 +203,7 @@ function serializeAdmin(order: OrderAdminDetail) {
       changedAt: event.changedAt,
       changedByName: event.changedBy?.name ?? 'Sistema',
     })),
-    etaMinutes: etaMinutes(order),
+    ...deliveryTiming(order),
     nextStatuses: nextStatuses(order.status),
   };
 }
@@ -236,7 +225,7 @@ function serializeCustomer(order: OrderCustomerDetail) {
       status: event.status,
       changedAt: event.changedAt,
     })),
-    etaMinutes: etaMinutes(order),
+    ...deliveryTiming(order),
     canCancel: canTransition(order.status, OrderStatus.cancelled),
   };
 }
@@ -286,6 +275,12 @@ export class OrdersService {
       const extrasTotal = sumPrices(item.extras.map(({ extra }) => extra.price));
       return sum + (Number(item.product.price) + extrasTotal) * item.quantity;
     }, 0);
+    const createdAt = new Date();
+    const estimatedDeliveryAt = estimateDeliveryAt(
+      createdAt,
+      cart.items.reduce((sum, item) => sum + item.quantity, 0),
+      distanceKm(Number(address.latitude), Number(address.longitude), branch),
+    );
 
     const order = await this.prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
@@ -295,6 +290,8 @@ export class OrdersService {
           addressId: address.id,
           totalAmount,
           status: 'pending',
+          createdAt,
+          estimatedDeliveryAt,
           items: {
             create: cart.items.map((item) => ({
               productId: item.productId,
@@ -333,6 +330,12 @@ export class OrdersService {
       const extrasTotal = sumPrices(line.extras.map((extra) => extra.price));
       return sum + (Number(line.product.price) + extrasTotal) * line.quantity;
     }, 0);
+    const createdAt = new Date();
+    const estimatedDeliveryAt = estimateDeliveryAt(
+      createdAt,
+      lines.reduce((sum, line) => sum + line.quantity, 0),
+      distanceKm(dto.latitude, dto.longitude, branch),
+    );
 
     const order = await this.prisma.$transaction(async (tx) => {
       const address = await tx.address.create({
@@ -352,6 +355,8 @@ export class OrdersService {
           addressId: address.id,
           totalAmount,
           status: 'pending',
+          createdAt,
+          estimatedDeliveryAt,
           items: {
             create: lines.map((line) => ({
               productId: line.product.id,
@@ -409,6 +414,7 @@ export class OrdersService {
           user: { select: { name: true, email: true } },
           branch: { select: { id: true, name: true } },
           items: true,
+          statusHistory: deliveredEvent,
         },
       }),
     ]);
@@ -423,6 +429,7 @@ export class OrdersService {
         customerEmail: order.user?.email ?? order.guestEmail ?? '',
         branch: order.branch,
         itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
+        ...deliveryTiming(order),
         nextStatuses: nextStatuses(order.status),
       })),
       total,
@@ -455,6 +462,7 @@ export class OrdersService {
       include: {
         branch: { select: { id: true, name: true } },
         items: { select: { quantity: true } },
+        statusHistory: deliveredEvent,
       },
     });
 
@@ -465,6 +473,7 @@ export class OrdersService {
       createdAt: order.createdAt,
       branch: order.branch,
       itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
+      ...deliveryTiming(order),
     }));
   }
 
@@ -621,15 +630,8 @@ export class OrdersService {
       throw new BadRequestException('No hay sucursales activas disponibles');
     }
 
-    return active.reduce((closest, branch) => {
-      const distance = haversineDistanceKm(latitude, longitude, Number(branch.latitude), Number(branch.longitude));
-      const closestDistance = haversineDistanceKm(
-        latitude,
-        longitude,
-        Number(closest.latitude),
-        Number(closest.longitude),
-      );
-      return distance < closestDistance ? branch : closest;
-    });
+    return active.reduce((closest, branch) =>
+      distanceKm(latitude, longitude, branch) < distanceKm(latitude, longitude, closest) ? branch : closest,
+    );
   }
 }

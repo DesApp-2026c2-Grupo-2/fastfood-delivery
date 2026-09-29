@@ -85,6 +85,20 @@ async function advanceTo(orderId: string, statuses: OrderStatus[]) {
   }
 }
 
+const MINUTE_MS = 60_000;
+
+function minutesBetween(from: string | Date, to: string | Date) {
+  return (new Date(to).getTime() - new Date(from).getTime()) / MINUTE_MS;
+}
+
+// Simula que la hora estimada quedó `minutes` minutos antes de `reference` (por defecto, ahora).
+async function setEstimatedDeliveryBefore(orderId: string, minutes: number, reference = new Date()) {
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { estimatedDeliveryAt: new Date(reference.getTime() - minutes * MINUTE_MS) },
+  });
+}
+
 function currentStatus(orderId: string) {
   return prisma.order.findUniqueOrThrow({ where: { id: orderId }, select: { status: true } });
 }
@@ -190,6 +204,9 @@ describe('GET /api/orders', () => {
       createdAt: expect.any(String),
       branch: { id: expect.any(String), name: expect.any(String) },
       itemCount: 1,
+      estimatedDeliveryAt: expect.any(String),
+      etaMinutes: expect.any(Number),
+      delayMinutes: 0,
     });
   });
 
@@ -217,8 +234,13 @@ describe('GET /api/orders/:id', () => {
     expect(response.body.items).toEqual([
       expect.objectContaining({ productId: drink.id, quantity: 2, notes: 'bien fría', subtotal: 3000 }),
     ]);
-    // 15 min de base + 3 por ítem + el traslado.
-    expect(response.body.etaMinutes).toBeGreaterThanOrEqual(15 + 2 * 3);
+    // Hora estimada = alta + 15 min de base + 3 por unidad + el traslado, en minutos enteros.
+    const promised = minutesBetween(response.body.createdAt, response.body.estimatedDeliveryAt);
+    expect(Number.isInteger(promised)).toBe(true);
+    expect(promised).toBeGreaterThanOrEqual(15 + 2 * 3);
+    expect(response.body.etaMinutes).toBeGreaterThanOrEqual(promised - 1);
+    expect(response.body.etaMinutes).toBeLessThanOrEqual(promised);
+    expect(response.body.delayMinutes).toBe(0);
     expect(response.body.history).toEqual([
       { id: expect.any(String), status: 'pending', changedAt: expect.any(String) },
     ]);
@@ -242,6 +264,8 @@ describe('GET /api/orders/:id', () => {
 
     expect(response.body.status).toBe('delivered');
     expect(response.body.etaMinutes).toBeNull();
+    // Se entregó antes de la hora estimada.
+    expect(response.body.delayMinutes).toBe(0);
     expect(response.body.canCancel).toBe(false);
     expect(response.body.history.map((event: { status: string }) => event.status)).toEqual([
       'pending',
@@ -251,6 +275,75 @@ describe('GET /api/orders/:id', () => {
       'on_the_way',
       'delivered',
     ]);
+  });
+});
+
+describe('Hora estimada y demora (DEV-14, DEV-15)', () => {
+  const customerDetail = (orderId: string) => request(server).get(`/api/orders/${orderId}`).set(auth(ana.token));
+  const adminDetail = (orderId: string) => request(server).get(`/api/admin/orders/${orderId}`).set(auth(adminToken));
+
+  it('la hora estimada se guarda al confirmar y no se recalcula', async () => {
+    const orderId = await placeOrder(ana, [{ productId: drink.id, quantity: 3 }]);
+    const stored = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+
+    const before = await customerDetail(orderId);
+    await advanceTo(orderId, ['confirmed', 'preparing']);
+    const after = await customerDetail(orderId);
+    const admin = await adminDetail(orderId);
+
+    expect(before.body.estimatedDeliveryAt).toBe(stored.estimatedDeliveryAt.toISOString());
+    expect(after.body.estimatedDeliveryAt).toBe(before.body.estimatedDeliveryAt);
+    expect(admin.body.estimatedDeliveryAt).toBe(before.body.estimatedDeliveryAt);
+    expect(minutesBetween(stored.createdAt, stored.estimatedDeliveryAt)).toBeGreaterThanOrEqual(15 + 3 * 3);
+  });
+
+  it('pasada la hora y sin entregar, informa la demora en detalle y listados', async () => {
+    const orderId = await placeOrder(ana);
+    await advanceTo(orderId, ['confirmed', 'preparing']);
+    await setEstimatedDeliveryBefore(orderId, 20);
+
+    const detail = await customerDetail(orderId);
+    const admin = await adminDetail(orderId);
+    const list = await request(server).get('/api/orders').set(auth(ana.token));
+    const adminList = await request(server)
+      .get('/api/admin/orders')
+      .query({ code: orderId })
+      .set(auth(adminToken));
+
+    expect(detail.body).toMatchObject({ status: 'preparing', etaMinutes: 0, delayMinutes: 20 });
+    expect(admin.body).toMatchObject({ etaMinutes: 0, delayMinutes: 20 });
+    expect(list.body.find((order: { id: string }) => order.id === orderId)).toMatchObject({ delayMinutes: 20 });
+    expect(adminList.body.items).toEqual([expect.objectContaining({ id: orderId, delayMinutes: 20 })]);
+  });
+
+  it('entregado tarde: la demora se mide contra la hora de entrega y queda fija', async () => {
+    const orderId = await placeOrder(ana);
+    await advanceTo(orderId, ['confirmed', 'preparing', 'ready', 'on_the_way', 'delivered']);
+    const delivered = await prisma.orderStatusHistory.findFirstOrThrow({
+      where: { orderId, status: 'delivered' },
+    });
+    await setEstimatedDeliveryBefore(orderId, 15, delivered.changedAt);
+
+    const detail = await customerDetail(orderId);
+    const admin = await adminDetail(orderId);
+    const list = await request(server).get('/api/orders').set(auth(ana.token));
+
+    expect(detail.body).toMatchObject({ status: 'delivered', etaMinutes: null, delayMinutes: 15 });
+    expect(admin.body).toMatchObject({ etaMinutes: null, delayMinutes: 15 });
+    expect(list.body.find((order: { id: string }) => order.id === orderId)).toMatchObject({ delayMinutes: 15 });
+  });
+
+  it('un pedido cancelado no tiene hora estimada ni demora', async () => {
+    const orderId = await placeOrder(ana);
+    await request(server).post(`/api/orders/${orderId}/cancel`).set(auth(ana.token));
+    await setEstimatedDeliveryBefore(orderId, 30);
+
+    const detail = await customerDetail(orderId);
+    const admin = await adminDetail(orderId);
+
+    expect(detail.body).toMatchObject({ status: 'cancelled', etaMinutes: null, delayMinutes: null });
+    expect(detail.body.estimatedDeliveryAt).toEqual(expect.any(String));
+    expect(admin.body).toMatchObject({ etaMinutes: null, delayMinutes: null });
   });
 });
 

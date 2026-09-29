@@ -156,6 +156,8 @@ model Order {
   guestEmail  String?
   status      OrderStatus @default(pending)
   totalAmount Decimal     @db.Decimal(10, 2)
+  // Hora estimada de entrega. Se calcula una vez al confirmar y no se recalcula (DEV-14).
+  estimatedDeliveryAt DateTime
   user        User?       @relation(fields: [userId], references: [id])
   branch      Branch      @relation(fields: [branchId], references: [id])
   address     Address     @relation(fields: [addressId], references: [id])
