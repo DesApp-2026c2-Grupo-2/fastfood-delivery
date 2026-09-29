@@ -324,7 +324,24 @@ async function main() {
 
   console.log('Categorías y productos de prueba cargados.');
 
+  await seedStock();
   await seedDelayedOrders(testCustomerId);
+}
+
+const DEMO_STOCK = 100;
+
+/**
+ * Stock inicial de todos los productos en la sucursal de demo (HU-17): sin fila de stock no se puede pedir.
+ * No pisa lo que ya haya cargado el admin.
+ */
+async function seedStock() {
+  const branch = await prisma.branch.findFirstOrThrow({ where: { name: DEFAULT_BRANCH.name } });
+  const products = await prisma.product.findMany({ select: { id: true } });
+  const { count } = await prisma.stock.createMany({
+    data: products.map((product) => ({ branchId: branch.id, productId: product.id, available: DEMO_STOCK })),
+    skipDuplicates: true,
+  });
+  console.log(`Stock inicial en ${DEFAULT_BRANCH.name}: ${count} productos nuevos con ${DEMO_STOCK} unidades.`);
 }
 
 const MINUTE_MS = 60_000;

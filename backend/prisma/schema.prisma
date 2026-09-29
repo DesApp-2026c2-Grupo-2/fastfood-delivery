@@ -33,8 +33,22 @@ model User {
   cart         Cart?
   orders       Order[]
   statusChanges OrderStatusHistory[]
+  passwordResetTokens PasswordResetToken[]
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+// Recuperar contraseña (HU-15). Se guarda el hash del token, nunca el token. Vence y es de un solo uso.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Category {
@@ -60,6 +74,7 @@ model Product {
   // Cuando el producto se usa como adicional de otro (categoría "Adicional").
   cartItemExtras  CartItemExtra[]
   orderItemExtras OrderItemExtra[]
+  stock           Stock[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -85,11 +100,36 @@ model Branch {
   openingHours String
   phone        String
   orders       Order[]
+  stock        Stock[]
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@index([active])
+}
+
+// Stock de un producto en una sucursal (HU-17, HU-18). Sin fila, el producto no se vende en esa sucursal.
+// Al confirmar un pedido pasa de available a reserved; al cancelarlo vuelve; al entregarlo sale de reserved.
+model Stock {
+  id        String   @id @default(cuid())
+  branchId  String
+  productId String
+  available Int      @default(0)
+  reserved  Int      @default(0)
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([branchId, productId])
+  @@index([productId])
+}
+
+// Parámetros del sistema editables por el admin (HU-19): radio de cobertura y constantes de ETA.
+model Parameter {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }
 
 model Address {
@@ -158,6 +198,9 @@ model Order {
   totalAmount Decimal     @db.Decimal(10, 2)
   // Hora estimada de entrega. Se calcula una vez al confirmar y no se recalcula (DEV-14).
   estimatedDeliveryAt DateTime
+  // true mientras el pedido tiene stock reservado en su sucursal (HU-18). Los pedidos anteriores
+  // al stock quedan en false: al cancelarlos o entregarlos no se toca el stock.
+  stockReserved Boolean     @default(false)
   user        User?       @relation(fields: [userId], references: [id])
   branch      Branch      @relation(fields: [branchId], references: [id])
   address     Address     @relation(fields: [addressId], references: [id])

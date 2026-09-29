@@ -1,13 +1,11 @@
 import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtPayload } from './jwt-payload';
-
-type PublicUser = { id: string; email: string; name: string; role: Role };
+import { hashPassword, passwordMatches, PublicUser, toPublicUser } from './password';
 
 @Injectable()
 export class AuthService {
@@ -22,7 +20,7 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const matches = await bcrypt.compare(dto.password, user.passwordHash);
+    const matches = await passwordMatches(dto.password, user.passwordHash);
     if (!matches) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
@@ -39,7 +37,7 @@ export class AuthService {
       throw new ConflictException('El email ya está registrado');
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const passwordHash = await hashPassword(dto.password);
 
     const user = await this.prisma.user.create({
       data: {
@@ -58,7 +56,7 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Token inválido');
     }
-    return this.publicUser(user);
+    return toPublicUser(user);
   }
 
   private tokenResponse(user: PublicUser) {
@@ -70,16 +68,7 @@ export class AuthService {
 
     return {
       accessToken: this.jwt.sign(payload),
-      user: this.publicUser(user),
-    };
-  }
-
-  private publicUser(user: PublicUser) {
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
+      user: toPublicUser(user),
     };
   }
 }

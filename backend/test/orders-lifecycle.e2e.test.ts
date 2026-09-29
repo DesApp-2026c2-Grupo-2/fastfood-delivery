@@ -154,6 +154,13 @@ beforeAll(async () => {
     });
     createdBranchId = branch.id;
   }
+  // Sin stock no se puede pedir (HU-18): los productos de prueba tienen de sobra en cada sucursal activa.
+  const activeBranches = await prisma.branch.findMany({ where: { active: true }, select: { id: true } });
+  await prisma.stock.createMany({
+    data: activeBranches.flatMap((active) =>
+      [burger, bacon, drink].map((product) => ({ branchId: active.id, productId: product.id, available: 1000 })),
+    ),
+  });
 
   const login = await request(server)
     .post('/api/auth/login')

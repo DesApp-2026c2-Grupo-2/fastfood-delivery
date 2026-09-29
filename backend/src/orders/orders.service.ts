@@ -1,14 +1,16 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Branch, OrderStatus, Prisma } from '@prisma/client';
+import { OrderStatus, Prisma } from '@prisma/client';
 import { AddressesService } from '../addresses/addresses.service';
-import { BranchesService } from '../branches/branches.service';
+import { BranchesService, CoveringBranch } from '../branches/branches.service';
 import { CartService } from '../cart/cart.service';
 import { byName, ExtrasService } from '../extras/extras.service';
+import { ParametersService } from '../parameters/parameters.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { stockLines } from '../stock/stock-lines';
+import { StockService } from '../stock/stock.service';
 import { CreateGuestOrderDto } from './dto/create-guest-order.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { deliveryTiming, estimateDeliveryAt } from './eta';
-import { haversineDistanceKm } from './geo';
 import { OrderEvents } from './order-events';
 import { canTransition, nextStatuses } from './order-status';
 
@@ -29,10 +31,6 @@ type OrderWithRelations = Prisma.OrderGetPayload<{ include: typeof withRelations
 
 function sumPrices(prices: Array<Prisma.Decimal | number>) {
   return prices.reduce<number>((sum, price) => sum + Number(price), 0);
-}
-
-function distanceKm(latitude: number, longitude: number, branch: Branch) {
-  return haversineDistanceKm(latitude, longitude, Number(branch.latitude), Number(branch.longitude));
 }
 
 const adminDetailInclude = {
@@ -245,6 +243,8 @@ export class OrdersService {
     private readonly cartService: CartService,
     private readonly extrasService: ExtrasService,
     private readonly orderEvents: OrderEvents,
+    private readonly parametersService: ParametersService,
+    private readonly stockService: StockService,
   ) {}
 
   async createFromCart(userId: string, dto: CreateOrderDto) {
@@ -270,7 +270,7 @@ export class OrdersService {
       throw new BadRequestException(`"${unavailableExtra.extra.name}" ya no está disponible`);
     }
 
-    const branch = await this.assignNearestBranch(Number(address.latitude), Number(address.longitude));
+    const { branch, distanceKm } = await this.assignBranch(Number(address.latitude), Number(address.longitude));
     const totalAmount = cart.items.reduce((sum, item) => {
       const extrasTotal = sumPrices(item.extras.map(({ extra }) => extra.price));
       return sum + (Number(item.product.price) + extrasTotal) * item.quantity;
@@ -279,10 +279,21 @@ export class OrdersService {
     const estimatedDeliveryAt = estimateDeliveryAt(
       createdAt,
       cart.items.reduce((sum, item) => sum + item.quantity, 0),
-      distanceKm(Number(address.latitude), Number(address.longitude), branch),
+      distanceKm,
+      await this.parametersService.etaSettings(),
+    );
+    const units = stockLines(
+      cart.items.map((item) => ({
+        product: item.product,
+        quantity: item.quantity,
+        extras: item.extras.map(({ extra }) => extra),
+      })),
     );
 
     const order = await this.prisma.$transaction(async (tx) => {
+      // Sin stock suficiente sale un 409 y no se crea el pedido; el carrito queda como estaba.
+      await this.stockService.reserve(tx, branch, units);
+
       const created = await tx.order.create({
         data: {
           userId,
@@ -292,6 +303,7 @@ export class OrdersService {
           status: 'pending',
           createdAt,
           estimatedDeliveryAt,
+          stockReserved: true,
           items: {
             create: cart.items.map((item) => ({
               productId: item.productId,
@@ -325,7 +337,7 @@ export class OrdersService {
 
   async createGuest(dto: CreateGuestOrderDto) {
     const lines = await this.resolveLines(dto.items);
-    const branch = await this.assignNearestBranch(dto.latitude, dto.longitude);
+    const { branch, distanceKm } = await this.assignBranch(dto.latitude, dto.longitude);
     const totalAmount = lines.reduce((sum, line) => {
       const extrasTotal = sumPrices(line.extras.map((extra) => extra.price));
       return sum + (Number(line.product.price) + extrasTotal) * line.quantity;
@@ -334,10 +346,13 @@ export class OrdersService {
     const estimatedDeliveryAt = estimateDeliveryAt(
       createdAt,
       lines.reduce((sum, line) => sum + line.quantity, 0),
-      distanceKm(dto.latitude, dto.longitude, branch),
+      distanceKm,
+      await this.parametersService.etaSettings(),
     );
 
     const order = await this.prisma.$transaction(async (tx) => {
+      await this.stockService.reserve(tx, branch, stockLines(lines));
+
       const address = await tx.address.create({
         data: {
           street: dto.street.trim(),
@@ -357,6 +372,7 @@ export class OrdersService {
           status: 'pending',
           createdAt,
           estimatedDeliveryAt,
+          stockReserved: true,
           items: {
             create: lines.map((line) => ({
               productId: line.product.id,
@@ -570,13 +586,18 @@ export class OrdersService {
     if (!canTransition(current.status, status)) {
       throw new ConflictException('No se puede pasar el pedido a ese estado');
     }
+    // Cancelar libera la reserva y entregar la descuenta (HU-18). Los pedidos anteriores al stock
+    // no reservaron nada y no lo tocan.
+    const settlesStock =
+      current.stockReserved && (status === OrderStatus.cancelled || status === OrderStatus.delivered);
 
     await this.prisma.$transaction(async (tx) => {
       // Solo actualiza si el estado sigue siendo el leído: si otro lo cambió en el medio
       // (el admin lo pasa a preparación mientras el cliente cancela), gana el primero y el otro recibe 409.
+      // Así la reserva se libera o se descuenta una sola vez.
       const { count } = await tx.order.updateMany({
-        where: { id, status: current.status },
-        data: { status },
+        where: { id, status: current.status, stockReserved: current.stockReserved },
+        data: { status, ...(settlesStock ? { stockReserved: false } : {}) },
       });
       if (count === 0) {
         throw new ConflictException('El pedido cambió de estado; actualizá la página');
@@ -584,6 +605,15 @@ export class OrdersService {
       await tx.orderStatusHistory.create({
         data: { orderId: id, status, changedByUserId },
       });
+
+      if (settlesStock) {
+        const units = await this.orderStockLines(tx, id);
+        if (status === OrderStatus.cancelled) {
+          await this.stockService.release(tx, current.branchId, units);
+        } else {
+          await this.stockService.consume(tx, current.branchId, units);
+        }
+      }
     });
 
     this.orderEvents.notifyStatusChanged({
@@ -623,15 +653,37 @@ export class OrdersService {
     );
   }
 
-  private async assignNearestBranch(latitude: number, longitude: number): Promise<Branch> {
-    const branches = await this.branchesService.findAll();
-    const active = branches.filter((branch) => branch.active);
-    if (active.length === 0) {
-      throw new BadRequestException('No hay sucursales activas disponibles');
-    }
-
-    return active.reduce((closest, branch) =>
-      distanceKm(latitude, longitude, branch) < distanceKm(latitude, longitude, closest) ? branch : closest,
+  // Las mismas unidades que se reservaron al confirmar: los productos y adicionales del pedido.
+  private async orderStockLines(tx: Prisma.TransactionClient, orderId: string) {
+    const items = await tx.orderItem.findMany({
+      where: { orderId },
+      select: {
+        quantity: true,
+        product: { select: { id: true, name: true } },
+        extras: { select: { extraId: true, name: true } },
+      },
+    });
+    return stockLines(
+      items.map((item) => ({
+        product: item.product,
+        quantity: item.quantity,
+        extras: item.extras.map((extra) => ({ id: extra.extraId, name: extra.name })),
+      })),
     );
+  }
+
+  // La sucursal activa más cercana dentro del radio de cobertura. Si ninguna llega, no se crea el pedido.
+  private async assignBranch(latitude: number, longitude: number): Promise<CoveringBranch> {
+    const { radiusKm, branches } = await this.branchesService.findCovering(latitude, longitude);
+    if (branches.length === 0) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'Bad Request',
+        code: 'OUT_OF_COVERAGE',
+        message: `No hay sucursales que lleguen a esa dirección (radio de ${radiusKm.toLocaleString('es-AR')} km)`,
+        radiusKm,
+      });
+    }
+    return branches[0];
   }
 }

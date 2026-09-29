@@ -8,22 +8,16 @@ export type EtaSettings = {
   kmPerMin: number;
 };
 
-// Valores del Sprint 2. Con HU-19 salen de la tabla Parameter.
-export const DEFAULT_ETA_SETTINGS: EtaSettings = {
-  prepBaseMin: 15,
-  minPerItem: 3,
-  kmPerMin: 0.5,
-};
-
 /**
  * Hora estimada de entrega: preparación base + minutos por ítem (cuenta cantidades) + traslado.
- * Se calcula una vez al confirmar y queda fija en Order.estimatedDeliveryAt.
+ * Se calcula una vez al confirmar y queda fija en Order.estimatedDeliveryAt. Las constantes salen
+ * de la tabla Parameter (HU-19): cambiarlas no mueve la hora de los pedidos ya confirmados.
  */
 export function estimateDeliveryAt(
   confirmedAt: Date,
   itemCount: number,
   distanceKm: number,
-  settings: EtaSettings = DEFAULT_ETA_SETTINGS,
+  settings: EtaSettings,
 ): Date {
   const travel = Math.ceil(distanceKm / settings.kmPerMin);
   const minutes = settings.prepBaseMin + itemCount * settings.minPerItem + travel;
