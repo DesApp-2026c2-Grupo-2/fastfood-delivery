@@ -15,11 +15,14 @@ function readCollapsed() {
 }
 
 const links = [
-  { to: '/admin', label: 'Inicio', icon: 'home' as const, end: true },
-  { to: '/admin/orders', label: 'Pedidos', icon: 'receipt' as const },
-  { to: '/admin/products', label: 'Productos', icon: 'bag' as const },
-  { to: '/admin/categories', label: 'Categorías', icon: 'tag' as const },
-  { to: '/admin/branches', label: 'Sucursales', icon: 'store' as const },
+  { to: '/admin', label: 'Inicio', short: 'Inicio', icon: 'home' as const, end: true },
+  { to: '/admin/orders', label: 'Pedidos', short: 'Pedidos', icon: 'receipt' as const },
+  { to: '/admin/stock', label: 'Stock', short: 'Stock', icon: 'boxes' as const },
+  { to: '/admin/parameters', label: 'Parámetros', short: 'Parámetros', icon: 'sliders' as const },
+  { to: '/admin/admins', label: 'Administradores', short: 'Admins', icon: 'users' as const },
+  { to: '/admin/products', label: 'Productos', short: 'Productos', icon: 'bag' as const },
+  { to: '/admin/categories', label: 'Categorías', short: 'Categorías', icon: 'tag' as const },
+  { to: '/admin/branches', label: 'Sucursales', short: 'Sucursales', icon: 'store' as const },
 ];
 
 export function AdminLayout() {
@@ -133,7 +136,7 @@ export function AdminLayout() {
         {links.map((link) => (
           <NavLink key={link.to} to={link.to} end={link.end} className="admin-bottom-link">
             <SvgIcon name={link.icon} className="admin-bottom-icon" />
-            <span>{link.label}</span>
+            <span>{link.short}</span>
           </NavLink>
         ))}
       </nav>
