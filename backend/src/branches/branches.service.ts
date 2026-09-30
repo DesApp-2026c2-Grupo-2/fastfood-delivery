@@ -1,12 +1,66 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { Branch, Prisma } from '@prisma/client';
+import { AddressesService } from '../addresses/addresses.service';
+import { JwtPayload } from '../auth/jwt-payload';
+import { haversineDistanceKm } from '../orders/geo';
+import { ParametersService } from '../parameters/parameters.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { AvailableBranchesQueryDto } from './dto/available-branches-query.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
 
+export type CoveringBranch = { branch: Branch; distanceKm: number };
+
 @Injectable()
 export class BranchesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly addressesService: AddressesService,
+    private readonly parametersService: ParametersService,
+  ) {}
+
+  /**
+   * Sucursales activas dentro del radio de cobertura (parámetro coverage_radius_km), de la más cercana
+   * a la más lejana. La primera es la que se asigna al confirmar un pedido en ese punto.
+   */
+  async findCovering(latitude: number, longitude: number) {
+    const [radiusKm, active] = await Promise.all([
+      this.parametersService.coverageRadiusKm(),
+      this.prisma.branch.findMany({ where: { active: true }, orderBy: { name: 'asc' } }),
+    ]);
+    const branches: CoveringBranch[] = active
+      .map((branch) => ({
+        branch,
+        distanceKm: haversineDistanceKm(latitude, longitude, Number(branch.latitude), Number(branch.longitude)),
+      }))
+      .filter(({ distanceKm }) => distanceKm <= radiusKm)
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+    return { radiusKm, branches };
+  }
+
+  /** GET /api/branches/available (HU-19): lo que ve el cliente en /branches. */
+  async findAvailable(query: AvailableBranchesQueryDto, user?: JwtPayload) {
+    const origin = await this.resolveOrigin(query, user);
+    const { radiusKm, branches } = await this.findCovering(origin.latitude, origin.longitude);
+    return {
+      radiusKm,
+      branches: branches.map(({ branch, distanceKm }) => ({
+        id: branch.id,
+        name: branch.name,
+        address: branch.address,
+        phone: branch.phone,
+        openingHours: branch.openingHours,
+        latitude: Number(branch.latitude),
+        longitude: Number(branch.longitude),
+        distanceKm: Math.round(distanceKm * 100) / 100,
+      })),
+    };
+  }
 
   findAll() {
     return this.prisma.branch.findMany({
@@ -62,5 +116,20 @@ export class BranchesService {
     await this.findOne(id);
     await this.prisma.branch.delete({ where: { id } });
     return { id };
+  }
+
+  private async resolveOrigin(query: AvailableBranchesQueryDto, user?: JwtPayload) {
+    if (query.addressId) {
+      if (!user) {
+        throw new UnauthorizedException('Iniciá sesión para usar una dirección guardada');
+      }
+      // Una dirección de otro usuario da 404, igual que una que no existe.
+      const address = await this.addressesService.findOneForUser(user.sub, query.addressId);
+      return { latitude: Number(address.latitude), longitude: Number(address.longitude) };
+    }
+    if (query.lat === undefined || query.lng === undefined) {
+      throw new BadRequestException('Indicá una dirección (addressId) o una ubicación (lat y lng)');
+    }
+    return { latitude: query.lat, longitude: query.lng };
   }
 }

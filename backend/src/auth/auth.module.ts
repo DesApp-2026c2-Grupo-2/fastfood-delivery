@@ -6,6 +6,8 @@ import { AuthService } from './auth.service';
 import { AdminGuard } from './admin.guard';
 import { CustomerGuard } from './customer.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { OptionalJwtAuthGuard } from './optional-jwt-auth.guard';
+import { PasswordResetService } from './password-reset.service';
 
 const DEFAULT_EXPIRES_IN = '7d';
 
@@ -26,7 +28,7 @@ function resolveExpiresIn(raw: string | undefined): JwtSignOptions['expiresIn'] 
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard, AdminGuard, CustomerGuard],
-  exports: [JwtModule, JwtAuthGuard, AdminGuard, CustomerGuard],
+  providers: [AuthService, PasswordResetService, JwtAuthGuard, OptionalJwtAuthGuard, AdminGuard, CustomerGuard],
+  exports: [JwtModule, JwtAuthGuard, OptionalJwtAuthGuard, AdminGuard, CustomerGuard],
 })
 export class AuthModule {}

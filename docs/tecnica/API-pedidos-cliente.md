@@ -1,8 +1,8 @@
 # API de pedidos del cliente
 
 **Proyecto:** Pedidos en casas de comidas rápidas  
-**Versión:** 1.0  
-**Actualizado:** 23/09/2026  
+**Versión:** 1.1  
+**Actualizado:** 29/09/2026  
 **Fuente:** `backend/src/orders/`  
 **Historias:** HU-09 (historial), HU-10 (seguimiento), HU-11 (cancelar), HU-12 (repetir)
 
@@ -26,12 +26,15 @@ Mis pedidos, del más reciente al más viejo. Sin paginación.
     "totalAmount": 23500,
     "createdAt": "2026-09-23T18:04:11.000Z",
     "branch": { "id": "cmf...", "name": "Sucursal Centro" },
-    "itemCount": 3
+    "itemCount": 3,
+    "estimatedDeliveryAt": "2026-09-23T18:39:11.000Z",
+    "etaMinutes": null,
+    "delayMinutes": 4
   }
 ]
 ```
 
-`itemCount` es la suma de las cantidades, no la cantidad de líneas.
+`itemCount` es la suma de las cantidades, no la cantidad de líneas. `estimatedDeliveryAt`, `etaMinutes` y `delayMinutes`: igual que en el detalle; sirven para marcar los demorados en el listado.
 
 ---
 
@@ -66,13 +69,17 @@ Si el pedido no existe **o es de otro cliente**: 404.
     { "id": "cmf...", "status": "pending", "changedAt": "2026-09-23T18:04:11.000Z" },
     { "id": "cmf...", "status": "confirmed", "changedAt": "2026-09-23T18:06:40.000Z" }
   ],
+  "estimatedDeliveryAt": "2026-09-23T18:36:11.000Z",
   "etaMinutes": 32,
+  "delayMinutes": 0,
   "canCancel": true
 }
 ```
 
 - `history`: el timeline, del más viejo al más nuevo. No dice quién hizo el cambio.
-- `etaMinutes`: `15 + (cantidad de ítems × 3) + ceil(distancia_km / 0.5)`. Es `null` si el pedido está `delivered` o `cancelled`.
+- `estimatedDeliveryAt`: hora estimada de entrega, fija desde que se confirmó (DEV-14). Se calcula con los parámetros del sistema: por defecto `15 + (cantidad de ítems × 3) + ceil(distancia_km / 0.5)` minutos.
+- `etaMinutes`: minutos que faltan hasta `estimatedDeliveryAt` (0 si ya pasó). Es `null` si el pedido está `delivered` o `cancelled`.
+- `delayMinutes`: minutos de demora (DEV-15). Sin entregar: cuánto se pasó de la hora (0 si todavía no). Entregado: cuánto tarde llegó. `null` si está cancelado. Detalle en [API-sprint-3.md](API-sprint-3.md#2-hora-estimada-y-demora-dev-14-dev-15).
 - `canCancel`: `true` si el estado es `pending` o `confirmed`. Sirve para mostrar u ocultar el botón cancelar.
 - Los mismos campos de `items` que devuelve `POST /api/orders` al confirmar.
 
@@ -122,3 +129,4 @@ Responde **200**:
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 1.0 | 23/09/2026 | Versión inicial |
+| 1.1 | 29/09/2026 | Hora estimada fija y demora (`estimatedDeliveryAt`, `delayMinutes`). Errores de stock y cobertura del checkout en [API-sprint-3.md](API-sprint-3.md) |

@@ -48,7 +48,7 @@ export class JwtAuthGuard implements CanActivate {
   }
 
   // El esquema de Authorization no distingue mayúsculas (RFC 7235).
-  private readBearerToken(request: Request): string | null {
+  protected readBearerToken(request: Request): string | null {
     const [scheme, token] = request.headers.authorization?.split(' ') ?? [];
     return scheme?.toLowerCase() === 'bearer' && token ? token : null;
   }

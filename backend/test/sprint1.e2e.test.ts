@@ -53,6 +53,15 @@ async function deleteE2eUsers() {
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 }
 
+// Sin stock no se puede pedir (HU-18): el producto de prueba tiene de sobra en cada sucursal activa.
+async function stockEverywhere(productId: string) {
+  const branches = await prisma.branch.findMany({ where: { active: true }, select: { id: true } });
+  await prisma.stock.createMany({
+    data: branches.map((branch) => ({ branchId: branch.id, productId, available: 1000 })),
+    skipDuplicates: true,
+  });
+}
+
 async function cleanupE2eLeftovers() {
   const products = await prisma.product.findMany({
     where: {
@@ -148,6 +157,7 @@ describe('Sprint 1', () => {
         },
       });
     }
+    await stockEverywhere(product.id);
 
     const address = await request(server)
       .post('/api/me/addresses')
@@ -211,6 +221,7 @@ describe('Sprint 1', () => {
         images: { create: { url: 'https://example.com/guest-burger.png', sortOrder: 0 } },
       },
     });
+    await stockEverywhere(product.id);
 
     const order = await request(server).post('/api/orders/guest').send({
       name: 'Invitado E2E',
