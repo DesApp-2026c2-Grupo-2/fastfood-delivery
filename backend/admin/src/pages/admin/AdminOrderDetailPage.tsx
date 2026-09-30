@@ -152,7 +152,11 @@ export function AdminOrderDetailPage() {
           <span className="muted">{order.branch.address}</span>
         </p>
         <p>
-          Dirección: <strong>{order.address.street}</strong>
+          Dirección:{' '}
+          <strong>
+            {order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}
+            {order.address.street}
+          </strong>
         </p>
         {order.status !== 'cancelled' && order.etaMinutes != null && order.etaMinutes > 0 ? (
           <p>

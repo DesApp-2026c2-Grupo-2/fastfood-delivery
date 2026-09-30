@@ -167,7 +167,9 @@ export function OrderDetailPage() {
 
         <div className="delivery-info">
           <p>
-            <strong>Entrega en:</strong> {order.address.street}
+            <strong>Entrega en:</strong>{' '}
+            {order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}
+            {order.address.street}
           </p>
           <p className="order-date">Fecha de creación: {formatDateTime(order.createdAt)}</p>
         </div>

@@ -15,6 +15,12 @@ const trim = ({ value }: { value: unknown }) =>
 
 export class CreateAddressDto {
   @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  alias?: string;
+
+  @Transform(trim)
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)

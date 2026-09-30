@@ -107,7 +107,7 @@ export type AdminOrderDetail = AdminOrderListItem & {
   guestName: string | null;
   guestEmail: string | null;
   branch: { id: string; name: string; address: string };
-  address: { id: string; street: string };
+  address: { id: string; alias?: string; street: string };
   items: {
     id: string;
     productId: string;

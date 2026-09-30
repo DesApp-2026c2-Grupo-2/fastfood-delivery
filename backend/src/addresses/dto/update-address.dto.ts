@@ -17,6 +17,12 @@ export class UpdateAddressDto {
   @Transform(trim)
   @IsOptional()
   @IsString()
+  @MaxLength(40)
+  alias?: string;
+
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
   @IsNotEmpty()
   @MaxLength(200)
   street?: string;
