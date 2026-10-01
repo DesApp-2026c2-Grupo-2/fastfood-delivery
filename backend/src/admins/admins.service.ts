@@ -4,11 +4,9 @@ import { hashPassword } from '../auth/password';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
+import { initialAdminPolicy } from './initial-admin.policy';
 
 const adminSelect = { id: true, name: true, email: true, createdAt: true };
-
-// El administrador del seed. Es el único que no se puede borrar.
-const INITIAL_ADMIN_EMAIL = 'admin@rapido.local';
 
 type AdminRow = { id: string; name: string; email: string; createdAt: Date };
 
@@ -44,8 +42,8 @@ export class AdminsService {
     if (dto.name === undefined && dto.email === undefined && dto.password === undefined) {
       throw new BadRequestException('No hay cambios para guardar');
     }
-    if (dto.email && dto.email !== admin.email && this.isInitialAdmin(admin.email)) {
-      throw new ConflictException('El email del administrador inicial no se puede cambiar');
+    if (dto.email) {
+      initialAdminPolicy.assertCanChangeEmail(admin.email, dto.email);
     }
     if (dto.email && dto.email !== admin.email) {
       await this.assertEmailAvailable(dto.email, id);
@@ -65,9 +63,7 @@ export class AdminsService {
 
   async remove(id: string) {
     const admin = await this.findAdmin(id);
-    if (this.isInitialAdmin(admin.email)) {
-      throw new ConflictException('El administrador inicial no se puede borrar');
-    }
+    initialAdminPolicy.assertCanDelete(admin.email);
     try {
       await this.prisma.user.delete({ where: { id } });
     } catch (error) {
@@ -103,17 +99,13 @@ export class AdminsService {
     }
   }
 
-  private isInitialAdmin(email: string) {
-    return email.toLowerCase() === INITIAL_ADMIN_EMAIL;
-  }
-
   private serialize(admin: AdminRow) {
     return {
       id: admin.id,
       name: admin.name,
       email: admin.email,
       createdAt: admin.createdAt,
-      deletable: !this.isInitialAdmin(admin.email),
+      deletable: !initialAdminPolicy.isInitial(admin.email),
     };
   }
 }

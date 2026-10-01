@@ -3,24 +3,7 @@ import { api } from '../../api/client';
 import type { Branch, StockLine } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { mediaUrl } from '../../lib/media';
-
-const MAX_AVAILABLE = 1_000_000;
-
-type BulkMode = 'add' | 'sub' | 'zero';
-
-function parseAvailable(raw: string): number | null {
-  const text = raw.trim();
-  if (!/^\d+$/.test(text)) return null;
-  const value = Number(text);
-  if (!Number.isInteger(value) || value < 0 || value > MAX_AVAILABLE) return null;
-  return value;
-}
-
-function nextAvailable(current: number, mode: BulkMode, delta: number) {
-  if (mode === 'zero') return 0;
-  if (mode === 'add') return Math.min(MAX_AVAILABLE, current + delta);
-  return Math.max(0, current - delta);
-}
+import { MAX_AVAILABLE, parseAvailable, stockAdjustments, type StockAdjustment } from '../../lib/stock-adjustment';
 
 export function AdminStockPage() {
   const token = getToken() ?? '';
@@ -38,7 +21,7 @@ export function AdminStockPage() {
   const [loadingBranches, setLoadingBranches] = useState(true);
   const [loadingStock, setLoadingStock] = useState(false);
   const [savingId, setSavingId] = useState('');
-  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState<StockAdjustment | null>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -181,25 +164,25 @@ export function AdminStockPage() {
     }
   }
 
-  async function applyBulk(mode: BulkMode) {
+  async function applyBulk(adjustment: StockAdjustment) {
     const targets = lines.filter((line) => selected.has(line.productId));
     if (!targets.length || bulkSaving) return;
 
-    let delta = 0;
-    if (mode !== 'zero') {
+    let quantity = 0;
+    if (adjustment.needsQuantity) {
       const parsed = parseAvailable(bulkQty);
       if (parsed == null || parsed < 1) {
         setNote('');
         setError('Para sumar o quitar, indicá una cantidad entera mayor a 0.');
         return;
       }
-      delta = parsed;
-    } else if (!confirm(`¿Dejar en 0 el disponible de ${targets.length} producto${targets.length === 1 ? '' : 's'}?`)) {
+      quantity = parsed;
+    } else if (adjustment.confirm && !confirm(adjustment.confirm(targets.length))) {
       return;
     }
 
     const updates = targets
-      .map((line) => ({ line, available: nextAvailable(line.available, mode, delta) }))
+      .map((line) => ({ line, available: adjustment.apply(line.available, quantity) }))
       .filter((item) => item.available !== item.line.available);
 
     setError('');
@@ -210,7 +193,7 @@ export function AdminStockPage() {
       return;
     }
 
-    setBulkSaving(true);
+    setBulkSaving(adjustment);
     const settled = await Promise.allSettled(updates.map((item) => putAvailable(item.line, item.available)));
     let ok = 0;
     let failed = 0;
@@ -229,7 +212,7 @@ export function AdminStockPage() {
         }));
       }
     });
-    setBulkSaving(false);
+    setBulkSaving(null);
     if (failed === 0) {
       setNote(ok === 1 ? 'Se actualizó 1 producto.' : `Se actualizaron ${ok} productos.`);
     } else {
@@ -238,7 +221,7 @@ export function AdminStockPage() {
   }
 
   const selectedCount = lines.filter((line) => selected.has(line.productId)).length;
-  const busy = bulkSaving || savingId !== '';
+  const busy = bulkSaving !== null || savingId !== '';
 
   return (
     <section className="stack">
@@ -315,15 +298,17 @@ export function AdminStockPage() {
               />
             </label>
             <div className="row">
-              <button type="button" className="secondary" disabled={busy || selectedCount === 0} onClick={() => void applyBulk('add')}>
-                {bulkSaving ? 'Aplicando…' : 'Sumar'}
-              </button>
-              <button type="button" className="secondary" disabled={busy || selectedCount === 0} onClick={() => void applyBulk('sub')}>
-                Quitar
-              </button>
-              <button type="button" className="danger" disabled={busy || selectedCount === 0} onClick={() => void applyBulk('zero')}>
-                Poner en 0
-              </button>
+              {stockAdjustments.map((adjustment) => (
+                <button
+                  key={adjustment.id}
+                  type="button"
+                  className={adjustment.danger ? 'danger' : 'secondary'}
+                  disabled={busy || selectedCount === 0}
+                  onClick={() => void applyBulk(adjustment)}
+                >
+                  {bulkSaving?.id === adjustment.id ? 'Aplicando…' : adjustment.label}
+                </button>
+              ))}
             </div>
           </div>
 
