@@ -105,7 +105,7 @@ export function AdminHomePage() {
         <article className="home-panel">
           <Link className="card-link" to="/admin/admins">
             <span>Administradores</span>
-            <small>Alta de otro usuario del backoffice</small>
+            <small>Alta, edición y baja. El inicial no se borra</small>
           </Link>
         </article>
 

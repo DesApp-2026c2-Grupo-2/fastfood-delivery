@@ -5,7 +5,7 @@ type OrderCodeProps = {
   id: string;
   to?: string;
   state?: unknown;
-  /** En el detalle el id se parte en varias líneas. En el listado se corta con puntos. */
+  /** En el detalle el id puede partirse si la columna es angosta. */
   wrap?: boolean;
 };
 

@@ -162,6 +162,7 @@ export type AdminAccount = {
   name: string;
   email: string;
   createdAt: string;
+  deletable: boolean;
 };
 
 export type Branch = {

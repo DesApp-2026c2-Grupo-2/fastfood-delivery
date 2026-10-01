@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import type { Branch, StockLine } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { mediaUrl } from '../../lib/media';
 
 const MAX_AVAILABLE = 1_000_000;
+
+type BulkMode = 'add' | 'sub' | 'zero';
 
 function parseAvailable(raw: string): number | null {
   const text = raw.trim();
@@ -14,19 +16,30 @@ function parseAvailable(raw: string): number | null {
   return value;
 }
 
+function nextAvailable(current: number, mode: BulkMode, delta: number) {
+  if (mode === 'zero') return 0;
+  if (mode === 'add') return Math.min(MAX_AVAILABLE, current + delta);
+  return Math.max(0, current - delta);
+}
+
 export function AdminStockPage() {
   const token = getToken() ?? '';
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState('');
   const [lines, setLines] = useState<StockLine[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [bulkQty, setBulkQty] = useState('');
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
+  const [note, setNote] = useState('');
   const [rowError, setRowError] = useState<Record<string, string>>({});
   const [savedId, setSavedId] = useState('');
   const [loadingBranches, setLoadingBranches] = useState(true);
   const [loadingStock, setLoadingStock] = useState(false);
   const [savingId, setSavingId] = useState('');
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,14 +67,17 @@ export function AdminStockPage() {
     if (!branchId) {
       setLines([]);
       setDrafts({});
+      setSelected(new Set());
       return;
     }
     let cancelled = false;
     async function loadStock() {
       setLoadingStock(true);
       setError('');
+      setNote('');
       setSavedId('');
       setRowError({});
+      setSelected(new Set());
       try {
         const list = await api<StockLine[]>(`/admin/branches/${branchId}/stock`, { token });
         if (cancelled) return;
@@ -92,13 +108,56 @@ export function AdminStockPage() {
     );
   }, [lines, query]);
 
+  const selectedVisible = visible.filter((line) => selected.has(line.productId)).length;
+  const allVisibleSelected = visible.length > 0 && selectedVisible === visible.length;
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = selectedVisible > 0 && !allVisibleSelected;
+    }
+  }, [selectedVisible, allVisibleSelected]);
+
+  function toggle(productId: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+  }
+
+  function toggleVisible() {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) {
+        for (const line of visible) next.delete(line.productId);
+      } else {
+        for (const line of visible) next.add(line.productId);
+      }
+      return next;
+    });
+  }
+
+  async function putAvailable(line: StockLine, available: number) {
+    return api<StockLine>(`/admin/branches/${branchId}/stock/${line.productId}`, {
+      method: 'PUT',
+      token,
+      body: JSON.stringify({ available }),
+    });
+  }
+
+  function remember(updated: StockLine) {
+    setLines((current) => current.map((item) => (item.productId === updated.productId ? updated : item)));
+    setDrafts((current) => ({ ...current, [updated.productId]: String(updated.available) }));
+  }
+
   async function save(line: StockLine) {
     const raw = drafts[line.productId] ?? '';
     const available = parseAvailable(raw);
     if (available == null) {
       setRowError((current) => ({
         ...current,
-        [line.productId]: `La cantidad tiene que ser un entero entre 0 y ${MAX_AVAILABLE.toLocaleString('es-AR')}.`,
+        [line.productId]: `Entero entre 0 y ${MAX_AVAILABLE.toLocaleString('es-AR')}.`,
       }));
       return;
     }
@@ -106,17 +165,12 @@ export function AdminStockPage() {
 
     setSavingId(line.productId);
     setSavedId('');
+    setNote('');
     setRowError((current) => ({ ...current, [line.productId]: '' }));
     setError('');
     try {
-      const updated = await api<StockLine>(`/admin/branches/${branchId}/stock/${line.productId}`, {
-        method: 'PUT',
-        token,
-        body: JSON.stringify({ available }),
-      });
-      setLines((current) => current.map((item) => (item.productId === updated.productId ? updated : item)));
-      setDrafts((current) => ({ ...current, [updated.productId]: String(updated.available) }));
-      setSavedId(updated.productId);
+      remember(await putAvailable(line, available));
+      setSavedId(line.productId);
     } catch (err) {
       setRowError((current) => ({
         ...current,
@@ -127,18 +181,82 @@ export function AdminStockPage() {
     }
   }
 
+  async function applyBulk(mode: BulkMode) {
+    const targets = lines.filter((line) => selected.has(line.productId));
+    if (!targets.length || bulkSaving) return;
+
+    let delta = 0;
+    if (mode !== 'zero') {
+      const parsed = parseAvailable(bulkQty);
+      if (parsed == null || parsed < 1) {
+        setNote('');
+        setError('Para sumar o quitar, indicá una cantidad entera mayor a 0.');
+        return;
+      }
+      delta = parsed;
+    } else if (!confirm(`¿Dejar en 0 el disponible de ${targets.length} producto${targets.length === 1 ? '' : 's'}?`)) {
+      return;
+    }
+
+    const updates = targets
+      .map((line) => ({ line, available: nextAvailable(line.available, mode, delta) }))
+      .filter((item) => item.available !== item.line.available);
+
+    setError('');
+    setNote('');
+    setSavedId('');
+    if (!updates.length) {
+      setNote('Esos productos ya tenían esa cantidad.');
+      return;
+    }
+
+    setBulkSaving(true);
+    const settled = await Promise.allSettled(updates.map((item) => putAvailable(item.line, item.available)));
+    let ok = 0;
+    let failed = 0;
+    settled.forEach((result, index) => {
+      const productId = updates[index].line.productId;
+      if (result.status === 'fulfilled') {
+        ok += 1;
+        remember(result.value);
+        setRowError((current) => ({ ...current, [productId]: '' }));
+      } else {
+        failed += 1;
+        const reason = result.reason;
+        setRowError((current) => ({
+          ...current,
+          [productId]: reason instanceof Error ? reason.message : 'No se pudo guardar',
+        }));
+      }
+    });
+    setBulkSaving(false);
+    if (failed === 0) {
+      setNote(ok === 1 ? 'Se actualizó 1 producto.' : `Se actualizaron ${ok} productos.`);
+    } else {
+      setError(`Se actualizaron ${ok}. No se pudo guardar ${failed}.`);
+    }
+  }
+
+  const selectedCount = lines.filter((line) => selected.has(line.productId)).length;
+  const busy = bulkSaving || savingId !== '';
+
   return (
     <section className="stack">
       <header className="page-head">
         <div>
           <h1>Stock</h1>
-          <p className="muted">Cantidad disponible de cada producto, por sucursal. Lo reservado no se edita.</p>
+          <p className="muted">Disponible por sucursal. Lo reservado no se edita.</p>
         </div>
       </header>
 
       {error ? (
         <p className="error" role="alert">
           {error}
+        </p>
+      ) : null}
+      {note ? (
+        <p className="success" role="status">
+          {note}
         </p>
       ) : null}
 
@@ -178,57 +296,120 @@ export function AdminStockPage() {
       ) : null}
 
       {!loadingStock && visible.length > 0 ? (
-        <ul className="list stock-list">
-          {visible.map((line) => {
-            const draft = drafts[line.productId] ?? String(line.available);
-            const dirty = parseAvailable(draft) !== line.available;
-            const message = rowError[line.productId];
-            return (
-              <li key={line.productId} className="card stock-row">
-                {line.imageUrl ? (
-                  <img className="list-thumb" src={mediaUrl(line.imageUrl)} alt="" />
-                ) : (
-                  <span className="list-thumb" />
-                )}
-                <div className="stock-row-body">
-                  <strong>{line.productName}</strong>
-                  <p className="muted">
-                    {line.categories.map((category) => category.name).join(' · ') || 'Sin categoría'}
-                    {line.productAvailable ? '' : ' · oculto en el menú'}
-                  </p>
-                  <p className="muted">
-                    Reservado: <strong>{line.reserved}</strong>
-                    {line.updatedAt == null ? ' · todavía sin fila de stock' : ''}
-                  </p>
-                  <label className="stock-available">
-                    Disponible
+        <div className="stock-sheet">
+          <div className="stock-bulk">
+            <p className="stock-bulk-count">
+              {selectedCount === 0 ? 'Nada seleccionado' : `${selectedCount} seleccionado${selectedCount === 1 ? '' : 's'}`}
+            </p>
+            <label className="stock-bulk-qty">
+              Cantidad
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={MAX_AVAILABLE}
+                step={1}
+                value={bulkQty}
+                onChange={(event) => setBulkQty(event.target.value)}
+                disabled={busy}
+              />
+            </label>
+            <div className="row">
+              <button type="button" className="secondary" disabled={busy || selectedCount === 0} onClick={() => void applyBulk('add')}>
+                {bulkSaving ? 'Aplicando…' : 'Sumar'}
+              </button>
+              <button type="button" className="secondary" disabled={busy || selectedCount === 0} onClick={() => void applyBulk('sub')}>
+                Quitar
+              </button>
+              <button type="button" className="danger" disabled={busy || selectedCount === 0} onClick={() => void applyBulk('zero')}>
+                Poner en 0
+              </button>
+            </div>
+          </div>
+
+          <div className="stock-line stock-line--head">
+            <input
+              ref={selectAllRef}
+              type="checkbox"
+              checked={allVisibleSelected}
+              onChange={toggleVisible}
+              aria-label="Seleccionar los productos visibles"
+              disabled={busy}
+            />
+            <span />
+            <span>Producto</span>
+            <span>Disponible</span>
+          </div>
+
+          <ul className="stock-lines">
+            {visible.map((line) => {
+              const draft = drafts[line.productId] ?? String(line.available);
+              const dirty = parseAvailable(draft) !== line.available;
+              const message = rowError[line.productId];
+              const meta = [
+                line.categories.map((category) => category.name).join(' · ') || 'Sin categoría',
+                `reservado ${line.reserved}`,
+                line.productAvailable ? '' : 'oculto',
+                line.updatedAt == null ? 'sin fila' : '',
+              ]
+                .filter(Boolean)
+                .join(' · ');
+              return (
+                <li key={line.productId} className="stock-line">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(line.productId)}
+                    onChange={() => toggle(line.productId)}
+                    aria-label={`Seleccionar ${line.productName}`}
+                    disabled={busy}
+                  />
+                  {line.imageUrl ? (
+                    <img className="stock-thumb" src={mediaUrl(line.imageUrl)} alt="" />
+                  ) : (
+                    <span className="stock-thumb" />
+                  )}
+                  <div className="stock-line-name">
+                    <strong>{line.productName}</strong>
+                    <p className="muted">{meta}</p>
+                  </div>
+                  <div className="stock-edit">
                     <input
+                      className="stock-qty"
                       type="number"
                       inputMode="numeric"
                       min={0}
                       max={MAX_AVAILABLE}
                       step={1}
                       value={draft}
+                      aria-label={`Disponible de ${line.productName}`}
+                      disabled={busy && savingId !== line.productId}
                       onChange={(event) => {
                         setDrafts((current) => ({ ...current, [line.productId]: event.target.value }));
                         setSavedId('');
                       }}
                     />
-                  </label>
+                    {dirty || savingId === line.productId ? (
+                      <button
+                        type="button"
+                        className="secondary stock-save"
+                        disabled={!dirty || busy}
+                        onClick={() => void save(line)}
+                      >
+                        {savingId === line.productId ? '…' : 'Guardar'}
+                      </button>
+                    ) : null}
+                  </div>
                   {message ? (
-                    <p className="error" role="alert">
+                    <p className="error stock-line-note" role="alert">
                       {message}
                     </p>
                   ) : null}
-                  {savedId === line.productId ? <p className="success">Stock guardado.</p> : null}
-                </div>
-                <button type="button" disabled={!dirty || savingId === line.productId} onClick={() => void save(line)}>
-                  {savingId === line.productId ? 'Guardando…' : 'Guardar'}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                  {savedId === line.productId ? <p className="success stock-line-note">Listo.</p> : null}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       ) : null}
     </section>
   );
