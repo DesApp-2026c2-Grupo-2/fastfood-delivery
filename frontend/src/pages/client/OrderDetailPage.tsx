@@ -93,7 +93,6 @@ export function OrderDetailPage() {
 
   return (
     <section className="tracking-page">
-      {/* Navegación y cabecera */}
       <div className="detail-back-action">
         <Link to="/orders" className="back-link">
           ← Mis pedidos
@@ -176,15 +175,14 @@ export function OrderDetailPage() {
 
         <div className="items-list">
           {order.items.map((item, itemIdx) => {
-            const extraNames = item.notes
-              ? item.notes
-                  .replace(/^(con|extras?:?)\s*/i, '')
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : [];
-
             const isLast = itemIdx === order.items.length - 1;
+            const hasExtras = Array.isArray(item.extras) && item.extras.length > 0;
+
+            // Separar la nota real de prefijos viejos de extras
+            let userNote = item.notes?.trim() || '';
+            if (userNote.toLowerCase().startsWith('extras:') || userNote.toLowerCase().startsWith('con:')) {
+              userNote = '';
+            }
 
             return (
               <div
@@ -193,11 +191,11 @@ export function OrderDetailPage() {
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  padding: '0.65rem 0',
+                  padding: '0.75rem 0',
                   borderBottom: isLast ? 'none' : '1px solid #f1f5f9',
                 }}
               >
-                {/* Renglón del producto sin borde propio */}
+                {/* Renglón principal */}
                 <div
                   className="item-row"
                   style={{
@@ -207,15 +205,15 @@ export function OrderDetailPage() {
                     borderBottom: 'none',
                   }}
                 >
-                  <div className="item-main">
+                  <div className="item-main" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     {item.product.imageUrl ? (
                       <img
                         src={item.product.imageUrl}
                         alt={item.product.name}
                         className="item-thumb"
                         style={{
-                          width: '42px',
-                          height: '42px',
+                          width: '44px',
+                          height: '44px',
                           objectFit: 'contain',
                           background: '#fff7ed',
                           border: '1px solid #fed7aa',
@@ -225,7 +223,9 @@ export function OrderDetailPage() {
                         }}
                       />
                     ) : null}
-                    <span className="item-name">{item.product.name}</span>
+                    <span className="item-name" style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                      {item.product.name}
+                    </span>
                   </div>
                   <div className="item-amounts">
                     <span className="item-qty">{item.quantity}×</span>
@@ -233,8 +233,8 @@ export function OrderDetailPage() {
                   </div>
                 </div>
 
-                {/* Adicionales solo si existen */}
-                {extraNames.length > 0 && (
+                {/* DEV-17: Adicionales con miniatura e importe limpio */}
+                {hasExtras && (
                   <div
                     className="item-extras-list"
                     style={{
@@ -242,37 +242,36 @@ export function OrderDetailPage() {
                       flexDirection: 'column',
                       gap: '0.4rem',
                       marginTop: '0.45rem',
-                      paddingLeft: '3.4rem',
+                      paddingLeft: '3.6rem',
                     }}
                   >
-                    {extraNames.map((extraName, idx) => {
-                      const cleanName = extraName.replace(/^(con|extras?:?)\s*/i, '').trim();
-                      const matchedExtra = allProducts.find(
+                    {item.extras!.map((extra, idx) => {
+                      const matchedProduct = allProducts.find(
                         (p) =>
-                          p.name.toLowerCase().trim() === cleanName.toLowerCase() ||
-                          cleanName.toLowerCase().includes(p.name.toLowerCase()) ||
-                          p.name.toLowerCase().includes(cleanName.toLowerCase())
+                          p.id === extra.id ||
+                          p.name.toLowerCase().trim() === extra.name.toLowerCase().trim()
                       );
+                      const finalImage = extra.imageUrl || matchedProduct?.imageUrl;
+                      const extraPrice = extra.price || matchedProduct?.price;
 
                       return (
                         <div
-                          key={idx}
+                          key={extra.id ?? idx}
                           className="item-extra-subrow"
                           style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.55rem',
+                            gap: '0.5rem',
                             fontSize: '0.85rem',
-                            color: '#475569',
                           }}
                         >
-                          <span style={{ color: '#fed7aa', fontWeight: 700, userSelect: 'none' }}>
+                          <span style={{ color: '#fdba74', fontWeight: 700, userSelect: 'none' }}>
                             └
                           </span>
-                          {matchedExtra?.imageUrl ? (
+                          {finalImage ? (
                             <img
-                              src={matchedExtra.imageUrl}
-                              alt={cleanName}
+                              src={finalImage}
+                              alt={extra.name}
                               style={{
                                 width: '26px',
                                 height: '26px',
@@ -284,13 +283,53 @@ export function OrderDetailPage() {
                                 flexShrink: 0,
                               }}
                             />
-                          ) : null}
+                          ) : (
+                            <span
+                              style={{
+                                width: '26px',
+                                height: '26px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: '#fff7ed',
+                                border: '1px solid #fed7aa',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                              }}
+                            >
+                              ✨
+                            </span>
+                          )}
                           <span style={{ fontWeight: 500, color: '#334155' }}>
-                            {cleanName}
+                            {extra.name}
                           </span>
+                          {extraPrice ? (
+                            <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 400 }}>
+                              (+{formatPrice(extraPrice)})
+                            </span>
+                          ) : null}
                         </div>
                       );
                     })}
+                  </div>
+                )}
+
+                {/* Observación real del cliente */}
+                {userNote && (
+                  <div
+                    className="item-notes-callout"
+                    style={{
+                      marginTop: '0.45rem',
+                      paddingLeft: '3.6rem',
+                      fontSize: '0.82rem',
+                      color: '#64748b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}
+                  >
+                    <span>✏️</span>
+                    <span style={{ fontStyle: 'italic' }}>Observación: "{userNote}"</span>
                   </div>
                 )}
               </div>

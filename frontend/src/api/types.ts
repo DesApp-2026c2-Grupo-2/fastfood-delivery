@@ -76,6 +76,14 @@ export type Cart = {
   total: number;
 };
 
+// DEV-17: Tipo para adicionales reales
+export type OrderItemExtra = {
+  id: string;
+  name: string;
+  price?: number;
+  imageUrl?: string | null;
+};
+
 export type OrderItem = {
   id: string;
   productId: string;
@@ -88,6 +96,7 @@ export type OrderItem = {
     name: string;
     imageUrl: string;
   };
+  extras?: OrderItemExtra[];
 };
 
 export type Order = {
@@ -110,7 +119,7 @@ export type Order = {
   items: OrderItem[];
 };
 
-// Lo que devuelve GET /orders (listado): más liviano que el detalle de /orders/:id
+// Lo que devuelve GET /orders (listado)
 export type OrderSummary = {
   id: string;
   status: string;
@@ -118,6 +127,8 @@ export type OrderSummary = {
   createdAt: string;
   branch: { id: string; name: string };
   itemCount: number;
+  estimatedDeliveryAt?: string | null;
+  delayMinutes?: number | null;
 };
 
 export type RepeatSkipped = {
@@ -151,5 +162,7 @@ export interface OrderHistoryItem {
 export type OrderDetail = Order & {
   history?: OrderHistoryItem[];
   etaMinutes?: number | null;
+  estimatedDeliveryAt?: string | null;
+  delayMinutes?: number | null;
   canCancel?: boolean;
 };
