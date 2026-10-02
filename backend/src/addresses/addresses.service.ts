@@ -49,6 +49,7 @@ export class AddressesService {
       return tx.address.create({
         data: {
           userId,
+          alias: dto.alias?.trim() ?? '',
           street: dto.street.trim(),
           latitude: new Prisma.Decimal(dto.latitude),
           longitude: new Prisma.Decimal(dto.longitude),
@@ -72,6 +73,7 @@ export class AddressesService {
       return tx.address.update({
         where: { id },
         data: {
+          ...(dto.alias !== undefined ? { alias: dto.alias.trim() } : {}),
           ...(dto.street !== undefined ? { street: dto.street.trim() } : {}),
           ...(dto.latitude !== undefined
             ? { latitude: new Prisma.Decimal(dto.latitude) }

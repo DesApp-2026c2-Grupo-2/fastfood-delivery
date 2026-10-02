@@ -70,12 +70,13 @@ export function AdminHomePage() {
       <header className="page-head">
         <div>
           <h1>Cocina Mordi</h1>
-          <p className="muted">Pedidos en curso, menú y sucursales.</p>
+          <p className="muted">Pedidos, stock por sucursal y parámetros del local.</p>
         </div>
       </header>
 
       <ol className="demo-steps">
-        <li>Abrí Pedidos y avanzá un pedido: Pendiente → Confirmado → En preparación.</li>
+        <li>Abrí Pedidos y avanzá un pedido: Pendiente → Confirmado → En preparación. El código se ve completo.</li>
+        <li>En Stock cargá unidades por sucursal. En Parámetros ajustá el radio y la hora estimada.</li>
         <li>En celular, usá la barra de abajo para moverte entre secciones.</li>
       </ol>
 
@@ -83,7 +84,28 @@ export function AdminHomePage() {
         <article className="home-panel">
           <Link className="card-link" to="/admin/orders">
             <span>Pedidos</span>
-            <small>Avanzar estados hasta la entrega</small>
+            <small>Código completo, demora y estados</small>
+          </Link>
+        </article>
+
+        <article className="home-panel">
+          <Link className="card-link" to="/admin/stock">
+            <span>Stock</span>
+            <small>Disponible y reservado por sucursal</small>
+          </Link>
+        </article>
+
+        <article className="home-panel">
+          <Link className="card-link" to="/admin/parameters">
+            <span>Parámetros</span>
+            <small>Radio, hora estimada y estados</small>
+          </Link>
+        </article>
+
+        <article className="home-panel">
+          <Link className="card-link" to="/admin/admins">
+            <span>Administradores</span>
+            <small>Alta, edición y baja. El inicial no se borra</small>
           </Link>
         </article>
 

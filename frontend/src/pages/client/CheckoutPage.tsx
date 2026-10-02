@@ -202,7 +202,9 @@ export function CheckoutPage() {
             <strong>Sucursal:</strong> {order.branch.name}
           </p>
           <p>
-            <strong>Entrega:</strong> {order.address.street}
+            <strong>Entrega:</strong>{' '}
+            {order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}
+            {order.address.street}
           </p>
           <p>
             <strong>Fecha:</strong> {formatDateTime(order.createdAt)}
@@ -271,7 +273,14 @@ export function CheckoutPage() {
                 onChange={() => setAddressId(address.id)}
               />
               <span>
-                {address.street}
+                {address.alias?.trim() ? (
+                  <>
+                    {address.alias.trim()}
+                    <small className="muted"> · {address.street}</small>
+                  </>
+                ) : (
+                  address.street
+                )}
                 {address.isDefault ? <small className="muted"> · principal</small> : null}
               </span>
             </label>

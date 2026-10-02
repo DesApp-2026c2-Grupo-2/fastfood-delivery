@@ -295,6 +295,7 @@ describe('Administradores (HU-16)', () => {
       name: expect.any(String),
       email: ADMIN_EMAIL,
       createdAt: expect.any(String),
+      deletable: ADMIN_EMAIL.toLowerCase() !== 'admin@rapido.local',
     });
     const emails = response.body.map((admin: { email: string }) => admin.email);
     expect(emails).not.toContain(customer.email);
@@ -307,7 +308,13 @@ describe('Administradores (HU-16)', () => {
     const created = await createAdmin({ name: '  Carla Admin ', email: email.toUpperCase(), password: 'Admin456!' });
 
     expect(created.status).toBe(201);
-    expect(created.body).toEqual({ id: expect.any(String), name: 'Carla Admin', email, createdAt: expect.any(String) });
+    expect(created.body).toEqual({
+      id: expect.any(String),
+      name: 'Carla Admin',
+      email,
+      createdAt: expect.any(String),
+      deletable: true,
+    });
 
     const session = await login(email, 'Admin456!');
     expect(session.status).toBe(201);
@@ -349,5 +356,67 @@ describe('Administradores (HU-16)', () => {
     expect((await createAdmin({ name: 'Intruso', email, password: 'Admin456!' }, customer.token)).status).toBe(403);
     expect((await request(server).get('/api/admin/admins')).status).toBe(401);
     expect(await prisma.user.count({ where: { email } })).toBe(0);
+  });
+
+  it('edita nombre, email y contraseña de un admin', async () => {
+    const email = uniqueEmail('editar');
+    const created = await createAdmin({ name: 'Para editar', email, password: 'Admin456!' });
+    expect(created.status).toBe(201);
+    const nextEmail = uniqueEmail('editado');
+
+    const updated = await request(server)
+      .patch(`/api/admin/admins/${created.body.id}`)
+      .set(auth(adminToken))
+      .send({ name: 'Editado', email: nextEmail.toUpperCase(), password: 'Nueva789!' });
+
+    expect(updated.status).toBe(200);
+    expect(updated.body).toEqual({
+      id: created.body.id,
+      name: 'Editado',
+      email: nextEmail,
+      createdAt: expect.any(String),
+      deletable: true,
+    });
+    expect(updated.body.passwordHash).toBeUndefined();
+    expect((await login(email, 'Admin456!')).status).toBe(401);
+    expect((await login(nextEmail, 'Nueva789!')).status).toBe(201);
+  });
+
+  it('borra un admin y rechaza borrar o cambiar el email del inicial', async () => {
+    const email = uniqueEmail('borrar');
+    const created = await createAdmin({ name: 'Para borrar', email, password: 'Admin456!' });
+    const seed = await prisma.user.findUniqueOrThrow({ where: { email: 'admin@rapido.local' } });
+
+    const blockedEmail = await request(server)
+      .patch(`/api/admin/admins/${seed.id}`)
+      .set(auth(adminToken))
+      .send({ email: uniqueEmail('seed') });
+    expect(blockedEmail.status).toBe(409);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: seed.id } })).email).toBe('admin@rapido.local');
+
+    const blockedDelete = await request(server).delete(`/api/admin/admins/${seed.id}`).set(auth(adminToken));
+    expect(blockedDelete.status).toBe(409);
+    expect(await prisma.user.findUnique({ where: { id: seed.id } })).not.toBeNull();
+
+    const removed = await request(server).delete(`/api/admin/admins/${created.body.id}`).set(auth(adminToken));
+    expect(removed.status).toBe(200);
+    expect(removed.body).toEqual({ id: created.body.id });
+    expect(await prisma.user.findUnique({ where: { email } })).toBeNull();
+    expect((await login(email, 'Admin456!')).status).toBe(401);
+  });
+
+  it('un cliente no edita ni borra admins', async () => {
+    const customer = await registerCustomer();
+    const email = uniqueEmail('protegido');
+    const created = await createAdmin({ name: 'Protegido', email, password: 'Admin456!' });
+
+    expect(
+      (await request(server).patch(`/api/admin/admins/${created.body.id}`).set(auth(customer.token)).send({ name: 'Hack' }))
+        .status,
+    ).toBe(403);
+    expect((await request(server).delete(`/api/admin/admins/${created.body.id}`).set(auth(customer.token))).status).toBe(
+      403,
+    );
+    expect((await prisma.user.findUniqueOrThrow({ where: { email } })).name).toBe('Protegido');
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCart } from '../../cart/CartContext';
 import { Link, useLocation } from 'react-router-dom';
 import { api } from '../../api/client';
@@ -129,66 +129,14 @@ export function CartPage() {
         <>
           <ul className="cart-list">
             {items.map((item) => (
-              <li key={item.id} className="card cart-item">
-                <div className="cart-item-main">
-                  {item.product.imageUrl ? (
-                    <img src={mediaUrl(item.product.imageUrl)} alt="" />
-                  ) : (
-                    <div className="cart-item-photo" />
-                  )}
-                  <div>
-                    <strong>{item.product.name}</strong>
-                    <p className="muted">
-                      {formatPrice(item.unitPrice)} · subtotal {formatPrice(item.subtotal)}
-                    </p>
-                  </div>
-                </div>
-                <div className="quantity-label">
-                  Cantidad
-                  <div className="qty">
-                    <button
-                      type="button"
-                      className="secondary"
-                      disabled={updatingId === item.id}
-                      onClick={() => void changeQuantity(item, item.quantity - 1)}
-                      aria-label="Menos"
-                    >
-                      −
-                    </button>
-                    <span className="qty-value">{item.quantity}</span>
-                    <button
-                      type="button"
-                      className="secondary"
-                      disabled={updatingId === item.id}
-                      onClick={() => void changeQuantity(item, item.quantity + 1)}
-                      aria-label="Más"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-                <label className="notes-label">
-                  Observaciones
-                  <textarea
-                    defaultValue={item.notes}
-                    maxLength={300}
-                    rows={2}
-                    disabled={updatingId === item.id}
-                    onBlur={(event) => {
-                      const notes = event.target.value.trim();
-                      if (notes !== item.notes) void saveItem(item, item.quantity, notes);
-                    }}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="danger"
-                  disabled={updatingId === item.id}
-                  onClick={() => void removeItem(item)}
-                >
-                  Quitar
-                </button>
-              </li>
+              <CartLine
+                key={item.id}
+                item={item}
+                busy={updatingId === item.id}
+                onQuantity={(quantity) => void changeQuantity(item, quantity)}
+                onNotes={(notes) => void saveItem(item, item.quantity, notes)}
+                onRemove={() => void removeItem(item)}
+              />
             ))}
           </ul>
           <div className="card total-card">
@@ -203,5 +151,137 @@ export function CartPage() {
         </>
       ) : null}
     </section>
+  );
+}
+
+function CartLine({
+  item,
+  busy,
+  onQuantity,
+  onNotes,
+  onRemove,
+}: {
+  item: CartItem;
+  busy: boolean;
+  onQuantity: (quantity: number) => void;
+  onNotes: (notes: string) => void;
+  onRemove: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(item.notes);
+  const skipSave = useRef(false);
+
+  function close(nextDraft: string) {
+    const notes = nextDraft.trim();
+    setOpen(false);
+    setDraft(notes);
+    if (notes !== item.notes) onNotes(notes);
+  }
+
+  return (
+    <li className="card cart-item">
+      <div className="cart-item-row">
+        {item.product.imageUrl ? (
+          <img src={mediaUrl(item.product.imageUrl)} alt="" />
+        ) : (
+          <div className="cart-item-photo" />
+        )}
+        <div className="cart-item-info">
+          <strong>{item.product.name}</strong>
+          <p className="muted">{formatPrice(item.unitPrice)} c/u</p>
+          {item.notes && !open ? (
+            <button
+              type="button"
+              className="cart-notes-line"
+              disabled={busy}
+              onClick={() => {
+                setDraft(item.notes);
+                setOpen(true);
+              }}
+            >
+              <PencilIcon />
+              <span>{item.notes}</span>
+            </button>
+          ) : null}
+          {!item.notes && !open ? (
+            <button
+              type="button"
+              className="cart-icon"
+              disabled={busy}
+              aria-label="Agregar observaciones"
+              onClick={() => {
+                setDraft('');
+                setOpen(true);
+              }}
+            >
+              <PencilIcon />
+            </button>
+          ) : null}
+        </div>
+        <div className="cart-item-side">
+          <div className="cart-qty">
+            <button type="button" disabled={busy} onClick={() => onQuantity(item.quantity - 1)} aria-label="Menos">
+              −
+            </button>
+            <span>{item.quantity}</span>
+            <button type="button" disabled={busy} onClick={() => onQuantity(item.quantity + 1)} aria-label="Más">
+              +
+            </button>
+          </div>
+          <strong className="cart-item-subtotal">{formatPrice(item.subtotal)}</strong>
+          <button type="button" className="cart-icon cart-icon--danger" disabled={busy} onClick={onRemove} aria-label="Quitar">
+            <TrashIcon />
+          </button>
+        </div>
+      </div>
+      {open ? (
+        <textarea
+          className="cart-notes-input"
+          value={draft}
+          maxLength={300}
+          rows={2}
+          autoFocus
+          disabled={busy}
+          aria-label="Observaciones"
+          placeholder="Sin cebolla, punto de cocción, etc."
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={(event) => {
+            if (skipSave.current) {
+              skipSave.current = false;
+              setDraft(item.notes);
+              setOpen(false);
+              return;
+            }
+            close(event.target.value);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              skipSave.current = true;
+              event.currentTarget.blur();
+            }
+          }}
+        />
+      ) : null}
+    </li>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M4 7h16" strokeLinecap="round" />
+      <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 11v6M14 11v6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M12 20h9" strokeLinecap="round" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

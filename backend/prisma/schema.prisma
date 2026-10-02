@@ -136,6 +136,8 @@ model Address {
   id        String   @id @default(cuid())
   userId    String?
   user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Nombre corto para reconocer la dirección ("Casa", "Trabajo"). Vacío si no tiene.
+  alias     String   @default("")
   street    String
   latitude  Decimal  @db.Decimal(10, 7)
   longitude Decimal  @db.Decimal(10, 7)

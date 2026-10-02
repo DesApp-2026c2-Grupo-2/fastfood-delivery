@@ -4,7 +4,9 @@ import { api } from '../../api/client';
 import { useOrderStatusEvents } from '../../api/order-events';
 import { ORDER_STATUS_LABEL, type AdminOrderDetail, type OrderStatus } from '../../api/types';
 import { getToken } from '../../auth/session';
+import { OrderCode } from '../../components/OrderCode';
 import { mediaUrl } from '../../lib/media';
+import { orderTimingText } from '../../lib/order-timing';
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(price);
@@ -12,10 +14,6 @@ function formatPrice(price: number) {
 
 function formatWhen(iso: string) {
   return new Intl.DateTimeFormat('es-AR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso));
-}
-
-function shortId(id: string) {
-  return id.slice(-6).toUpperCase();
 }
 
 function nextForward(nextStatuses: OrderStatus[]): OrderStatus | undefined {
@@ -91,6 +89,7 @@ export function AdminOrderDetailPage() {
 
   const forward = nextForward(order.nextStatuses);
   const canCancel = order.nextStatuses.includes('cancelled');
+  const timing = orderTimingText(order);
 
   return (
     <section className="stack">
@@ -100,8 +99,12 @@ export function AdminOrderDetailPage() {
 
       <header className="page-head">
         <div>
-          <h1>Pedido #{shortId(order.id)}</h1>
+          <h1 className="order-title">
+            Pedido <OrderCode id={order.id} wrap />
+          </h1>
           <p className="muted">{formatWhen(order.createdAt)}</p>
+          {timing.eta ? <p className="muted">{timing.eta}</p> : null}
+          {timing.delay ? <p className="badge badge-delay">{timing.delay}</p> : null}
         </div>
         <span className={`badge badge-status badge-status--${order.status}`}>
           {ORDER_STATUS_LABEL[order.status]}
@@ -149,29 +152,38 @@ export function AdminOrderDetailPage() {
           <span className="muted">{order.branch.address}</span>
         </p>
         <p>
-          Dirección: <strong>{order.address.street}</strong>
+          Dirección:{' '}
+          <strong>
+            {order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}
+            {order.address.street}
+          </strong>
         </p>
-        {order.etaMinutes != null ? <p>Tiempo estimado: <strong>{order.etaMinutes} min</strong></p> : null}
+        {order.status !== 'cancelled' && order.etaMinutes != null && order.etaMinutes > 0 ? (
+          <p>
+            Faltan <strong>{order.etaMinutes} min</strong>
+          </p>
+        ) : null}
         <p className="price">{formatPrice(order.totalAmount)}</p>
       </article>
 
       <article className="card order-detail-card">
         <h2>Ítems</h2>
-        <ul className="list">
+        <ul className="order-lines">
           {order.items.map((item) => (
-            <li key={item.id} className="list-item list-item--product">
+            <li key={item.id} className="order-line">
               {item.product.imageUrl ? (
-                <img className="list-thumb" src={mediaUrl(item.product.imageUrl)} alt="" />
+                <img src={mediaUrl(item.product.imageUrl)} alt="" />
               ) : (
-                <span className="list-thumb" />
+                <span className="order-line-photo" />
               )}
-              <div>
-                <strong>
-                  {item.quantity} × {item.product.name}
-                </strong>
+              <div className="order-line-info">
+                <strong>{item.product.name}</strong>
                 {item.notes ? <p className="muted">{item.notes}</p> : null}
               </div>
-              <strong>{formatPrice(item.subtotal)}</strong>
+              <div className="order-line-amounts">
+                <span>{item.quantity}×</span>
+                <strong>{formatPrice(item.subtotal)}</strong>
+              </div>
             </li>
           ))}
         </ul>

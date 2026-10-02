@@ -167,7 +167,9 @@ export function OrderDetailPage() {
 
         <div className="delivery-info">
           <p>
-            <strong>Entrega en:</strong> {order.address.street}
+            <strong>Entrega en:</strong>{' '}
+            {order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}
+            {order.address.street}
           </p>
           <p className="order-date">Fecha de creación: {formatDateTime(order.createdAt)}</p>
         </div>
@@ -223,10 +225,12 @@ export function OrderDetailPage() {
                         }}
                       />
                     ) : null}
-                    <span className="item-qty">{item.quantity}×</span>
                     <span className="item-name">{item.product.name}</span>
                   </div>
-                  <strong className="item-subtotal">{formatPrice(item.subtotal)}</strong>
+                  <div className="item-amounts">
+                    <span className="item-qty">{item.quantity}×</span>
+                    <strong className="item-subtotal">{formatPrice(item.subtotal)}</strong>
+                  </div>
                 </div>
 
                 {/* Adicionales solo si existen */}

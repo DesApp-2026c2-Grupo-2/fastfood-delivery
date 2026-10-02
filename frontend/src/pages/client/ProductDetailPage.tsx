@@ -21,6 +21,7 @@ export function ProductDetailPage() {
   const [saving, setSaving] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
+  const [notesOpen, setNotesOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -232,9 +233,8 @@ export function ProductDetailPage() {
           </div>
         )}
 
-        <label>
-          Cantidad
-          <div className="qty">
+        <div className="buy-row">
+          <div className="qty" aria-label="Cantidad">
             <button
               type="button"
               className="secondary"
@@ -248,6 +248,7 @@ export function ProductDetailPage() {
               min={1}
               value={quantity}
               onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))}
+              aria-label="Cantidad"
             />
             <button
               type="button"
@@ -258,18 +259,29 @@ export function ProductDetailPage() {
               +
             </button>
           </div>
-        </label>
+          <p className="buy-subtotal">
+            <span className="muted">Subtotal</span>
+            <strong>{formatPrice(unitPriceWithExtras * quantity)}</strong>
+          </p>
+        </div>
 
-        <label>
-          Observaciones
-          <textarea
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            maxLength={300}
-            rows={3}
-            placeholder="Sin cebolla, punto de cocción, etc."
-          />
-        </label>
+        {notesOpen ? (
+          <label>
+            Observaciones
+            <textarea
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              maxLength={300}
+              rows={2}
+              autoFocus
+              placeholder="Sin cebolla, punto de cocción, etc."
+            />
+          </label>
+        ) : (
+          <button type="button" className="text-action" onClick={() => setNotesOpen(true)}>
+            Agregar observaciones
+          </button>
+        )}
 
         {error ? (
           <p className="error" role="alert">
@@ -284,7 +296,7 @@ export function ProductDetailPage() {
         ) : null}
 
         <button type="submit" disabled={saving}>
-          {saving ? 'Agregando…' : `Agregar al carrito (${formatPrice(unitPriceWithExtras * quantity)})`}
+          {saving ? 'Agregando…' : 'Agregar al carrito'}
         </button>
       </form>
     </article>

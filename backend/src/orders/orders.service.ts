@@ -165,6 +165,7 @@ function serialize(order: OrderWithRelations) {
     },
     address: {
       id: order.address.id,
+      alias: order.address.alias,
       street: order.address.street,
     },
     guestName: order.guestName,
@@ -192,6 +193,7 @@ function serializeAdmin(order: OrderAdminDetail) {
     },
     address: {
       id: order.address.id,
+      alias: order.address.alias,
       street: order.address.street,
     },
     items: serializeItems(order.items),

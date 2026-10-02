@@ -7,18 +7,27 @@ import { formatCoordinate, requestDevicePosition } from '../../lib/geolocation';
 
 type FormState = {
   id?: string;
+  alias: string;
   street: string;
   latitude: string;
   longitude: string;
   isDefault: boolean;
 };
 
+const ALIAS_MAX = 40;
+
 const emptyForm: FormState = {
+  alias: '',
   street: '',
   latitude: '',
   longitude: '',
   isDefault: false,
 };
+
+function addressTitle(address: { alias?: string; street: string }) {
+  const alias = address.alias?.trim();
+  return alias || address.street;
+}
 
 function toNumber(value: number | string): number {
   return typeof value === 'number' ? value : Number(value);
@@ -95,6 +104,7 @@ function AddressesContent({ token }: { token: string }) {
   function startEdit(address: Address) {
     setForm({
       id: address.id,
+      alias: address.alias ?? '',
       street: address.street,
       latitude: String(toNumber(address.latitude)),
       longitude: String(toNumber(address.longitude)),
@@ -117,6 +127,11 @@ function AddressesContent({ token }: { token: string }) {
 
     const latitude = Number(form.latitude);
     const longitude = Number(form.longitude);
+    const alias = form.alias.trim();
+    if (alias.length > ALIAS_MAX) {
+      setError(`El alias no puede superar los ${ALIAS_MAX} caracteres.`);
+      return;
+    }
     if (!form.street.trim()) {
       setError('Completá la dirección.');
       return;
@@ -131,6 +146,7 @@ function AddressesContent({ token }: { token: string }) {
     }
 
     const payload = {
+      alias,
       street: form.street.trim(),
       latitude,
       longitude,
@@ -167,7 +183,7 @@ function AddressesContent({ token }: { token: string }) {
   }
 
   async function remove(address: Address) {
-    if (!confirm(`¿Borrar la dirección “${address.street}”?`)) return;
+    if (!confirm(`¿Borrar la dirección “${addressTitle(address)}”?`)) return;
     setError('');
     setOk('');
     try {
@@ -223,6 +239,17 @@ function AddressesContent({ token }: { token: string }) {
       {form ? (
         <form className="card form address-form" onSubmit={onSubmit}>
           <h2>{form.id ? 'Editar dirección' : 'Nueva dirección'}</h2>
+
+          <label>
+            Alias
+            <input
+              value={form.alias}
+              onChange={(event) => setForm((current) => current && { ...current, alias: event.target.value })}
+              maxLength={ALIAS_MAX}
+              placeholder="Casa, trabajo…"
+            />
+            <p className="field-hint">Opcional. Sirve para reconocerla en el checkout.</p>
+          </label>
 
           <label>
             Calle y número
@@ -307,9 +334,10 @@ function AddressesContent({ token }: { token: string }) {
             <li key={address.id} className="card address-card">
               <div className="address-card-body">
                 <div className="address-card-title">
-                  <strong>{address.street}</strong>
+                  <strong>{addressTitle(address)}</strong>
                   {address.isDefault ? <span className="badge">Predeterminada</span> : null}
                 </div>
+                {address.alias?.trim() ? <p className="muted">{address.street}</p> : null}
                 <p className="muted address-coords">
                   {toNumber(address.latitude).toFixed(4)}, {toNumber(address.longitude).toFixed(4)}
                 </p>

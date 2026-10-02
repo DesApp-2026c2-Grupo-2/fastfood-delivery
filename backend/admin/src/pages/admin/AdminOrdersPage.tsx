@@ -10,6 +10,8 @@ import {
   type OrderStatus,
 } from '../../api/types';
 import { getToken } from '../../auth/session';
+import { OrderCode } from '../../components/OrderCode';
+import { orderTimingText } from '../../lib/order-timing';
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(price);
@@ -17,10 +19,6 @@ function formatPrice(price: number) {
 
 function formatWhen(iso: string) {
   return new Intl.DateTimeFormat('es-AR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso));
-}
-
-function shortId(id: string) {
-  return id.slice(-6).toUpperCase();
 }
 
 export function AdminOrdersPage() {
@@ -158,7 +156,7 @@ export function AdminOrdersPage() {
           <input
             value={codeInput}
             onChange={(event) => setCodeInput(event.target.value)}
-            placeholder="Ej. 0E3R60"
+            placeholder="Código completo"
             type="search"
             autoComplete="off"
           />
@@ -233,12 +231,12 @@ export function AdminOrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => (
+              {orders.map((order) => {
+                const timing = orderTimingText(order);
+                return (
                 <tr key={order.id}>
                   <td>
-                    <Link to={`/admin/orders/${order.id}`} state={{ listSearch }}>
-                      #{shortId(order.id)}
-                    </Link>
+                    <OrderCode id={order.id} to={`/admin/orders/${order.id}`} state={{ listSearch }} />
                     <p className="table-slug muted">{order.itemCount} ítems</p>
                   </td>
                   <td>
@@ -250,11 +248,14 @@ export function AdminOrdersPage() {
                     <span className={`badge badge-status badge-status--${order.status}`}>
                       {ORDER_STATUS_LABEL[order.status]}
                     </span>
+                    {timing.delay ? <p className="table-slug"><span className="badge badge-delay">{timing.delay}</span></p> : null}
+                    {timing.eta ? <p className="table-slug muted">{timing.eta}</p> : null}
                   </td>
                   <td className="data-table-price">{formatPrice(order.totalAmount)}</td>
                   <td>{formatWhen(order.createdAt)}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -262,24 +263,27 @@ export function AdminOrdersPage() {
 
       {!loading && orders.length > 0 ? (
         <ul className="list order-card-list">
-          {orders.map((order) => (
-            <li key={order.id}>
-              <Link className="list-item order-card" to={`/admin/orders/${order.id}`} state={{ listSearch }}>
-                <div>
-                  <strong>#{shortId(order.id)}</strong>
-                  <p className="muted">
-                    {order.customerName} · {order.branch.name}
-                  </p>
-                </div>
-                <div className="order-card-meta">
-                  <span className={`badge badge-status badge-status--${order.status}`}>
-                    {ORDER_STATUS_LABEL[order.status]}
-                  </span>
-                  <strong>{formatPrice(order.totalAmount)}</strong>
-                </div>
+          {orders.map((order) => {
+            const timing = orderTimingText(order);
+            return (
+            <li key={order.id} className="order-card">
+              <div className="order-card-top">
+                <OrderCode id={order.id} to={`/admin/orders/${order.id}`} state={{ listSearch }} />
+                <span className={`badge badge-status badge-status--${order.status}`}>
+                  {ORDER_STATUS_LABEL[order.status]}
+                </span>
+              </div>
+              <Link className="order-card-body" to={`/admin/orders/${order.id}`} state={{ listSearch }}>
+                <p className="muted">
+                  {order.customerName} · {order.branch.name}
+                </p>
+                {timing.eta ? <p className="muted">{timing.eta}</p> : null}
+                {timing.delay ? <span className="badge badge-delay">{timing.delay}</span> : null}
+                <strong className="order-card-price">{formatPrice(order.totalAmount)}</strong>
               </Link>
             </li>
-          ))}
+            );
+          })}
         </ul>
       ) : null}
 

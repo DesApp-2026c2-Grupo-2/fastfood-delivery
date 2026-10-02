@@ -11,6 +11,9 @@ import close from './close.svg?raw';
 import check from './check.svg?raw';
 import store from './store.svg?raw';
 import receipt from './receipt.svg?raw';
+import boxes from './boxes.svg?raw';
+import users from './users.svg?raw';
+import sliders from './sliders.svg?raw';
 
 const icons = {
   eye,
@@ -20,6 +23,9 @@ const icons = {
   bag,
   store,
   receipt,
+  boxes,
+  users,
+  sliders,
   logout,
   'chevron-left': chevronLeft,
   'chevron-right': chevronRight,

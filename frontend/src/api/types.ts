@@ -45,6 +45,7 @@ export type LoginResponse = {
 
 export type Address = {
   id: string;
+  alias: string;
   street: string;
   latitude: number | string;
   longitude: number | string;
@@ -103,6 +104,7 @@ export type Order = {
   };
   address: {
     id: string;
+    alias?: string;
     street: string;
   };
   items: OrderItem[];

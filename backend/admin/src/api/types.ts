@@ -81,6 +81,9 @@ export type AdminOrderListItem = {
   customerEmail: string;
   branch: { id: string; name: string };
   itemCount: number;
+  estimatedDeliveryAt: string | null;
+  etaMinutes: number | null;
+  delayMinutes: number | null;
   nextStatuses: OrderStatus[];
 };
 
@@ -104,7 +107,7 @@ export type AdminOrderDetail = AdminOrderListItem & {
   guestName: string | null;
   guestEmail: string | null;
   branch: { id: string; name: string; address: string };
-  address: { id: string; street: string };
+  address: { id: string; alias?: string; street: string };
   items: {
     id: string;
     productId: string;
@@ -120,7 +123,46 @@ export type AdminOrderDetail = AdminOrderListItem & {
     changedAt: string;
     changedByName: string;
   }[];
-  etaMinutes: number | null;
+};
+
+export type StockLine = {
+  productId: string;
+  productName: string;
+  productAvailable: boolean;
+  imageUrl: string;
+  categories: { id: string; name: string; slug: string }[];
+  available: number;
+  reserved: number;
+  updatedAt: string | null;
+};
+
+export type SystemParameter = {
+  key: string;
+  label: string;
+  description: string;
+  unit: string;
+  value: number;
+  min: number;
+  max: number;
+  integer: boolean;
+  updatedAt: string | null;
+};
+
+export type OrderStatusInfo = {
+  status: OrderStatus;
+  label: string;
+  description: string;
+  next: OrderStatus[];
+  cancellable: boolean;
+  final: boolean;
+};
+
+export type AdminAccount = {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+  deletable: boolean;
 };
 
 export type Branch = {
