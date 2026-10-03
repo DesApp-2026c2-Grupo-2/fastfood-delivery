@@ -24,6 +24,7 @@ export function OrderDetailPage() {
   const [error, setError] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState('');
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +56,15 @@ export function OrderDetailPage() {
     };
   }, [id, token]);
 
+  const isTerminal = order?.status === 'delivered' || order?.status === 'cancelled';
+
+  // Actualiza el reloj cada 30 segundos para descontar minutos mientras se mira la pantalla
+  useEffect(() => {
+    if (isTerminal) return;
+    const interval = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(interval);
+  }, [isTerminal]);
+
   async function handleCancel() {
     if (!id) return;
     setCancelling(true);
@@ -85,11 +95,49 @@ export function OrderDetailPage() {
     );
   }
 
-  const isTerminal = order.status === 'delivered' || order.status === 'cancelled';
   const showCancel =
     order.canCancel ?? (order.status === 'pending' || order.status === 'confirmed');
 
   const reversedHistory = order.history ? [...order.history].reverse() : [];
+
+  // DEV-14 y DEV-15: Hora estimada fija y minutos restantes reales
+  let targetDeliveryDate: Date | null = null;
+
+  if (order.estimatedDeliveryAt) {
+    const parsed = new Date(order.estimatedDeliveryAt);
+    if (!isNaN(parsed.getTime())) targetDeliveryDate = parsed;
+  } else if (order.createdAt && typeof order.etaMinutes === 'number') {
+    const created = new Date(order.createdAt);
+    if (!isNaN(created.getTime())) {
+      targetDeliveryDate = new Date(created.getTime() + order.etaMinutes * 60_000);
+    }
+  }
+
+  const estimatedTimeFormatted = targetDeliveryDate
+    ? new Intl.DateTimeFormat('es-AR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).format(targetDeliveryDate)
+    : '';
+
+  // Minutos que realmente faltan a partir de la hora actual
+  const remainingMinutes = targetDeliveryDate
+    ? Math.max(0, Math.ceil((targetDeliveryDate.getTime() - now) / 60_000))
+    : order.etaMinutes ?? 0;
+
+  // Demora si la hora actual superó la hora prometida
+  let currentDelayMinutes = order.delayMinutes ?? 0;
+  if (
+    !isTerminal &&
+    targetDeliveryDate &&
+    (order.delayMinutes === undefined || order.delayMinutes === null)
+  ) {
+    const diffMinutes = Math.floor((now - targetDeliveryDate.getTime()) / 60_000);
+    currentDelayMinutes = diffMinutes > 0 ? diffMinutes : 0;
+  }
+
+  const isDelayed = currentDelayMinutes > 0;
 
   return (
     <section className="tracking-page">
@@ -111,13 +159,63 @@ export function OrderDetailPage() {
         </span>
       </header>
 
-      {/* Bloque 1: Estado, ETA, Sucursal y Timeline */}
+      {/* Bloque 1: Estado, ETA, Demora, Sucursal y Timeline */}
       <div className="tracking-card">
         <div className="delivery-status-banner">
-          {!isTerminal && order.etaMinutes !== undefined && order.etaMinutes !== null ? (
+          {order.status === 'cancelled' ? (
+            <div />
+          ) : !isTerminal ? (
             <div className="eta-block">
-              <span className="banner-sublabel">Tiempo estimado de entrega</span>
-              <strong className="eta-time">Aprox. {order.etaMinutes} minutos</strong>
+              {isDelayed ? (
+                /* DEV-15: Demorado */
+                <>
+                  <span
+                    className="banner-sublabel"
+                    style={{
+                      color: '#b45309',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                    }}
+                  >
+                    <span>⚠️</span> Demora en el pedido
+                  </span>
+                  <strong className="eta-time" style={{ color: '#c2410c' }}>
+                    Demorado {currentDelayMinutes} min
+                  </strong>
+                  {estimatedTimeFormatted && (
+                    <small style={{ color: '#78716c', fontSize: '0.82rem', marginTop: '2px' }}>
+                      Hora pactada: {estimatedTimeFormatted} hs
+                    </small>
+                  )}
+                </>
+              ) : (
+                /* DEV-14: En curso a tiempo con minutos restantes reales */
+                <>
+                  <span className="banner-sublabel">Tiempo estimado de entrega</span>
+                  <strong className="eta-time">
+                    {estimatedTimeFormatted
+                      ? `Llega aprox. ${estimatedTimeFormatted} hs`
+                      : `Aprox. ${remainingMinutes} minutos`}
+                  </strong>
+                  {estimatedTimeFormatted && remainingMinutes > 0 ? (
+                    <small style={{ color: '#64748b', fontSize: '0.82rem', marginTop: '2px' }}>
+                      (en aprox. {remainingMinutes} minutos)
+                    </small>
+                  ) : null}
+                </>
+              )}
+            </div>
+          ) : order.status === 'delivered' && isDelayed ? (
+            /* DEV-15: Entregado tarde */
+            <div className="eta-block">
+              <span className="banner-sublabel" style={{ color: '#64748b' }}>
+                Entrega finalizada
+              </span>
+              <strong style={{ fontSize: '0.95rem', color: '#b45309', fontWeight: 600 }}>
+                Entregado con {currentDelayMinutes} min de demora
+              </strong>
             </div>
           ) : (
             <div />
@@ -178,9 +276,11 @@ export function OrderDetailPage() {
             const isLast = itemIdx === order.items.length - 1;
             const hasExtras = Array.isArray(item.extras) && item.extras.length > 0;
 
-            // Separar la nota real de prefijos viejos de extras
             let userNote = item.notes?.trim() || '';
-            if (userNote.toLowerCase().startsWith('extras:') || userNote.toLowerCase().startsWith('con:')) {
+            if (
+              userNote.toLowerCase().startsWith('extras:') ||
+              userNote.toLowerCase().startsWith('con:')
+            ) {
               userNote = '';
             }
 
@@ -195,7 +295,6 @@ export function OrderDetailPage() {
                   borderBottom: isLast ? 'none' : '1px solid #f1f5f9',
                 }}
               >
-                {/* Renglón principal */}
                 <div
                   className="item-row"
                   style={{
@@ -205,7 +304,10 @@ export function OrderDetailPage() {
                     borderBottom: 'none',
                   }}
                 >
-                  <div className="item-main" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div
+                    className="item-main"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+                  >
                     {item.product.imageUrl ? (
                       <img
                         src={item.product.imageUrl}
@@ -233,7 +335,7 @@ export function OrderDetailPage() {
                   </div>
                 </div>
 
-                {/* DEV-17: Adicionales con miniatura e importe limpio */}
+                {/* DEV-17: Adicionales limpios */}
                 {hasExtras && (
                   <div
                     className="item-extras-list"
@@ -300,9 +402,7 @@ export function OrderDetailPage() {
                               ✨
                             </span>
                           )}
-                          <span style={{ fontWeight: 500, color: '#334155' }}>
-                            {extra.name}
-                          </span>
+                          <span style={{ fontWeight: 500, color: '#334155' }}>{extra.name}</span>
                           {extraPrice ? (
                             <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 400 }}>
                               (+{formatPrice(extraPrice)})
@@ -314,7 +414,7 @@ export function OrderDetailPage() {
                   </div>
                 )}
 
-                {/* Observación real del cliente */}
+                {/* Nota de cocina */}
                 {userNote && (
                   <div
                     className="item-notes-callout"
@@ -345,7 +445,7 @@ export function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Acciones */}
+      {/* Cancelar pedido */}
       {showCancel && (
         <div className="cancel-wrapper">
           <button
