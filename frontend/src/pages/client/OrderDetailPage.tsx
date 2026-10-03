@@ -24,6 +24,7 @@ export function OrderDetailPage() {
   const [error, setError] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState('');
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +56,15 @@ export function OrderDetailPage() {
     };
   }, [id, token]);
 
+  const isTerminal = order?.status === 'delivered' || order?.status === 'cancelled';
+
+  // Actualiza el reloj cada 30 segundos para descontar minutos mientras se mira la pantalla
+  useEffect(() => {
+    if (isTerminal) return;
+    const interval = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(interval);
+  }, [isTerminal]);
+
   async function handleCancel() {
     if (!id) return;
     setCancelling(true);
@@ -85,15 +95,52 @@ export function OrderDetailPage() {
     );
   }
 
-  const isTerminal = order.status === 'delivered' || order.status === 'cancelled';
   const showCancel =
     order.canCancel ?? (order.status === 'pending' || order.status === 'confirmed');
 
   const reversedHistory = order.history ? [...order.history].reverse() : [];
 
+  // DEV-14 y DEV-15: Hora estimada fija y minutos restantes reales
+  let targetDeliveryDate: Date | null = null;
+
+  if (order.estimatedDeliveryAt) {
+    const parsed = new Date(order.estimatedDeliveryAt);
+    if (!isNaN(parsed.getTime())) targetDeliveryDate = parsed;
+  } else if (order.createdAt && typeof order.etaMinutes === 'number') {
+    const created = new Date(order.createdAt);
+    if (!isNaN(created.getTime())) {
+      targetDeliveryDate = new Date(created.getTime() + order.etaMinutes * 60_000);
+    }
+  }
+
+  const estimatedTimeFormatted = targetDeliveryDate
+    ? new Intl.DateTimeFormat('es-AR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).format(targetDeliveryDate)
+    : '';
+
+  // Minutos que realmente faltan a partir de la hora actual
+  const remainingMinutes = targetDeliveryDate
+    ? Math.max(0, Math.ceil((targetDeliveryDate.getTime() - now) / 60_000))
+    : order.etaMinutes ?? 0;
+
+  // Demora si la hora actual superó la hora prometida
+  let currentDelayMinutes = order.delayMinutes ?? 0;
+  if (
+    !isTerminal &&
+    targetDeliveryDate &&
+    (order.delayMinutes === undefined || order.delayMinutes === null)
+  ) {
+    const diffMinutes = Math.floor((now - targetDeliveryDate.getTime()) / 60_000);
+    currentDelayMinutes = diffMinutes > 0 ? diffMinutes : 0;
+  }
+
+  const isDelayed = currentDelayMinutes > 0;
+
   return (
     <section className="tracking-page">
-      {/* Navegación y cabecera */}
       <div className="detail-back-action">
         <Link to="/orders" className="back-link">
           ← Mis pedidos
@@ -112,13 +159,63 @@ export function OrderDetailPage() {
         </span>
       </header>
 
-      {/* Bloque 1: Estado, ETA, Sucursal y Timeline */}
+      {/* Bloque 1: Estado, ETA, Demora, Sucursal y Timeline */}
       <div className="tracking-card">
         <div className="delivery-status-banner">
-          {!isTerminal && order.etaMinutes !== undefined && order.etaMinutes !== null ? (
+          {order.status === 'cancelled' ? (
+            <div />
+          ) : !isTerminal ? (
             <div className="eta-block">
-              <span className="banner-sublabel">Tiempo estimado de entrega</span>
-              <strong className="eta-time">Aprox. {order.etaMinutes} minutos</strong>
+              {isDelayed ? (
+                /* DEV-15: Demorado */
+                <>
+                  <span
+                    className="banner-sublabel"
+                    style={{
+                      color: '#b45309',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                    }}
+                  >
+                    <span>⚠️</span> Demora en el pedido
+                  </span>
+                  <strong className="eta-time" style={{ color: '#c2410c' }}>
+                    Demorado {currentDelayMinutes} min
+                  </strong>
+                  {estimatedTimeFormatted && (
+                    <small style={{ color: '#78716c', fontSize: '0.82rem', marginTop: '2px' }}>
+                      Hora pactada: {estimatedTimeFormatted} hs
+                    </small>
+                  )}
+                </>
+              ) : (
+                /* DEV-14: En curso a tiempo con minutos restantes reales */
+                <>
+                  <span className="banner-sublabel">Tiempo estimado de entrega</span>
+                  <strong className="eta-time">
+                    {estimatedTimeFormatted
+                      ? `Llega aprox. ${estimatedTimeFormatted} hs`
+                      : `Aprox. ${remainingMinutes} minutos`}
+                  </strong>
+                  {estimatedTimeFormatted && remainingMinutes > 0 ? (
+                    <small style={{ color: '#64748b', fontSize: '0.82rem', marginTop: '2px' }}>
+                      (en aprox. {remainingMinutes} minutos)
+                    </small>
+                  ) : null}
+                </>
+              )}
+            </div>
+          ) : order.status === 'delivered' && isDelayed ? (
+            /* DEV-15: Entregado tarde */
+            <div className="eta-block">
+              <span className="banner-sublabel" style={{ color: '#64748b' }}>
+                Entrega finalizada
+              </span>
+              <strong style={{ fontSize: '0.95rem', color: '#b45309', fontWeight: 600 }}>
+                Entregado con {currentDelayMinutes} min de demora
+              </strong>
             </div>
           ) : (
             <div />
@@ -176,15 +273,16 @@ export function OrderDetailPage() {
 
         <div className="items-list">
           {order.items.map((item, itemIdx) => {
-            const extraNames = item.notes
-              ? item.notes
-                  .replace(/^(con|extras?:?)\s*/i, '')
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : [];
-
             const isLast = itemIdx === order.items.length - 1;
+            const hasExtras = Array.isArray(item.extras) && item.extras.length > 0;
+
+            let userNote = item.notes?.trim() || '';
+            if (
+              userNote.toLowerCase().startsWith('extras:') ||
+              userNote.toLowerCase().startsWith('con:')
+            ) {
+              userNote = '';
+            }
 
             return (
               <div
@@ -193,11 +291,10 @@ export function OrderDetailPage() {
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  padding: '0.65rem 0',
+                  padding: '0.75rem 0',
                   borderBottom: isLast ? 'none' : '1px solid #f1f5f9',
                 }}
               >
-                {/* Renglón del producto sin borde propio */}
                 <div
                   className="item-row"
                   style={{
@@ -207,15 +304,18 @@ export function OrderDetailPage() {
                     borderBottom: 'none',
                   }}
                 >
-                  <div className="item-main">
+                  <div
+                    className="item-main"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+                  >
                     {item.product.imageUrl ? (
                       <img
                         src={item.product.imageUrl}
                         alt={item.product.name}
                         className="item-thumb"
                         style={{
-                          width: '42px',
-                          height: '42px',
+                          width: '44px',
+                          height: '44px',
                           objectFit: 'contain',
                           background: '#fff7ed',
                           border: '1px solid #fed7aa',
@@ -225,7 +325,9 @@ export function OrderDetailPage() {
                         }}
                       />
                     ) : null}
-                    <span className="item-name">{item.product.name}</span>
+                    <span className="item-name" style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                      {item.product.name}
+                    </span>
                   </div>
                   <div className="item-amounts">
                     <span className="item-qty">{item.quantity}×</span>
@@ -233,8 +335,8 @@ export function OrderDetailPage() {
                   </div>
                 </div>
 
-                {/* Adicionales solo si existen */}
-                {extraNames.length > 0 && (
+                {/* DEV-17: Adicionales limpios */}
+                {hasExtras && (
                   <div
                     className="item-extras-list"
                     style={{
@@ -242,37 +344,36 @@ export function OrderDetailPage() {
                       flexDirection: 'column',
                       gap: '0.4rem',
                       marginTop: '0.45rem',
-                      paddingLeft: '3.4rem',
+                      paddingLeft: '3.6rem',
                     }}
                   >
-                    {extraNames.map((extraName, idx) => {
-                      const cleanName = extraName.replace(/^(con|extras?:?)\s*/i, '').trim();
-                      const matchedExtra = allProducts.find(
+                    {item.extras!.map((extra, idx) => {
+                      const matchedProduct = allProducts.find(
                         (p) =>
-                          p.name.toLowerCase().trim() === cleanName.toLowerCase() ||
-                          cleanName.toLowerCase().includes(p.name.toLowerCase()) ||
-                          p.name.toLowerCase().includes(cleanName.toLowerCase())
+                          p.id === extra.id ||
+                          p.name.toLowerCase().trim() === extra.name.toLowerCase().trim()
                       );
+                      const finalImage = extra.imageUrl || matchedProduct?.imageUrl;
+                      const extraPrice = extra.price || matchedProduct?.price;
 
                       return (
                         <div
-                          key={idx}
+                          key={extra.id ?? idx}
                           className="item-extra-subrow"
                           style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.55rem',
+                            gap: '0.5rem',
                             fontSize: '0.85rem',
-                            color: '#475569',
                           }}
                         >
-                          <span style={{ color: '#fed7aa', fontWeight: 700, userSelect: 'none' }}>
+                          <span style={{ color: '#fdba74', fontWeight: 700, userSelect: 'none' }}>
                             └
                           </span>
-                          {matchedExtra?.imageUrl ? (
+                          {finalImage ? (
                             <img
-                              src={matchedExtra.imageUrl}
-                              alt={cleanName}
+                              src={finalImage}
+                              alt={extra.name}
                               style={{
                                 width: '26px',
                                 height: '26px',
@@ -284,13 +385,51 @@ export function OrderDetailPage() {
                                 flexShrink: 0,
                               }}
                             />
+                          ) : (
+                            <span
+                              style={{
+                                width: '26px',
+                                height: '26px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: '#fff7ed',
+                                border: '1px solid #fed7aa',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                              }}
+                            >
+                              ✨
+                            </span>
+                          )}
+                          <span style={{ fontWeight: 500, color: '#334155' }}>{extra.name}</span>
+                          {extraPrice ? (
+                            <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 400 }}>
+                              (+{formatPrice(extraPrice)})
+                            </span>
                           ) : null}
-                          <span style={{ fontWeight: 500, color: '#334155' }}>
-                            {cleanName}
-                          </span>
                         </div>
                       );
                     })}
+                  </div>
+                )}
+
+                {/* Nota de cocina */}
+                {userNote && (
+                  <div
+                    className="item-notes-callout"
+                    style={{
+                      marginTop: '0.45rem',
+                      paddingLeft: '3.6rem',
+                      fontSize: '0.82rem',
+                      color: '#64748b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}
+                  >
+                    <span>✏️</span>
+                    <span style={{ fontStyle: 'italic' }}>Observación: "{userNote}"</span>
                   </div>
                 )}
               </div>
@@ -306,7 +445,7 @@ export function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Acciones */}
+      {/* Cancelar pedido */}
       {showCancel && (
         <div className="cancel-wrapper">
           <button
