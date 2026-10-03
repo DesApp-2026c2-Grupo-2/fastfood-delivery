@@ -27,6 +27,10 @@ export function ResetPasswordPage() {
       setError('La contraseña debe tener al menos 6 caracteres.');
       return false;
     }
+    if (password.length > 72) {
+      setError('La contraseña no puede superar los 72 caracteres.');
+      return false;
+    }
     if (password !== confirmPassword) {
       setError('Las contraseñas no coinciden.');
       return false;
@@ -46,17 +50,29 @@ export function ResetPasswordPage() {
         method: 'POST',
         body: JSON.stringify({
           token: token.trim(),
-          password,
+          newPassword: password,
         }),
       });
 
-      // Redirige al login con banner de confirmación
+      // Redirige al login con confirmación de éxito
       navigate('/login', {
         replace: true,
-        state: { message: '¡Contraseña actualizada con éxito! Ya podés iniciar sesión.' },
+        state: { message: '¡Contraseña restablecida con éxito! Ya podés iniciar sesión.' },
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo restablecer la contraseña');
+      const msg = err instanceof Error ? err.message : '';
+
+      // Traducir errores técnicos o de validación a mensajes claros para el usuario
+      if (
+        msg.toLowerCase().includes('token') ||
+        msg.toLowerCase().includes('invalid') ||
+        msg.toLowerCase().includes('expired') ||
+        msg.toLowerCase().includes('not found')
+      ) {
+        setError('El token ingresado no es válido o ya expiró.');
+      } else {
+        setError(msg || 'No se pudo restablecer la contraseña.');
+      }
     } finally {
       setLoading(false);
     }

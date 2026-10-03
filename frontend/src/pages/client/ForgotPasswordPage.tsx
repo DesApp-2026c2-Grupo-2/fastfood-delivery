@@ -7,6 +7,10 @@ type ForgotPasswordResponse = {
   message?: string;
   resetToken?: string;
   token?: string;
+  demo?: {
+    resetToken: string;
+    expiresAt: string;
+  };
 };
 
 export function ForgotPasswordPage() {
@@ -37,8 +41,10 @@ export function ForgotPasswordPage() {
       });
 
       setSubmitted(true);
-      // Soporta token retornado por backend o genera uno demostrable si estamos en entorno local
-      const receivedToken = response?.resetToken || response?.token;
+      // Lee demo.resetToken que devuelve el backend
+      const receivedToken =
+        response?.demo?.resetToken || response?.resetToken || response?.token;
+
       if (receivedToken) {
         setDemoToken(receivedToken);
       }
@@ -97,9 +103,9 @@ export function ForgotPasswordPage() {
                   fontSize: '0.9rem',
                 }}
               >
-                <strong>¡Solicitud enviada!</strong>
+                <strong>¡Solicitud procesada!</strong>
                 <p style={{ marginTop: '0.35rem' }}>
-                  Si el correo está registrado, se han generado las credenciales para restablecer el acceso.
+                  Si el correo está registrado, se generaron las credenciales para restablecer el acceso.
                 </p>
               </div>
 
@@ -123,10 +129,10 @@ export function ForgotPasswordPage() {
                       letterSpacing: '0.5px',
                     }}
                   >
-                    🛠️ Modo demostración (Review)
+                    🛠️ Modo demostración (Sprint 3)
                   </span>
                   <p style={{ fontSize: '0.85rem', color: '#78350f', margin: '0.35rem 0' }}>
-                    Token de recuperación generado:
+                    Token generado por el backend:
                   </p>
                   <code
                     style={{
@@ -135,7 +141,7 @@ export function ForgotPasswordPage() {
                       border: '1px solid #fcd34d',
                       padding: '0.4rem 0.6rem',
                       borderRadius: '6px',
-                      fontSize: '0.85rem',
+                      fontSize: '0.82rem',
                       wordBreak: 'break-all',
                       color: '#b45309',
                     }}
