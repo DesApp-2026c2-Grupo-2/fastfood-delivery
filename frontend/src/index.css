@@ -3023,6 +3023,31 @@ h2 {
   font-weight: 700;
 }
 
+/* Avisos del checkout (sin cobertura / sin stock) */
+.checkout-notice {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem 1.15rem;
+  border: 2px solid #fecaca;
+  border-radius: 1.1rem;
+  background: #fef2f2;
+}
+
+.checkout-notice p {
+  margin: 0;
+}
+
+.checkout-notice strong {
+  color: #991b1b;
+}
+
+.checkout-notice-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  font-weight: 700;
+}
+
 @media (max-width: 719px) {
   .branches-search > button {
     width: 100%;

@@ -1,7 +1,7 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { api } from '../../api/client';
-import type { Address, Cart, Order } from '../../api/types';
+import { ApiError, api } from '../../api/client';
+import type { Address, Cart, Order, OutOfCoverageError } from '../../api/types';
 import { useCart } from '../../cart/CartContext';
 import { getToken, isCustomer } from '../../auth/session';
 import { clearGuestCart, getGuestCart, hydrateGuestCart } from '../../cart/guestCart';
@@ -14,6 +14,13 @@ type GuestFormErrors = {
   latitude?: string;
   longitude?: string;
 };
+
+function readCoverageError(err: unknown): OutOfCoverageError | null {
+  if (err instanceof ApiError && err.code === 'OUT_OF_COVERAGE') {
+    return err.body as OutOfCoverageError;
+  }
+  return null;
+}
 
 export function CheckoutPage() {
   const loggedIn = isCustomer();
@@ -29,6 +36,8 @@ export function CheckoutPage() {
   const [longitude, setLongitude] = useState('');
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState('');
+  const [coverageError, setCoverageError] = useState<OutOfCoverageError | null>(null);
+  const noticeRef = useRef<HTMLDivElement>(null);
   const [guestErrors, setGuestErrors] = useState<GuestFormErrors>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,6 +74,10 @@ export function CheckoutPage() {
     };
   }, [loggedIn, token]);
 
+  useEffect(() => {
+    if (coverageError) noticeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [coverageError]);
+
   async function confirmLoggedIn(event: FormEvent) {
     event.preventDefault();
     if (!addressId) {
@@ -73,6 +86,7 @@ export function CheckoutPage() {
     }
     setSaving(true);
     setError('');
+    setCoverageError(null);
     try {
       const created = await api<Order>('/orders', {
         method: 'POST',
@@ -83,7 +97,9 @@ export function CheckoutPage() {
 
       setOrder(created);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo confirmar el pedido');
+      const coverage = readCoverageError(err);
+      if (coverage) setCoverageError(coverage);
+      else setError(err instanceof Error ? err.message : 'No se pudo confirmar el pedido');
     } finally {
       setSaving(false);
     }
@@ -138,6 +154,7 @@ export function CheckoutPage() {
   async function confirmGuest(event: FormEvent) {
     event.preventDefault();
     setError('');
+    setCoverageError(null);
 
     if (!validateGuest()) {
       return;
@@ -168,7 +185,9 @@ export function CheckoutPage() {
       await refresh();
       setOrder(created);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo confirmar el pedido');
+      const coverage = readCoverageError(err);
+      if (coverage) setCoverageError(coverage);
+      else setError(err instanceof Error ? err.message : 'No se pudo confirmar el pedido');
     } finally {
       setSaving(false);
     }
@@ -255,6 +274,23 @@ export function CheckoutPage() {
         </p>
       ) : null}
 
+      {coverageError ? (
+        <div className="checkout-notice" role="alert" ref={noticeRef}>
+          <p>
+            <strong>{coverageError.message}</strong>
+          </p>
+          <p className="muted">
+            {loggedIn
+              ? 'Elegí otra dirección de entrega o revisá cuáles tienen cobertura.'
+              : 'Revisá la dirección y las coordenadas, o mirá qué sucursales llegan a tu zona.'}
+          </p>
+          <p className="checkout-notice-links">
+            <Link to="/branches">Ver sucursales disponibles</Link>
+            {loggedIn ? <Link to="/account/addresses">Mis direcciones</Link> : null}
+          </p>
+        </div>
+      ) : null}
+
       {loggedIn && addresses.length === 0 ? (
         <p className="empty">
           Necesitás una dirección de entrega. <Link to="/account/addresses">Cargá una acá</Link>.
@@ -270,7 +306,10 @@ export function CheckoutPage() {
                 type="radio"
                 name="addressId"
                 checked={addressId === address.id}
-                onChange={() => setAddressId(address.id)}
+                onChange={() => {
+                  setAddressId(address.id);
+                  setCoverageError(null);
+                }}
               />
               <span>
                 {address.alias?.trim() ? (
