@@ -111,8 +111,8 @@ export function ProductDetailPage() {
       await refresh();
       setOk(
         quantity === 1
-          ? 'Agregamos 1 unidad al carrito.'
-          : `Agregamos ${quantity} unidades al carrito.`,
+          ? '¡Sumamos 1 unidad al carrito!'
+          : `¡Sumamos ${quantity} unidades al carrito!`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo agregar al carrito');
@@ -289,10 +289,83 @@ export function ProductDetailPage() {
           </p>
         ) : null}
 
+        {/* Tarjeta de confirmación moderna */}
         {ok ? (
-          <p className="success" role="status">
-            {ok} <Link to="/products">Seguir comprando</Link> · <Link to="/cart">Ver carrito</Link>
-          </p>
+          <div
+            style={{
+              backgroundColor: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: '12px',
+              padding: '0.75rem 1rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.5rem',
+              margin: '0.6rem 0',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  backgroundColor: '#22c55e',
+                  color: '#ffffff',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                ✓
+              </span>
+              <span style={{ color: '#166534', fontWeight: 600, fontSize: '0.9rem' }}>
+                {ok}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: '0.5rem',
+                marginTop: '0.2rem',
+              }}
+            >
+              <Link
+                to="/products"
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  color: '#475569',
+                  padding: '0.35rem 0.7rem',
+                  borderRadius: '6px',
+                  backgroundColor: '#e2e8f0',
+                  textDecoration: 'none',
+                }}
+              >
+                Seguir comprando
+              </Link>
+              <Link
+                to="/cart"
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  backgroundColor: '#ea580c',
+                  padding: '0.35rem 0.8rem',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                  boxShadow: '0 1px 3px rgba(234, 88, 12, 0.25)',
+                }}
+              >
+                Ver carrito →
+              </Link>
+            </div>
+          </div>
         ) : null}
 
         <button type="submit" disabled={saving}>
