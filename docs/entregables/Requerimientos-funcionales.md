@@ -2,8 +2,8 @@
 
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
 **Fuente:** `docs/interno/Enunciado.txt`  
-**Versión:** 1.0  
-**Actualizado:** 07/09/2026  
+**Versión:** 1.1  
+**Actualizado:** 03/10/2026  
 **Estado:** versión de carpeta Sprint 1. Los IDs son estables. El alcance (qué entra en cada sprint) está en `docs/entregables/Alcance-funcional.md`. Las historias que cubren cada RF están en `docs/entregables/Historias-de-usuario.md`.
 
 ## 1. Cómo leer este documento
@@ -241,10 +241,10 @@ No cambia la prioridad del RF. Solo indica cuándo el grupo planea cubrirlo.
 
 | Sprint | RF |
 |---|---|
-| 1 | RF-CLI-01, RF-CLI-02, RF-CLI-05, RF-CLI-07, RF-ADM-01, RF-ADM-02, RF-ADM-04, RF-BRN-01, RF-CAT-01, RF-CAT-02, RF-CAT-03, RF-CRT-01 a RF-CRT-04, RF-ORD-01 (+ lat/lng de RF-GEO-01) |
-| 2 | RF-CLI-03, RF-CLI-04, RF-CLI-06, RF-ADM-03, RF-ADM-07, RF-ADM-10, RF-BRN-02, RF-BRN-03, RF-ORD-02 a RF-ORD-04, RF-GEO-02, RF-TRK-01 a RF-TRK-03, RF-HIS-01 |
-| 3 | RF-CAT-04, RF-ADM-06, RF-ADM-08, RF-ADM-09, RF-STK-01 a RF-STK-04 |
-| 4 | RF-ADM-05, RF-HIS-02, RF-PRM-01, RF-PRM-02, RF-RPT-01 a RF-RPT-04 |
+| 1 | RF-CLI-01, RF-CLI-02, RF-CLI-05, RF-CLI-07, RF-ADM-01, RF-ADM-02, RF-ADM-04, RF-BRN-01, RF-CAT-01, RF-CAT-02, RF-CAT-03, RF-CRT-01 a RF-CRT-04, RF-ORD-01 (+ lat/lng de RF-GEO-01; RF-BRN-02 y RF-GEO-02 con la regla simple: activa más cercana) |
+| 2 | RF-CLI-06, RF-ADM-10, RF-ORD-02 a RF-ORD-04, RF-TRK-01 a RF-TRK-03, RF-HIS-01, RF-HIS-02, RF-CAT-04 (acotado a adicionales de hamburguesa) |
+| 3 | RF-CLI-03, RF-CLI-04, RF-ADM-03, RF-ADM-06, RF-ADM-07, RF-ADM-08, RF-ADM-09, RF-BRN-03, RF-STK-01 a RF-STK-04 (+ RF-BRN-02 y RF-GEO-02 completos: radio de cobertura parametrizable) |
+| 4 | RF-ADM-05, RF-PRM-01, RF-PRM-02, RF-RPT-01 a RF-RPT-04 |
 | 5 | RF-RPT-10 a RF-RPT-22, RF-STK-05 (si hay tiempo), pulido de RF ya cubiertos |
 | Fuera (optativo / plus) | RF-GEO-03 (mapa), todos los RF de Extensión 2 |
 
@@ -255,15 +255,17 @@ Cerrados por decisión de grupo (se consultan si un docente contradice):
 1. **RF-ADM-04:** dos SPAs (cliente y admin), deploys separados, misma API y misma BD.
 2. **RF-GEO-03:** sigue optativo; no entra al núcleo ni al medio término.
 3. **Extensión:** se toma la propuesta 1. Una extensión alcanza para aspirar a nota alta.
+4. **RF-ADM-06:** el stock no se queda en carga de datos. Desde el Sprint 3 el checkout verifica y reserva stock en la sucursal asignada (RF-STK-02, RF-STK-04).
+5. **RF-ADM-08 y RF-ADM-09:** pantalla en el admin (`/admin/parameters`) sobre la tabla `Parameter`, que el sistema usa al confirmar (radio de cobertura y constantes de ETA). Los estados de pedido se listan en modo lectura; la máquina de estados no se edita.
+6. **RF-CLI-03:** flujo demostrable sin SMTP. El token de recuperación se muestra en modo demo, vence a los 30 minutos y es de un solo uso. El correo real queda como mejora.
 
-Siguen abiertos (no bloquean Sprint 1):
+Sigue abierto:
 
-1. RF-ADM-05 y RF-ADM-06: el ABM del bloque administrativo base ¿exige usar stock y promos en el checkout, o alcanza cargar los datos hasta abrir Extensión 1?
-2. RF-ADM-08 y RF-ADM-09: ¿pantalla de configuración o valores en BD usados por el sistema?
-3. RF-CLI-03: ¿correo real o flujo demostrable (token visible / consola)?
+1. RF-ADM-05: ¿el ABM de promociones exige aplicarlas en el checkout, o alcanza con cargarlas? Se define en el Sprint 4.
 
 ## Historial
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.1 | 03/10/2026 | Asignación a sprints según lo cubierto en S2 y S3; cerradas las consultas de RF-ADM-06, RF-ADM-08/09 y RF-CLI-03 |
 | 1.0 | 07/09/2026 | Versión inicial en la carpeta |
