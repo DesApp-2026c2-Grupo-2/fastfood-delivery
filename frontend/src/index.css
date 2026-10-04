@@ -3048,6 +3048,23 @@ h2 {
   font-weight: 700;
 }
 
+.checkout-notice-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.order-items .order-item--short {
+  color: #991b1b;
+}
+
+.order-item-shortage {
+  display: block;
+  font-weight: 700;
+  color: var(--danger);
+}
+
 @media (max-width: 719px) {
   .branches-search > button {
     width: 100%;
