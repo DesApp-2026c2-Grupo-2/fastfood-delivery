@@ -1686,8 +1686,8 @@ h2 {
 
 /*Colores para el badge del pedido acorde a su estado */
 .badge--pending {
-  background: #fef3c7;
-  color: #92400e;
+  background: #ffedd5;
+  color: #9a3412;
 }
 
 .badge--confirmed {
@@ -1696,13 +1696,20 @@ h2 {
 }
 
 .badge--preparing {
-  background: #fde68a;
-  color: #92400e;
-}
-
-.badge--on_the_way {
   background: #ede9fe;
   color: #5b21b6;
+
+}
+
+.badge--ready {
+  background: #ccfbf1;
+  color: #115e59;
+}
+
+
+.badge--on_the_way {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .badge--delivered {
@@ -2203,9 +2210,35 @@ h2 {
   border-radius: 9999px;
   font-size: 0.85rem;
   font-weight: 700;
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.tracking-badge--confirmed {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.tracking-badge--preparing {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.tracking-badge--ready {
+  background: #ccfbf1;
+  color: #115e59;
+}
+
+.tracking-badge--on_the_way {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.tracking-badge--delivered {
   background: #dcfce7;
   color: #166534;
 }
+
 
 .tracking-badge--cancelled {
   background: #fee2e2;
