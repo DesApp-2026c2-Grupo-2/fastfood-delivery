@@ -3,6 +3,7 @@ import { RequireCustomer } from './auth/RequireCustomer';
 import { CartProvider } from './cart/CartContext';
 import { ClientLayout } from './layouts/ClientLayout';
 import { AddressesPage } from './pages/client/AddressesPage';
+import { BranchesPage } from './pages/client/BranchesPage';
 import { CartPage } from './pages/client/CartPage';
 import { CheckoutPage } from './pages/client/CheckoutPage';
 import { ForgotPasswordPage } from './pages/client/ForgotPasswordPage';
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/products/:id" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/branches" element={<BranchesPage />} />
           <Route element={<RequireCustomer />}>
             <Route path="/account/addresses" element={<AddressesPage />} />
             <Route path="/orders" element={<OrdersPage />} />
