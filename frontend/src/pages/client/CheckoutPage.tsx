@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { ApiError, api } from '../../api/client';
 import type {
   Address,
+  AvailableBranchesResponse,
   Cart,
   Order,
   OutOfCoverageError,
@@ -21,6 +22,10 @@ type GuestFormErrors = {
   latitude?: string;
   longitude?: string;
 };
+
+function formatDistance(km: number): string {
+  return `${km.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
+}
 
 function formatUnits(count: number): string {
   return count === 1 ? '1 unidad' : `${count} unidades`;
@@ -42,6 +47,7 @@ export function CheckoutPage() {
   const [error, setError] = useState('');
   const [coverageError, setCoverageError] = useState<OutOfCoverageError | null>(null);
   const [stockError, setStockError] = useState<OutOfStockError | null>(null);
+  const [coverage, setCoverage] = useState<AvailableBranchesResponse | null>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const [guestErrors, setGuestErrors] = useState<GuestFormErrors>({});
   const [loading, setLoading] = useState(true);
@@ -78,6 +84,23 @@ export function CheckoutPage() {
       cancelled = true;
     };
   }, [loggedIn, token]);
+
+  useEffect(() => {
+    setCoverage(null);
+    if (!loggedIn || !addressId) return;
+    let cancelled = false;
+    const query = new URLSearchParams({ addressId }).toString();
+    api<AvailableBranchesResponse>(`/branches/available?${query}`, { token })
+      .then((result) => {
+        if (!cancelled) setCoverage(result);
+      })
+      .catch(() => {
+        // Sin vista previa: el checkout igual valida la cobertura al confirmar.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loggedIn, addressId, token]);
 
   useEffect(() => {
     if (coverageError || stockError) {
@@ -361,6 +384,7 @@ export function CheckoutPage() {
               </span>
             </label>
           ))}
+          {coverage ? <AssignedBranch coverage={coverage} /> : null}
           <OrderSummary cart={cart} saving={saving} shortages={stockError?.items ?? []} />
         </form>
       ) : null}
@@ -461,6 +485,23 @@ export function CheckoutPage() {
         </form>
       ) : null}
     </section>
+  );
+}
+
+function AssignedBranch({ coverage }: { coverage: AvailableBranchesResponse }) {
+  const branch = coverage.branches[0];
+  if (!branch) {
+    return (
+      <p className="checkout-branch checkout-branch--none">
+        Ninguna sucursal llega a esta dirección (radio de {coverage.radiusKm.toLocaleString('es-AR')} km).{' '}
+        <Link to="/branches">Ver sucursales</Link>
+      </p>
+    );
+  }
+  return (
+    <p className="checkout-branch">
+      Te atiende <strong>{branch.name}</strong> · {formatDistance(branch.distanceKm)}
+    </p>
   );
 }
 
