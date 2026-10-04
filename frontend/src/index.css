@@ -2239,18 +2239,6 @@ h2 {
   color: #166534;
 }
 
-
-.tracking-badge--cancelled {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.tracking-badge--on_the_way,
-.tracking-badge--preparing {
-  background: #ffedd5;
-  color: #c2410c;
-}
-
 /* Tarjetas principales con padding generoso */
 .tracking-card {
   background: #ffffff;
@@ -2530,26 +2518,9 @@ h2 {
   color: #334155;
 }
 
-.tracking-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.4rem 0.85rem;
-  border-radius: 9999px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  background: #dcfce7;
-  color: #166534;
-}
-
 .tracking-badge--cancelled {
   background: #fee2e2;
   color: #991b1b;
-}
-
-.tracking-badge--on_the_way,
-.tracking-badge--preparing {
-  background: #ffedd5;
-  color: #c2410c;
 }
 
 .tracking-card {

@@ -42,7 +42,7 @@ export function OrdersPage() {
 
 function OrdersContent({ token }: { token: string }) {
   const navigate = useNavigate();
-  const { refresh } = useCart();
+  const { count, refresh } = useCart();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -66,6 +66,7 @@ function OrdersContent({ token }: { token: string }) {
   }, []);
 
   async function repeatOrder(order: OrderSummary) {
+    const hadItems = count > 0;
     setRepeatingId(order.id);
     setError('');
     try {
@@ -74,7 +75,15 @@ function OrdersContent({ token }: { token: string }) {
         token,
       });
       await refresh();
-      const notice = result.skipped.length > 0 ? result.skipped.map((s) => s.message).join(' ') : undefined;
+      const messages: string[] = [];
+      if (hadItems) {
+        messages.push('Sumamos los ítems del pedido a lo que ya tenías en el carrito.');
+      }
+      if (result.skipped.length > 0) {
+        messages.push(...result.skipped.map((s) => s.message));
+      }
+      const notice = messages.length > 0 ? messages.join(' ') : undefined;
+
       navigate('/cart', { state: notice ? { notice } : undefined });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo repetir el pedido');
@@ -127,7 +136,13 @@ function OrdersContent({ token }: { token: string }) {
                   disabled={repeatingId === order.id}
                   onClick={() => void repeatOrder(order)}
                 >
-                  {repeatingId === order.id ? 'Repitiendo…' : 'Repetir pedido'}
+                  {repeatingId === order.id
+                    ? count > 0
+                      ? 'Agregando…'
+                      : 'Repitiendo…'
+                    : count > 0
+                      ? 'Agregar al carrito'
+                      : 'Repetir pedido'}
                 </button>
               </div>
             </li>
