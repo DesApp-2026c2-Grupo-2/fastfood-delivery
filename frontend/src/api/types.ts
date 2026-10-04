@@ -153,3 +153,41 @@ export type OrderDetail = Order & {
   etaMinutes?: number | null;
   canCancel?: boolean;
 };
+
+// Sucursales disponibles (HU-19): GET /branches/available
+export type AvailableBranch = {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  openingHours: string;
+  latitude: number;
+  longitude: number;
+  distanceKm: number;
+};
+
+export type AvailableBranchesResponse = {
+  radiusKm: number;
+  branches: AvailableBranch[];
+};
+
+// Errores del checkout (HU-18 / HU-19): POST /orders y /orders/guest
+export type OutOfCoverageError = {
+  code: 'OUT_OF_COVERAGE';
+  message: string;
+  radiusKm: number;
+};
+
+export type OutOfStockItem = {
+  productId: string;
+  name: string;
+  requested: number;
+  available: number;
+};
+
+export type OutOfStockError = {
+  code: 'OUT_OF_STOCK';
+  message: string;
+  branch: { id: string; name: string };
+  items: OutOfStockItem[];
+};
