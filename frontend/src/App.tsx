@@ -6,12 +6,14 @@ import { AddressesPage } from './pages/client/AddressesPage';
 import { BranchesPage } from './pages/client/BranchesPage';
 import { CartPage } from './pages/client/CartPage';
 import { CheckoutPage } from './pages/client/CheckoutPage';
+import { ForgotPasswordPage } from './pages/client/ForgotPasswordPage';
 import { LoginPage } from './pages/client/LoginPage';
 import { OrderDetailPage } from './pages/client/OrderDetailPage';
 import { OrdersPage } from './pages/client/OrdersPage';
 import { ProductDetailPage } from './pages/client/ProductDetailPage';
 import { ProductListPage } from './pages/client/ProductListPage';
 import { RegisterPage } from './pages/client/RegisterPage';
+import { ResetPasswordPage } from './pages/client/ResetPasswordPage';
 
 export default function App() {
   return (
@@ -19,6 +21,8 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route element={<ClientLayout />}>
           <Route path="/" element={<Navigate to="/products" replace />} />
           <Route path="/products" element={<ProductListPage />} />

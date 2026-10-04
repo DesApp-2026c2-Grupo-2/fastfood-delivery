@@ -2,17 +2,36 @@ import { useEffect, useRef, useState } from 'react';
 import { useCart } from '../../cart/CartContext';
 import { Link, useLocation } from 'react-router-dom';
 import { api } from '../../api/client';
-import type { Cart, CartItem } from '../../api/types';
+import type { Cart, CartItem, Product } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
 import { hydrateGuestCart, removeGuestItem, updateGuestItem } from '../../cart/guestCart';
 import { mediaUrl } from '../../lib/media';
 import { formatPrice } from '../../lib/money';
+
+function parseNotesAndExtras(notesRaw?: string | null) {
+  if (!notesRaw) return { extrasNames: [], kitchenNote: '' };
+
+  const text = notesRaw.trim();
+  const match = text.match(/^(?:extras?:?|con:?)\s*([^|;\n]+)(?:[|;\n]+(.*))?$/i);
+
+  if (match) {
+    const extrasNames = match[1]
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const kitchenNote = (match[2] || '').trim();
+    return { extrasNames, kitchenNote };
+  }
+
+  return { extrasNames: [], kitchenNote: text };
+}
 
 export function CartPage() {
   const { refresh } = useCart();
   const location = useLocation();
   const notice = (location.state as { notice?: string } | null)?.notice;
   const [cart, setCart] = useState<Cart | null>(null);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState('');
@@ -22,11 +41,14 @@ export function CartPage() {
     setLoading(true);
     setError('');
     try {
-      if (loggedIn) {
-        setCart(await api<Cart>('/cart', { token: getToken() ?? '' }));
-      } else {
-        setCart(await hydrateGuestCart());
-      }
+      const [cartData, productsData] = await Promise.all([
+        loggedIn
+          ? api<Cart>('/cart', { token: getToken() ?? '' })
+          : hydrateGuestCart(),
+        api<Product[]>('/products').catch(() => []),
+      ]);
+      setCart(cartData);
+      setAllProducts(productsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo cargar el carrito');
     } finally {
@@ -132,6 +154,7 @@ export function CartPage() {
               <CartLine
                 key={item.id}
                 item={item}
+                allProducts={allProducts}
                 busy={updatingId === item.id}
                 onQuantity={(quantity) => void changeQuantity(item, quantity)}
                 onNotes={(notes) => void saveItem(item, item.quantity, notes)}
@@ -156,111 +179,245 @@ export function CartPage() {
 
 function CartLine({
   item,
+  allProducts,
   busy,
   onQuantity,
   onNotes,
   onRemove,
 }: {
   item: CartItem;
+  allProducts: Product[];
   busy: boolean;
   onQuantity: (quantity: number) => void;
   onNotes: (notes: string) => void;
   onRemove: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(item.notes);
   const skipSave = useRef(false);
 
-  function close(nextDraft: string) {
-    const notes = nextDraft.trim();
+  const { extrasNames, kitchenNote } = parseNotesAndExtras(item.notes);
+  const [draftNote, setDraftNote] = useState(kitchenNote);
+
+  function close(nextDraftNote: string) {
+    const cleaned = nextDraftNote.trim();
     setOpen(false);
-    setDraft(notes);
-    if (notes !== item.notes) onNotes(notes);
+    setDraftNote(cleaned);
+
+    let finalNotes = '';
+    if (extrasNames.length > 0) {
+      finalNotes = `Extras: ${extrasNames.join(', ')}`;
+      if (cleaned) {
+        finalNotes += ` | ${cleaned}`;
+      }
+    } else {
+      finalNotes = cleaned;
+    }
+
+    if (finalNotes !== item.notes) {
+      onNotes(finalNotes);
+    }
   }
 
   return (
     <li className="card cart-item">
       <div className="cart-item-row">
         {item.product.imageUrl ? (
-          <img src={mediaUrl(item.product.imageUrl)} alt="" />
+          <img src={mediaUrl(item.product.imageUrl)} alt={item.product.name} />
         ) : (
           <div className="cart-item-photo" />
         )}
+
         <div className="cart-item-info">
           <strong>{item.product.name}</strong>
           <p className="muted">{formatPrice(item.unitPrice)} c/u</p>
-          {item.notes && !open ? (
+
+          {/* Adicionales con estilo limpio */}
+          {extrasNames.length > 0 && (
+            <div
+              className="cart-item-extras"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.35rem',
+                margin: '0.35rem 0',
+              }}
+            >
+              {extrasNames.map((extraName, idx) => {
+                const matched = allProducts.find(
+                  (p) =>
+                    p.name.toLowerCase().trim() === extraName.toLowerCase().trim() ||
+                    extraName.toLowerCase().includes(p.name.toLowerCase().trim())
+                );
+
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    <span style={{ color: '#fdba74', fontWeight: 700, userSelect: 'none' }}>
+                      └
+                    </span>
+                    {matched?.imageUrl ? (
+                      <img
+                        src={mediaUrl(matched.imageUrl)}
+                        alt={extraName}
+                        style={{
+                          width: '24px',
+                          height: '24px',
+                          objectFit: 'contain',
+                          background: '#fff7ed',
+                          border: '1px solid #fed7aa',
+                          borderRadius: '6px',
+                          padding: '2px',
+                          flexShrink: 0,
+                        }}
+                      />
+                    ) : (
+                      <span
+                        style={{
+                          width: '24px',
+                          height: '24px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: '#fff7ed',
+                          border: '1px solid #fed7aa',
+                          borderRadius: '6px',
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        ✨
+                      </span>
+                    )}
+                    <span style={{ fontWeight: 500, color: '#334155' }}>
+                      {extraName}
+                    </span>
+                    {matched?.price ? (
+                      <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 400 }}>
+                        (+{formatPrice(matched.price)})
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Aclaración exclusiva para cocina */}
+          {kitchenNote && !open ? (
             <button
               type="button"
               className="cart-notes-line"
               disabled={busy}
+              style={{ marginTop: '0.25rem' }}
               onClick={() => {
-                setDraft(item.notes);
+                setDraftNote(kitchenNote);
                 setOpen(true);
               }}
             >
               <PencilIcon />
-              <span>{item.notes}</span>
+              <span>Aclaración: "{kitchenNote}"</span>
             </button>
           ) : null}
-          {!item.notes && !open ? (
+
+          {!kitchenNote && !open ? (
             <button
               type="button"
-              className="cart-icon"
+              className="cart-notes-line"
               disabled={busy}
-              aria-label="Agregar observaciones"
+              style={{
+                marginTop: '0.25rem',
+                color: '#94a3b8',
+                fontSize: '0.8rem',
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: 0,
+              }}
               onClick={() => {
-                setDraft('');
+                setDraftNote('');
                 setOpen(true);
               }}
             >
               <PencilIcon />
+              <span>Agregar aclaración para la cocina</span>
             </button>
           ) : null}
         </div>
+
         <div className="cart-item-side">
           <div className="cart-qty">
-            <button type="button" disabled={busy} onClick={() => onQuantity(item.quantity - 1)} aria-label="Menos">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onQuantity(item.quantity - 1)}
+              aria-label="Menos"
+            >
               −
             </button>
             <span>{item.quantity}</span>
-            <button type="button" disabled={busy} onClick={() => onQuantity(item.quantity + 1)} aria-label="Más">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onQuantity(item.quantity + 1)}
+              aria-label="Más"
+            >
               +
             </button>
           </div>
           <strong className="cart-item-subtotal">{formatPrice(item.subtotal)}</strong>
-          <button type="button" className="cart-icon cart-icon--danger" disabled={busy} onClick={onRemove} aria-label="Quitar">
+          <button
+            type="button"
+            className="cart-icon cart-icon--danger"
+            disabled={busy}
+            onClick={onRemove}
+            aria-label="Quitar"
+          >
             <TrashIcon />
           </button>
         </div>
       </div>
+
       {open ? (
-        <textarea
-          className="cart-notes-input"
-          value={draft}
-          maxLength={300}
-          rows={2}
-          autoFocus
-          disabled={busy}
-          aria-label="Observaciones"
-          placeholder="Sin cebolla, punto de cocción, etc."
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={(event) => {
-            if (skipSave.current) {
-              skipSave.current = false;
-              setDraft(item.notes);
-              setOpen(false);
-              return;
-            }
-            close(event.target.value);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              skipSave.current = true;
-              event.currentTarget.blur();
-            }
-          }}
-        />
+        <div style={{ marginTop: '0.5rem' }}>
+          <textarea
+            className="cart-notes-input"
+            value={draftNote}
+            maxLength={200}
+            rows={2}
+            autoFocus
+            disabled={busy}
+            aria-label="Aclaración de cocina"
+            placeholder="Aclaraciones para la cocina (ej: sin sal, sin cebolla). No agregues ingredientes con costo."
+            onChange={(event) => setDraftNote(event.target.value)}
+            onBlur={(event) => {
+              if (skipSave.current) {
+                skipSave.current = false;
+                setDraftNote(kitchenNote);
+                setOpen(false);
+                return;
+              }
+              close(event.target.value);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                skipSave.current = true;
+                event.currentTarget.blur();
+              }
+            }}
+          />
+          <small style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
+            Presioná fuera para guardar (o Esc para cancelar)
+          </small>
+        </div>
       ) : null}
     </li>
   );

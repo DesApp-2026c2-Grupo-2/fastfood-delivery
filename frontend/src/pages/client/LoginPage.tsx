@@ -6,7 +6,7 @@ import { isCustomer, saveSession } from '../../auth/session';
 import { mergeGuestCartIntoAccount } from '../../cart/guestCart';
 import { BrandLogo } from '../../components/BrandLogo';
 
-type LocationState = { from?: string };
+type LocationState = { from?: string; message?: string };
 
 type FormErrors = {
   email?: string;
@@ -16,7 +16,10 @@ type FormErrors = {
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as LocationState | null)?.from;
+  const locationState = location.state as LocationState | null;
+  const from = locationState?.from;
+  const successMessage = locationState?.message;
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
@@ -86,6 +89,13 @@ export function LoginPage() {
           <h1>Mordi</h1>
           <p className="muted">Iniciá sesión para armar tu pedido.</p>
 
+          {/* Mensaje de éxito si viene redirigido desde el reset de contraseña */}
+          {successMessage ? (
+            <p className="success-banner" style={{ color: '#16a34a', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.6rem', borderRadius: '8px', fontSize: '0.9rem', textAlign: 'center' }}>
+              {successMessage}
+            </p>
+          ) : null}
+
           <label>
             Email
             <input
@@ -105,7 +115,17 @@ export function LoginPage() {
           </label>
 
           <label>
-            Contraseña
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Contraseña</span>
+              {/* HU-15: Link hacia la recuperación de contraseña */}
+              <Link
+                to="/forgot-password"
+                state={{ email: email.trim() }}
+                style={{ fontSize: '0.8rem', fontWeight: 500, textDecoration: 'none' }}
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
             <input
               type="password"
               value={password}
