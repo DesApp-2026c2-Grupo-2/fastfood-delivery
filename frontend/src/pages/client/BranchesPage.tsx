@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Address, AvailableBranch, AvailableBranchesResponse } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
-import { requestDevicePosition } from '../../lib/geolocation';
+import { type DevicePosition, requestDevicePosition } from '../../lib/geolocation';
 
 function formatDistance(km: number): string {
   return `${km.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
@@ -12,6 +13,7 @@ export function BranchesPage() {
   const customer = isCustomer();
   const token = getToken() ?? '';
   const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addressesLoaded, setAddressesLoaded] = useState(false);
   const [addressId, setAddressId] = useState('');
   const [result, setResult] = useState<AvailableBranchesResponse | null>(null);
   const [error, setError] = useState('');
@@ -41,19 +43,25 @@ export function BranchesPage() {
     setAddressId('');
     setLoading(true);
     setError('');
+    let position: DevicePosition;
     try {
-      const position = await requestDevicePosition();
-      await search(
-        new URLSearchParams({
-          lat: String(position.latitude),
-          lng: String(position.longitude),
-        }).toString(),
-      );
-    } catch (err) {
+      position = await requestDevicePosition();
+    } catch {
       setResult(null);
-      setError(err instanceof Error ? err.message : 'No pudimos obtener tu ubicación');
+      setError(
+        customer
+          ? 'No pudimos obtener tu ubicación. Revisá el permiso del navegador o elegí una de tus direcciones.'
+          : 'No pudimos obtener tu ubicación. Revisá el permiso de ubicación del navegador y probá de nuevo.',
+      );
       setLoading(false);
+      return;
     }
+    await search(
+      new URLSearchParams({
+        lat: String(position.latitude),
+        lng: String(position.longitude),
+      }).toString(),
+    );
   }
 
   useEffect(() => {
@@ -68,6 +76,9 @@ export function BranchesPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'No se pudieron cargar tus direcciones');
+      })
+      .finally(() => {
+        if (!cancelled) setAddressesLoaded(true);
       });
     return () => {
       cancelled = true;
@@ -115,6 +126,12 @@ export function BranchesPage() {
             ))}
           </fieldset>
         ) : null}
+        {customer && addressesLoaded && addresses.length === 0 ? (
+          <p className="muted branches-hint">
+            Todavía no tenés direcciones guardadas. <Link to="/account/addresses">Cargá una</Link> o usá tu
+            ubicación.
+          </p>
+        ) : null}
         <button
           type="button"
           className={addresses.length > 0 ? 'secondary' : undefined}
@@ -131,10 +148,36 @@ export function BranchesPage() {
         </p>
       ) : null}
 
-      {result ? (
-        <>
+      {loading && addressId ? <p className="muted">Buscando sucursales…</p> : null}
+
+      {result && !loading && result.branches.length === 0 ? (
+        <div className="empty branches-empty">
+          <p>
+            <strong>
+              No hay sucursales a menos de {result.radiusKm.toLocaleString('es-AR')} km
+              {addressId ? ' de esta dirección' : ' de tu ubicación'}.
+            </strong>
+          </p>
           <p className="muted">
-            Sucursales a menos de {result.radiusKm.toLocaleString('es-AR')} km
+            Por ahora no podemos hacer envíos ahí. Probá con otra dirección
+            {customer ? (
+              <>
+                {' '}
+                o <Link to="/account/addresses">cargá una nueva</Link>
+              </>
+            ) : null}
+            .
+          </p>
+        </div>
+      ) : null}
+
+      {result && !loading && result.branches.length > 0 ? (
+        <>
+          <p className="muted branches-radius">
+            {result.branches.length === 1
+              ? '1 sucursal'
+              : `${result.branches.length} sucursales`}{' '}
+            a menos de {result.radiusKm.toLocaleString('es-AR')} km
           </p>
           <ul className="branch-list">
             {result.branches.map((branch, index) => (
@@ -154,10 +197,10 @@ function BranchCard({ branch, assigned }: { branch: AvailableBranch; assigned: b
         <strong>{branch.name}</strong>
         <span className="branch-distance">{formatDistance(branch.distanceKm)}</span>
       </div>
-      {assigned ? <span className="badge">Te atiende esta sucursal</span> : null}
-      <p className="muted">{branch.address}</p>
-      <p className="muted">{branch.openingHours}</p>
-      <p className="muted">
+      {assigned ? <span className="badge branch-assigned">Te atiende esta sucursal</span> : null}
+      <p className="branch-line">{branch.address}</p>
+      <p className="branch-line muted">{branch.openingHours}</p>
+      <p className="branch-line">
         <a href={`tel:${branch.phone.replace(/\s/g, '')}`}>{branch.phone}</a>
       </p>
     </li>
