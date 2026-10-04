@@ -3018,6 +3018,11 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.addresses-branches-link {
+  margin: 0.35rem 0 0;
+  font-weight: 700;
+}
+
 @media (max-width: 719px) {
   .branches-search > button {
     width: 100%;

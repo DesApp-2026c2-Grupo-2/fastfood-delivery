@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Address } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
@@ -217,6 +217,9 @@ function AddressesContent({ token }: { token: string }) {
         <div>
           <h1>Mis direcciones</h1>
           <p className="muted">Guardá dónde querés recibir tus pedidos. Podés usar la ubicación del dispositivo o cargarla a mano.</p>
+          <p className="addresses-branches-link">
+            <Link to="/branches">Ver qué sucursales me cubren</Link>
+          </p>
         </div>
         {!form ? (
           <button type="button" onClick={startCreate}>
