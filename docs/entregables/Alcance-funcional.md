@@ -2,9 +2,9 @@
 
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
 **Fuente:** `docs/interno/Enunciado.txt`  
-**Versión:** 1.0  
-**Actualizado:** 07/09/2026  
-**Estado:** versión de carpeta para el Sprint 1 (review 10/09). Se actualiza si cambia una decisión de negocio.  
+**Versión:** 1.1  
+**Actualizado:** 03/10/2026  
+**Estado:** versión de carpeta actualizada al Sprint 3 (review 08/10). Se actualiza si cambia una decisión de negocio.  
 **Documentos relacionados:** `Requerimientos-funcionales.md`, `Historias-de-usuario.md`, `docs/sprints/Ficha-Sprint-1.md`
 
 ---
@@ -43,7 +43,11 @@ El sistema nace con un administrador inicial (seed). Los administradores inician
 
 Cada sucursal es un local físico (nombre, dirección, lat/lng, horarios, teléfono, activa/inactiva). Al confirmar un pedido, el sistema elige desde qué sucursal se prepara. El cliente debe poder ver las sucursales disponibles para su ubicación.
 
-**Estrategia de asignación (Sprint 1):** sucursal **activa más cercana** a la dirección de entrega, distancia Haversine. Si no hay ninguna activa, no se crea el pedido. Radio de cobertura, horario de atención y stock quedan para sprints siguientes.
+**Estrategia de asignación (Sprint 1):** sucursal **activa más cercana** a la dirección de entrega, distancia Haversine. Si no hay ninguna activa, no se crea el pedido.
+
+**Estrategia de asignación (desde Sprint 3):** sucursal **activa más cercana dentro del radio de cobertura** (parámetro `coverage_radius_km`, 5 km por defecto, editable en `/admin/parameters`). Si ninguna llega, no se crea el pedido y el checkout avisa que esa dirección no tiene cobertura. El horario de atención se muestra pero no se usa para asignar.
+
+**Sucursales disponibles (Sprint 3):** el cliente ve en `/branches` las sucursales activas dentro del radio, para una dirección guardada o para la ubicación del dispositivo, de la más cercana a la más lejana. La primera es la que se asigna al confirmar.
 
 ### 2.4 Catálogo
 
@@ -90,7 +94,9 @@ Dentro de Extensión 1:
 - Promociones administrables y aplicables al pedido (el grupo acota las reglas: no un motor infinito).
 - Reportes adicionales de pedidos, clientes, sucursales y promociones.
 
-En Sprint 1 la extensión **no se implementa**. El ABM de stock y promociones del bloque administrativo base se cubre cuando se abra esa extensión / sprints 3–4.
+En Sprint 1 la extensión **no se implementa**. El stock arranca en el Sprint 3 y las promociones en el Sprint 4.
+
+**Política de stock (Sprint 3):** cantidad entera por sucursal y producto. Al confirmar se verifica que alcance en la sucursal asignada y se **reserva**; si falta algo, no se crea el pedido y el checkout nombra los productos que faltan. Al cancelar (`pending` o `confirmed`) se **libera** la reserva y al pasar a `delivered` se **descuenta** definitivamente. Un producto sin stock cargado en una sucursal cuenta como 0 ahí. Los adicionales también son productos y descuentan stock igual.
 
 ---
 
@@ -106,7 +112,8 @@ No se construye, salvo plus post medio término:
 | Mapa con recorrido estimado | Optativo del enunciado |
 | Navegación real / Google Places | El enunciado no lo exige; lat/lng se cargan a mano en el núcleo |
 | Motor genérico de reglas de producto | Solo configuraciones acotadas, más adelante |
-| Cobertura / horario / stock en la asignación del Sprint 1 | Simplificación aceptada en la ficha |
+| Horario de atención en la asignación de sucursal | Simplificación aceptada; el radio y el stock sí se usan desde el Sprint 3 |
+| Correo real para recuperar contraseña | Flujo demostrable con token en modo demo; el correo es mejora |
 
 ---
 
@@ -119,6 +126,10 @@ Estas decisiones ya están tomadas para no inflar el enunciado. El detalle vive 
 | Aplicaciones | Dos SPAs independientes (cliente y admin), misma API y misma BD |
 | Extensión | Propuesta 1 |
 | Asignación Sprint 1 | Activa más cercana (Haversine) |
+| Asignación desde Sprint 3 | Activa más cercana dentro del radio de cobertura (parámetro). Sin cobertura, no se crea el pedido |
+| Stock (Sprint 3) | Reservar al confirmar, liberar al cancelar, descontar al entregar. Sin fila de stock = 0 |
+| Parámetros (Sprint 3) | Tabla `Parameter`: radio de cobertura y constantes de ETA. Cambiarlos no recalcula pedidos ya confirmados |
+| Recuperar contraseña (Sprint 3) | Token demostrable (sin SMTP), vence a los 30 min y es de un solo uso |
 | Estados Sprint 1 | Solo `pending` al confirmar |
 | Configuraciones de producto Sprint 1 | No. Solo observaciones en el ítem |
 | Imagen de producto Sprint 1 | URL (upload es mejora, no bloquea el RF) |
@@ -164,8 +175,10 @@ Rutas de pantalla alineadas a los recursos de la API. Texto visible en español.
 | `/cart` | Sí | Ítems, cantidades, observaciones, total |
 | `/checkout` | Sí | Confirmar pedido (cuenta o invitado) |
 | `/account/addresses` | Sí | ABM de direcciones (requiere cuenta) |
-| `/forgot-password` | No | Recuperar contraseña |
-| `/account` | No | Datos personales |
+| `/forgot-password` | No | Recuperar contraseña (Sprint 3) |
+| `/reset-password` | No | Nueva contraseña con el token (Sprint 3) |
+| `/account` | No | Datos personales (Sprint 3) |
+| `/branches` | No | Sucursales disponibles para una dirección o la ubicación (Sprint 3) |
 | `/orders` | No | Historial |
 | `/orders/:id` | No | Seguimiento y repetir |
 
@@ -194,8 +207,8 @@ No sustituye las fichas de cada sprint. Sirve para no abrir frentes de más.
 | Sprint | Review | Foco |
 |---|---|---|
 | 1 | 10/09 | Núcleo: auth, catálogo, sucursales, carrito, confirmar pedido, docs v0 |
-| 2 | 24/09 | Perfil, recuperar contraseña, estados, seguimiento, historial, sucursales visibles para la ubicación |
-| 3 | 08/10 | Stock por sucursal, configuraciones de producto, gestión de pedidos en admin |
+| 2 | 24/09 | Estados del pedido, gestión de pedidos en admin, seguimiento, cancelar, historial, repetir pedido, adicionales de hamburguesa |
+| 3 | 08/10 | Stock por sucursal (Ext. 1), perfil, recuperar contraseña, alta de admins, parámetros y radio de cobertura, sucursales disponibles, hora estimada y demora |
 | 4 | 29/10 | Promociones, reportes base, medio término (22/10) con demo estable |
 | 5 | 19/11 | Reportes extra de Extensión 1, testing, carpeta final (entrega 12/11), demo 27/11 |
 
@@ -225,4 +238,5 @@ Si hay que recortar, se recorta mapa, notificaciones y Extensión 2. **No se rec
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.1 | 03/10/2026 | Asignación con radio de cobertura, sucursales disponibles, política de stock y decisiones del Sprint 3; visión de sprints según lo cubierto |
 | 1.0 | 07/09/2026 | Versión inicial en la carpeta |
