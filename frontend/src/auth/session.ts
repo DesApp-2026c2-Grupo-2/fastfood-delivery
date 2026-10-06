@@ -35,6 +35,11 @@ export function clearSession() {
   sessionStorage.removeItem(CUSTOMER_USER_KEY);
 }
 
+export function updateStoredUser(user: User) {
+  const store = sessionStorage.getItem(CUSTOMER_TOKEN_KEY) ? sessionStorage : localStorage;
+  store.setItem(CUSTOMER_USER_KEY, JSON.stringify(user));
+}
+
 export function isCustomer(): boolean {
   return getUser()?.role === 'customer' && Boolean(getToken());
 }

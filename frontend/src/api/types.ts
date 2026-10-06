@@ -43,6 +43,12 @@ export type LoginResponse = {
   user: User;
 };
 
+export type UpdateMeRequest = {
+  name?: string;
+  currentPassword?: string;
+  newPassword?: string;
+};
+
 export type Address = {
   id: string;
   alias: string;

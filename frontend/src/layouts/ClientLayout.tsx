@@ -1,14 +1,14 @@
 import { useCart } from '../cart/CartContext';
+import { useSession } from '../auth/SessionContext';
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { clearSession, getUser, isCustomer } from '../auth/session';
+import { clearSession } from '../auth/session';
 import { BrandLogo } from '../components/BrandLogo';
 import { BottomNav } from '../components/BottomNav';
 
 export function ClientLayout() {
   const navigate = useNavigate();
-  const customer = isCustomer();
-  const user = customer ? getUser() : null;
+  const { user, customer, refresh: refreshSession } = useSession();
   const { count } = useCart();
   const [hideTopbar, setHideTopbar] = useState(false);
   const lastScrollY = useRef(0);
@@ -46,6 +46,7 @@ export function ClientLayout() {
 
   function logout() {
     clearSession();
+    refreshSession();
     navigate('/products');
   }
 
