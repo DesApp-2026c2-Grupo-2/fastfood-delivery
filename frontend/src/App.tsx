@@ -3,6 +3,7 @@ import { RequireCustomer } from './auth/RequireCustomer';
 import { SessionProvider } from './auth/SessionContext';
 import { CartProvider } from './cart/CartContext';
 import { ClientLayout } from './layouts/ClientLayout';
+import { AccountPage } from './pages/client/AccountPage';
 import { AddressesPage } from './pages/client/AddressesPage';
 import { BranchesPage } from './pages/client/BranchesPage';
 import { CartPage } from './pages/client/CartPage';
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/branches" element={<BranchesPage />} />
             <Route element={<RequireCustomer />}>
+              <Route path="/account" element={<AccountPage />} />
               <Route path="/account/addresses" element={<AddressesPage />} />
               <Route path="/orders" element={<OrdersPage />} />
               <Route path="/orders/:id" element={<OrderDetailPage />} />

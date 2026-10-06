@@ -1606,6 +1606,8 @@ h2 {
 }
 
 .session-avatar {
+  position: relative;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1618,11 +1620,7 @@ h2 {
   font-weight: 800;
   font-size: 0.85rem;
   flex-shrink: 0;
-}
-
-.session-avatar {
-  position: relative;
-  cursor: default;
+  transition: box-shadow 0.2s ease;
 }
 
 .session-name-full {
@@ -1797,7 +1795,7 @@ h2 {
     justify-content: center;
   }
 
-  .session-logout, .session-greeting {
+  .session-logout {
     display: none;
   }
 
@@ -1913,6 +1911,10 @@ h2 {
   }}
 
 @media (min-width: 720px) {
+  .session-avatar:hover {
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5), 0 0 14px 4px rgba(255, 237, 213, 0.85);
+  }
+
   .product-grid {
     grid-template-columns: 1fr 1fr;
   }

@@ -84,9 +84,9 @@ export function ClientLayout() {
           {customer ? (
             <span className="session-info">
               <span className="session-greeting">
-                <span className="session-avatar" data-name={user?.name} aria-hidden="true">
+                <Link to="/account" className="session-avatar" data-name={user?.name} aria-label={`Ir a mi cuenta${user?.name ? ` — ${user.name}` : ''}`}>
                   {user?.name?.charAt(0).toUpperCase()}
-                </span>
+                </Link>
                 <span className="session-name-full">{user?.name}</span>
               </span>
               <button type="button" className="link-button session-logout" onClick={logout}>
