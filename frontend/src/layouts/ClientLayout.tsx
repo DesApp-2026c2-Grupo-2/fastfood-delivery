@@ -108,7 +108,7 @@ export function ClientLayout() {
       <main className="main">
         <Outlet />
       </main>
-      <BottomNav count={count} customer={customer} onLogout={logout} />
+      <BottomNav count={count} customer={customer} userName={user?.name} />
     </div>
   );
 }

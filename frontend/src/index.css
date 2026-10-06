@@ -1795,7 +1795,7 @@ h2 {
     justify-content: center;
   }
 
-  .session-logout {
+  .session-logout, .session-greeting {
     display: none;
   }
 
@@ -1814,6 +1814,14 @@ h2 {
     border-top: 1px solid rgba(154, 52, 18, 0.15);
     box-shadow: 0 -4px 16px rgba(154, 52, 18, 0.12);
     padding: 0.35rem 0.5rem env(safe-area-inset-bottom, 0.35rem);
+  }
+
+  .bottom-nav-avatar {
+    background: var(--accent);
+    color: #fff;
+    width: 1.3rem;
+    height: 1.3rem;
+    font-size: 0.65rem;
   }
 
   .bottom-nav-item {

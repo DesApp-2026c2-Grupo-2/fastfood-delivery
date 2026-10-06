@@ -1,10 +1,9 @@
 import { type FormEvent, useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { useSession } from '../../auth/SessionContext';
 import type { UpdateMeRequest, User } from '../../api/types';
-import { getToken, isCustomer, updateStoredUser } from '../../auth/session';
-
+import { clearSession, getToken, isCustomer, updateStoredUser } from '../../auth/session';
 
 export function AccountPage() {
   const token = getToken();
@@ -16,7 +15,9 @@ export function AccountPage() {
   return <AccountContent token={token} />;
 }
 
+
 function AccountContent({ token }: { token: string }) {
+  const navigate = useNavigate();
   const { refresh: refreshSession } = useSession();
   const [user, setUser] = useState<User | null>(null);
   const [name, setName] = useState('');
@@ -90,6 +91,12 @@ function AccountContent({ token }: { token: string }) {
     }
   }
 
+  function logout() {
+    clearSession();
+    refreshSession();
+    navigate('/products');
+  }
+
   if (loading) return <p className="muted">Cargando…</p>;
   if (!user) {
     return (
@@ -156,6 +163,9 @@ function AccountContent({ token }: { token: string }) {
 
         <button type="submit" disabled={saving}>
           {saving ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+        <button type="button" className="secondary" onClick={logout}>
+          Salir
         </button>
       </form>
     </section>
