@@ -1627,24 +1627,6 @@ h2 {
   display: none;
 }
 
-.session-avatar:hover::after,
-.session-avatar:focus-visible::after {
-  content: attr(data-name);
-  position: absolute;
-  left: 50%;
-  top: calc(100% + 0.5rem);
-  transform: translateX(-50%);
-  z-index: 30;
-  padding: 0.3rem 0.6rem;
-  border-radius: 0.7rem;
-  background: #1c1917;
-  color: #fff7ed;
-  font-size: 0.8rem;
-  font-weight: 700;
-  white-space: nowrap;
-  box-shadow: 3px 3px 0 var(--shadow);
-}
-
 .bottom-nav {
   display: none;
 }
@@ -1922,6 +1904,25 @@ h2 {
   .session-avatar:hover {
     box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5), 0 0 14px 4px rgba(255, 237, 213, 0.85);
   }
+
+  
+.session-avatar:hover::after,
+.session-avatar:focus-visible::after {
+  content: attr(data-name);
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 0.5rem);
+  transform: translateX(-50%);
+  z-index: 30;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.7rem;
+  background: #1c1917;
+  color: #fff7ed;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 3px 3px 0 var(--shadow);
+}
 
   .product-grid {
     grid-template-columns: 1fr 1fr;
