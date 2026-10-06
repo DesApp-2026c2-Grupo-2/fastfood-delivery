@@ -67,6 +67,9 @@ export function ClientLayout() {
             Carrito
             {count > 0 ? <span className="cart-badge">{count}</span> : null}
           </NavLink>
+          <NavLink to="/branches" className="nav-primary">
+            Sucursales
+          </NavLink>
           {customer ? (
             <NavLink to="/account/addresses" className="nav-primary">
               Mis direcciones

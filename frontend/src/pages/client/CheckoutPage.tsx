@@ -1,7 +1,15 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { api } from '../../api/client';
-import type { Address, Cart, Order } from '../../api/types';
+import { ApiError, api } from '../../api/client';
+import type {
+  Address,
+  AvailableBranchesResponse,
+  Cart,
+  Order,
+  OutOfCoverageError,
+  OutOfStockError,
+  OutOfStockItem,
+} from '../../api/types';
 import { useCart } from '../../cart/CartContext';
 import { getToken, isCustomer } from '../../auth/session';
 import { clearGuestCart, getGuestCart, hydrateGuestCart } from '../../cart/guestCart';
@@ -14,6 +22,14 @@ type GuestFormErrors = {
   latitude?: string;
   longitude?: string;
 };
+
+function formatDistance(km: number): string {
+  return `${km.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
+}
+
+function formatUnits(count: number): string {
+  return count === 1 ? '1 unidad' : `${count} unidades`;
+}
 
 export function CheckoutPage() {
   const loggedIn = isCustomer();
@@ -29,6 +45,10 @@ export function CheckoutPage() {
   const [longitude, setLongitude] = useState('');
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState('');
+  const [coverageError, setCoverageError] = useState<OutOfCoverageError | null>(null);
+  const [stockError, setStockError] = useState<OutOfStockError | null>(null);
+  const [coverage, setCoverage] = useState<AvailableBranchesResponse | null>(null);
+  const noticeRef = useRef<HTMLDivElement>(null);
   const [guestErrors, setGuestErrors] = useState<GuestFormErrors>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,6 +85,45 @@ export function CheckoutPage() {
     };
   }, [loggedIn, token]);
 
+  useEffect(() => {
+    setCoverage(null);
+    if (!loggedIn || !addressId) return;
+    let cancelled = false;
+    const query = new URLSearchParams({ addressId }).toString();
+    api<AvailableBranchesResponse>(`/branches/available?${query}`, { token })
+      .then((result) => {
+        if (!cancelled) setCoverage(result);
+      })
+      .catch(() => {
+        // Sin vista previa: el checkout igual valida la cobertura al confirmar.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loggedIn, addressId, token]);
+
+  useEffect(() => {
+    if (coverageError || stockError) {
+      noticeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [coverageError, stockError]);
+
+  function clearConfirmErrors() {
+    setError('');
+    setCoverageError(null);
+    setStockError(null);
+  }
+
+  function showConfirmError(err: unknown) {
+    if (err instanceof ApiError && err.code === 'OUT_OF_COVERAGE') {
+      setCoverageError(err.body as OutOfCoverageError);
+    } else if (err instanceof ApiError && err.code === 'OUT_OF_STOCK') {
+      setStockError(err.body as OutOfStockError);
+    } else {
+      setError(err instanceof Error ? err.message : 'No se pudo confirmar el pedido');
+    }
+  }
+
   async function confirmLoggedIn(event: FormEvent) {
     event.preventDefault();
     if (!addressId) {
@@ -72,7 +131,7 @@ export function CheckoutPage() {
       return;
     }
     setSaving(true);
-    setError('');
+    clearConfirmErrors();
     try {
       const created = await api<Order>('/orders', {
         method: 'POST',
@@ -83,7 +142,7 @@ export function CheckoutPage() {
 
       setOrder(created);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo confirmar el pedido');
+      showConfirmError(err);
     } finally {
       setSaving(false);
     }
@@ -137,7 +196,7 @@ export function CheckoutPage() {
 
   async function confirmGuest(event: FormEvent) {
     event.preventDefault();
-    setError('');
+    clearConfirmErrors();
 
     if (!validateGuest()) {
       return;
@@ -168,7 +227,7 @@ export function CheckoutPage() {
       await refresh();
       setOrder(created);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo confirmar el pedido');
+      showConfirmError(err);
     } finally {
       setSaving(false);
     }
@@ -255,6 +314,43 @@ export function CheckoutPage() {
         </p>
       ) : null}
 
+      {coverageError ? (
+        <div className="checkout-notice" role="alert" ref={noticeRef}>
+          <p>
+            <strong>{coverageError.message}</strong>
+          </p>
+          <p className="muted">
+            {loggedIn
+              ? 'Elegí otra dirección de entrega o revisá cuáles tienen cobertura.'
+              : 'Revisá la dirección y las coordenadas, o mirá qué sucursales llegan a tu zona.'}
+          </p>
+          <p className="checkout-notice-links">
+            <Link to="/branches">Ver sucursales disponibles</Link>
+            {loggedIn ? <Link to="/account/addresses">Mis direcciones</Link> : null}
+          </p>
+        </div>
+      ) : null}
+
+      {stockError ? (
+        <div className="checkout-notice" role="alert" ref={noticeRef}>
+          <p>
+            <strong>{stockError.message}</strong>
+          </p>
+          <ul className="checkout-notice-list">
+            {stockError.items.map((item) => (
+              <li key={item.productId}>
+                {item.name}: pediste {formatUnits(item.requested)},{' '}
+                {item.available > 0 ? `quedan ${formatUnits(item.available)}` : 'no queda stock'}
+              </li>
+            ))}
+          </ul>
+          <p className="muted">Ajustá las cantidades en el carrito y volvé a confirmar.</p>
+          <p className="checkout-notice-links">
+            <Link to="/cart">Ajustar carrito</Link>
+          </p>
+        </div>
+      ) : null}
+
       {loggedIn && addresses.length === 0 ? (
         <p className="empty">
           Necesitás una dirección de entrega. <Link to="/account/addresses">Cargá una acá</Link>.
@@ -270,7 +366,10 @@ export function CheckoutPage() {
                 type="radio"
                 name="addressId"
                 checked={addressId === address.id}
-                onChange={() => setAddressId(address.id)}
+                onChange={() => {
+                  setAddressId(address.id);
+                  clearConfirmErrors();
+                }}
               />
               <span>
                 {address.alias?.trim() ? (
@@ -285,7 +384,8 @@ export function CheckoutPage() {
               </span>
             </label>
           ))}
-          <OrderSummary cart={cart} saving={saving} />
+          {coverage ? <AssignedBranch coverage={coverage} /> : null}
+          <OrderSummary cart={cart} saving={saving} shortages={stockError?.items ?? []} />
         </form>
       ) : null}
 
@@ -381,24 +481,59 @@ export function CheckoutPage() {
             </label>
           </div>
           <p className="field-hint">En este sprint latitud y longitud se cargan a mano. Sin mapa.</p>
-          <OrderSummary cart={cart} saving={saving} />
+          <OrderSummary cart={cart} saving={saving} shortages={stockError?.items ?? []} />
         </form>
       ) : null}
     </section>
   );
 }
 
-function OrderSummary({ cart, saving }: { cart: Cart; saving: boolean }) {
+function AssignedBranch({ coverage }: { coverage: AvailableBranchesResponse }) {
+  const branch = coverage.branches[0];
+  if (!branch) {
+    return (
+      <p className="checkout-branch checkout-branch--none">
+        Ninguna sucursal llega a esta dirección (radio de {coverage.radiusKm.toLocaleString('es-AR')} km).{' '}
+        <Link to="/branches">Ver sucursales</Link>
+      </p>
+    );
+  }
+  return (
+    <p className="checkout-branch">
+      Te atiende <strong>{branch.name}</strong> · {formatDistance(branch.distanceKm)}
+    </p>
+  );
+}
+
+function OrderSummary({
+  cart,
+  saving,
+  shortages,
+}: {
+  cart: Cart;
+  saving: boolean;
+  shortages: OutOfStockItem[];
+}) {
   return (
     <>
       <h2>Resumen</h2>
       <ul className="order-items">
-        {cart.items.map((item) => (
-          <li key={item.id}>
-            {item.quantity} × {item.product.name} — {formatPrice(item.subtotal)}
-            {item.notes ? <small className="muted"> ({item.notes})</small> : null}
-          </li>
-        ))}
+        {cart.items.map((item) => {
+          const shortage = shortages.find((entry) => entry.productId === item.productId);
+          return (
+            <li key={item.id} className={shortage ? 'order-item--short' : undefined}>
+              {item.quantity} × {item.product.name} — {formatPrice(item.subtotal)}
+              {item.notes ? <small className="muted"> ({item.notes})</small> : null}
+              {shortage ? (
+                <small className="order-item-shortage">
+                  {shortage.available > 0
+                    ? `Sin stock suficiente: quedan ${formatUnits(shortage.available)}`
+                    : 'Sin stock en esta sucursal'}
+                </small>
+              ) : null}
+            </li>
+          );
+        })}
       </ul>
       <p className="total-row">
         <span>Total</span>

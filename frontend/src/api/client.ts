@@ -4,6 +4,23 @@ const API_URL = getApiUrl();
 
 type ApiOptions = RequestInit & { token?: string };
 
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  readonly body: unknown;
+
+  constructor(message: string, status: number, body: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.body = body;
+    if (body && typeof body === 'object' && 'code' in body) {
+      const code = (body as { code: unknown }).code;
+      if (typeof code === 'string') this.code = code;
+    }
+  }
+}
+
 function readErrorMessage(body: unknown, status: number): string {
   if (body && typeof body === 'object' && 'message' in body) {
     const message = (body as { message: string | string[] }).message;
@@ -34,7 +51,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
 
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(readErrorMessage(body, response.status));
+    throw new ApiError(readErrorMessage(body, response.status), response.status, body);
   }
   return body as T;
 }
