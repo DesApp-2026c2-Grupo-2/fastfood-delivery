@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { LoginResponse } from '../../api/types';
+import { useSession } from '../../auth/SessionContext';
 import { isCustomer, saveSession } from '../../auth/session';
 import { mergeGuestCartIntoAccount } from '../../cart/guestCart';
 import { BrandLogo } from '../../components/BrandLogo';
@@ -16,6 +17,7 @@ type FormErrors = {
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { refresh: refreshSession } = useSession();
   const locationState = location.state as LocationState | null;
   const from = locationState?.from;
   const successMessage = locationState?.message;
@@ -68,6 +70,7 @@ export function LoginPage() {
         return;
       }
       saveSession(data.accessToken, data.user, remember);
+      refreshSession();
       try {
         await mergeGuestCartIntoAccount(data.accessToken);
       } catch {
