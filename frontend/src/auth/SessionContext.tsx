@@ -1,6 +1,10 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 import type { User } from '../api/types';
-import { getUser } from './session';
+import { getToken, getUser } from './session';
+
+function readUser(): User | null {
+  return getToken() ? getUser() : null;
+}
 
 type SessionContextValue = {
   user: User | null;
@@ -11,10 +15,10 @@ type SessionContextValue = {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => getUser());
+  const [user, setUser] = useState<User | null>(() => readUser());
 
   const refresh = useCallback(() => {
-    setUser(getUser());
+    setUser(readUser());
   }, []);
 
   const customer = user?.role === 'customer';
