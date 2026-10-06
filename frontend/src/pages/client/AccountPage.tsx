@@ -61,6 +61,11 @@ function AccountContent({ token }: { token: string }) {
         setError('Para cambiar la contraseña completá la actual y la nueva.');
         return;
       }
+      if (newPassword.length < 6) {
+        setError('La contraseña nueva debe tener al menos 6 caracteres.');
+        return;
+      }
+
       payload.currentPassword = currentPassword;
       payload.newPassword = newPassword;
     }
