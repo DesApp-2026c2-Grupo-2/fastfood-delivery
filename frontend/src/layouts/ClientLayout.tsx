@@ -1,14 +1,14 @@
 import { useCart } from '../cart/CartContext';
+import { useSession } from '../auth/SessionContext';
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { clearSession, getUser, isCustomer } from '../auth/session';
+import { clearSession } from '../auth/session';
 import { BrandLogo } from '../components/BrandLogo';
 import { BottomNav } from '../components/BottomNav';
 
 export function ClientLayout() {
   const navigate = useNavigate();
-  const customer = isCustomer();
-  const user = customer ? getUser() : null;
+  const { user, customer, refresh: refreshSession } = useSession();
   const { count } = useCart();
   const [hideTopbar, setHideTopbar] = useState(false);
   const lastScrollY = useRef(0);
@@ -46,6 +46,7 @@ export function ClientLayout() {
 
   function logout() {
     clearSession();
+    refreshSession();
     navigate('/products');
   }
 
@@ -83,9 +84,9 @@ export function ClientLayout() {
           {customer ? (
             <span className="session-info">
               <span className="session-greeting">
-                <span className="session-avatar" data-name={user?.name} aria-hidden="true">
+                <Link to="/account" className="session-avatar" data-name={user?.name} aria-label={`Ir a mi cuenta${user?.name ? ` — ${user.name}` : ''}`}>
                   {user?.name?.charAt(0).toUpperCase()}
-                </span>
+                </Link>
                 <span className="session-name-full">{user?.name}</span>
               </span>
               <button type="button" className="link-button session-logout" onClick={logout}>
@@ -107,7 +108,7 @@ export function ClientLayout() {
       <main className="main">
         <Outlet />
       </main>
-      <BottomNav count={count} customer={customer} onLogout={logout} />
+      <BottomNav count={count} customer={customer} userName={user?.name} />
     </div>
   );
 }
