@@ -2,6 +2,13 @@ import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
 import type { Branch } from '../../api/types';
 import { getToken } from '../../auth/session';
+import { formatCoordinate, requestDevicePosition } from '../../lib/geolocation';
+
+type GeocodeResult = {
+  latitude: number;
+  longitude: number;
+  displayName: string;
+};
 
 type FormState = {
   id?: string;
@@ -43,6 +50,9 @@ export function AdminBranchesPage() {
   const [ok, setOk] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [locationHint, setLocationHint] = useState('');
 
   async function load() {
     setLoading(true);
@@ -88,6 +98,7 @@ export function AdminBranchesPage() {
 
   function goToList() {
     resetForm();
+    setLocationHint('');
     setScreen('list');
   }
 
@@ -95,6 +106,7 @@ export function AdminBranchesPage() {
     resetForm();
     setError('');
     setOk('');
+    setLocationHint('');
     setScreen('form');
   }
 
@@ -111,7 +123,61 @@ export function AdminBranchesPage() {
     });
     setError('');
     setOk('');
+    setLocationHint('');
     setScreen('form');
+  }
+
+  async function searchCoordinates() {
+    const address = form.address.trim();
+    if (!address) {
+      setError('Escribí la dirección para buscar las coordenadas.');
+      setLocationHint('');
+      return;
+    }
+
+    setGeocoding(true);
+    setError('');
+    setLocationHint('');
+    try {
+      const result = await api<GeocodeResult>('/admin/branches/geocode', {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ address }),
+      });
+      setForm((current) => ({
+        ...current,
+        latitude: formatCoordinate(result.latitude),
+        longitude: formatCoordinate(result.longitude),
+      }));
+      setLocationHint(
+        result.displayName
+          ? `Encontramos: ${result.displayName}. Revisá las coordenadas antes de guardar.`
+          : 'Coordenadas cargadas. Revisalas antes de guardar.',
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo buscar la dirección');
+    } finally {
+      setGeocoding(false);
+    }
+  }
+
+  async function useDeviceLocation() {
+    setLocating(true);
+    setError('');
+    setLocationHint('');
+    try {
+      const position = await requestDevicePosition();
+      setForm((current) => ({
+        ...current,
+        latitude: formatCoordinate(position.latitude),
+        longitude: formatCoordinate(position.longitude),
+      }));
+      setLocationHint('Ubicación del dispositivo cargada. Podés ajustarla si hace falta.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No pudimos obtener tu ubicación; cargala a mano.');
+    } finally {
+      setLocating(false);
+    }
   }
 
   async function onSubmit(event: FormEvent) {
@@ -189,7 +255,9 @@ export function AdminBranchesPage() {
         <header className="page-head">
           <div>
             <h1>{form.id ? 'Editar sucursal' : 'Crear sucursal'}</h1>
-            <p className="muted">Latitud y longitud se cargan a mano (sin mapa).</p>
+            <p className="muted">
+              Buscá las coordenadas con la dirección o con tu ubicación. Si hace falta, ajustalas a mano.
+            </p>
           </div>
         </header>
 
@@ -220,6 +288,29 @@ export function AdminBranchesPage() {
               placeholder="Av. Corrientes 1234, CABA"
             />
           </label>
+          <div className="row">
+            <button
+              type="button"
+              className="secondary"
+              disabled={geocoding || locating || saving || !form.address.trim()}
+              onClick={() => void searchCoordinates()}
+            >
+              {geocoding ? 'Buscando…' : 'Buscar coordenadas'}
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              disabled={geocoding || locating || saving}
+              onClick={() => void useDeviceLocation()}
+            >
+              {locating ? 'Obteniendo ubicación…' : 'Usar mi ubicación'}
+            </button>
+          </div>
+          {locationHint ? (
+            <p className="muted" role="status">
+              {locationHint}
+            </p>
+          ) : null}
           <div className="row">
             <label>
               Latitud
@@ -271,7 +362,7 @@ export function AdminBranchesPage() {
             Sucursal activa (puede recibir pedidos nuevos)
           </label>
           <div className="row">
-            <button type="submit" disabled={saving}>
+            <button type="submit" disabled={saving || geocoding || locating}>
               {saving ? 'Guardando…' : form.id ? 'Guardar cambios' : 'Crear sucursal'}
             </button>
             <button type="button" className="secondary" onClick={goToList}>

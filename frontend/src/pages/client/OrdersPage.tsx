@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
+import { useOrderStatusEvents } from '../../api/order-events';
 import type { OrderSummary, RepeatOrderResult } from '../../api/types';
 import { useCart } from '../../cart/CartContext';
-import { getToken, isCustomer } from '../../auth/session';
+import { getToken, getUser, isCustomer } from '../../auth/session';
 import { formatPrice } from '../../lib/money';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -32,15 +33,16 @@ function formatDate(iso: string): string {
 
 export function OrdersPage() {
   const token = getToken();
+  const userId = getUser()?.id ?? '';
 
-  if (!isCustomer() || !token) {
+  if (!isCustomer() || !token || !userId) {
     return <Navigate to="/login" replace state={{ from: '/orders' }} />;
   }
 
-  return <OrdersContent token={token} />;
+  return <OrdersContent token={token} userId={userId} />;
 }
 
-function OrdersContent({ token }: { token: string }) {
+function OrdersContent({ token, userId }: { token: string; userId: string }) {
   const navigate = useNavigate();
   const { count, refresh } = useCart();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
@@ -64,6 +66,14 @@ function OrdersContent({ token }: { token: string }) {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useOrderStatusEvents(token, userId, () => {
+    void api<OrderSummary[]>('/orders', { token })
+      .then(setOrders)
+      .catch(() => {
+        /* el próximo ingreso a la pantalla muestra el error */
+      });
+  });
 
   async function repeatOrder(order: OrderSummary) {
     const hadItems = count > 0;

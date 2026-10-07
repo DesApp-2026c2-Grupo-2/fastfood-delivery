@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
+import { useOrderStatusEvents } from '../../api/order-events';
 import type { OrderDetail, Product } from '../../api/types';
-import { getToken } from '../../auth/session';
+import { getToken, getUser } from '../../auth/session';
 import { formatDateTime, formatPrice } from '../../lib/money';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -18,6 +19,7 @@ const STATUS_LABELS: Record<string, string> = {
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const token = getToken() ?? '';
+  const userId = getUser()?.id ?? '';
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +66,18 @@ export function OrderDetailPage() {
     const interval = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(interval);
   }, [isTerminal]);
+
+  useOrderStatusEvents(token, userId, (event) => {
+    if (!id || event.orderId !== id) return;
+    void api<OrderDetail>(`/orders/${id}`, { token })
+      .then((orderData) => {
+        setOrder(orderData);
+        setNow(Date.now());
+      })
+      .catch(() => {
+        /* el estado queda como estaba hasta la próxima recarga */
+      });
+  });
 
   async function handleCancel() {
     if (!id) return;
