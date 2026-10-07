@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
-import { useOrderStatusEvents } from '../../api/order-events';
-import type { OrderDetail, Product } from '../../api/types';
+import { isStatusBehind, useOrderStatusEvents, type OrderStatusChangedEvent } from '../../api/order-events';
+import type { OrderDetail, OrderStatus, Product } from '../../api/types';
 import { getToken, getUser } from '../../auth/session';
 import { formatDateTime, formatPrice } from '../../lib/money';
 
@@ -15,6 +15,27 @@ const STATUS_LABELS: Record<string, string> = {
   delivered: 'Entregado',
   cancelled: 'Cancelado',
 };
+
+function applyStatusEvent(order: OrderDetail | null, event: OrderStatusChangedEvent): OrderDetail | null {
+  if (!order || isStatusBehind(event.status, order.status)) return order;
+  const history = order.history ?? [];
+  const already = history.some((item) => item.status === event.status);
+  return {
+    ...order,
+    status: event.status,
+    canCancel: event.status === 'pending' || event.status === 'confirmed',
+    history: already
+      ? history
+      : [
+          ...history,
+          {
+            id: `live-${event.orderId}-${event.status}`,
+            status: event.status as OrderStatus,
+            changedAt: event.changedAt,
+          },
+        ],
+  };
+}
 
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -36,7 +57,7 @@ export function OrderDetailPage() {
       setError('');
       try {
         const [orderData, productsData] = await Promise.all([
-          api<OrderDetail>(`/orders/${id}`, { token }),
+          api<OrderDetail>(`/orders/${id}`, { token, cache: 'no-store' }),
           api<Product[]>('/products').catch(() => []),
         ]);
         if (!cancelled) {
@@ -69,13 +90,18 @@ export function OrderDetailPage() {
 
   useOrderStatusEvents(token, userId, (event) => {
     if (!id || event.orderId !== id) return;
-    void api<OrderDetail>(`/orders/${id}`, { token })
+    setOrder((current) => applyStatusEvent(current, event));
+    setNow(Date.now());
+    void api<OrderDetail>(`/orders/${id}`, { token, cache: 'no-store' })
       .then((orderData) => {
-        setOrder(orderData);
+        setOrder((current) => {
+          if (current && isStatusBehind(orderData.status, current.status)) return current;
+          return orderData;
+        });
         setNow(Date.now());
       })
       .catch(() => {
-        /* el estado queda como estaba hasta la próxima recarga */
+        /* el estado del evento queda en pantalla hasta la próxima carga */
       });
   });
 
@@ -176,64 +202,37 @@ export function OrderDetailPage() {
       {/* Bloque 1: Estado, ETA, Demora, Sucursal y Timeline */}
       <div className="tracking-card">
         <div className="delivery-status-banner">
-          {order.status === 'cancelled' ? (
-            <div />
-          ) : !isTerminal ? (
-            <div className="eta-block">
-              {isDelayed ? (
-                /* DEV-15: Demorado */
+          <div className="eta-block">
+            <span className="banner-sublabel">Estado del pedido</span>
+            <strong className={`eta-time tracking-headline tracking-headline--${order.status}`}>
+              {STATUS_LABELS[order.status] ?? order.status}
+            </strong>
+            {order.status === 'cancelled' ? null : !isTerminal ? (
+              isDelayed ? (
                 <>
-                  <span
-                    className="banner-sublabel"
-                    style={{
-                      color: '#b45309',
-                      fontWeight: 700,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                    }}
-                  >
-                    <span>⚠️</span> Demora en el pedido
-                  </span>
-                  <strong className="eta-time" style={{ color: '#c2410c' }}>
-                    Demorado {currentDelayMinutes} min
-                  </strong>
-                  {estimatedTimeFormatted && (
-                    <small style={{ color: '#78716c', fontSize: '0.82rem', marginTop: '2px' }}>
-                      Hora pactada: {estimatedTimeFormatted} hs
-                    </small>
-                  )}
+                  <span className="banner-sublabel banner-sublabel--late">Demorado {currentDelayMinutes} min</span>
+                  {estimatedTimeFormatted ? (
+                    <small className="banner-note">Hora pactada: {estimatedTimeFormatted} hs</small>
+                  ) : null}
                 </>
               ) : (
-                /* DEV-14: En curso a tiempo con minutos restantes reales */
                 <>
-                  <span className="banner-sublabel">Tiempo estimado de entrega</span>
-                  <strong className="eta-time">
+                  <span className="banner-sublabel">
                     {estimatedTimeFormatted
                       ? `Llega aprox. ${estimatedTimeFormatted} hs`
                       : `Aprox. ${remainingMinutes} minutos`}
-                  </strong>
+                  </span>
                   {estimatedTimeFormatted && remainingMinutes > 0 ? (
-                    <small style={{ color: '#64748b', fontSize: '0.82rem', marginTop: '2px' }}>
-                      (en aprox. {remainingMinutes} minutos)
-                    </small>
+                    <small className="banner-note">en aprox. {remainingMinutes} minutos</small>
                   ) : null}
                 </>
-              )}
-            </div>
-          ) : order.status === 'delivered' && isDelayed ? (
-            /* DEV-15: Entregado tarde */
-            <div className="eta-block">
-              <span className="banner-sublabel" style={{ color: '#64748b' }}>
-                Entrega finalizada
-              </span>
-              <strong style={{ fontSize: '0.95rem', color: '#b45309', fontWeight: 600 }}>
+              )
+            ) : order.status === 'delivered' && isDelayed ? (
+              <span className="banner-sublabel banner-sublabel--late">
                 Entregado con {currentDelayMinutes} min de demora
-              </strong>
-            </div>
-          ) : (
-            <div />
-          )}
+              </span>
+            ) : null}
+          </div>
 
           <div className="branch-meta-block">
             <span className="banner-sublabel">Sucursal asignada</span>

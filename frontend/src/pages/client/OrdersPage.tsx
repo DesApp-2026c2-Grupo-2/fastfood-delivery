@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
-import { useOrderStatusEvents } from '../../api/order-events';
+import { isStatusBehind, useOrderStatusEvents } from '../../api/order-events';
 import type { OrderSummary, RepeatOrderResult } from '../../api/types';
 import { useCart } from '../../cart/CartContext';
 import { getToken, getUser, isCustomer } from '../../auth/session';
@@ -54,7 +54,7 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
     setLoading(true);
     setError('');
     try {
-      setOrders(await api<OrderSummary[]>('/orders', { token }));
+      setOrders(await api<OrderSummary[]>('/orders', { token, cache: 'no-store' }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar los pedidos');
     } finally {
@@ -67,11 +67,27 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useOrderStatusEvents(token, userId, () => {
-    void api<OrderSummary[]>('/orders', { token })
-      .then(setOrders)
+  useOrderStatusEvents(token, userId, (event) => {
+    setOrders((current) =>
+      current.map((order) =>
+        order.id === event.orderId && !isStatusBehind(event.status, order.status)
+          ? { ...order, status: event.status }
+          : order,
+      ),
+    );
+    void api<OrderSummary[]>('/orders', { token, cache: 'no-store' })
+      .then((fresh) => {
+        setOrders((current) => {
+          const shown = new Map(current.map((order) => [order.id, order.status]));
+          return fresh.map((order) => {
+            const status = shown.get(order.id);
+            if (status && isStatusBehind(order.status, status)) return { ...order, status };
+            return order;
+          });
+        });
+      })
       .catch(() => {
-        /* el próximo ingreso a la pantalla muestra el error */
+        /* el estado del evento queda en pantalla hasta la próxima carga */
       });
   });
 

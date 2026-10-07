@@ -4,6 +4,24 @@ import { api } from './client';
 
 const ORDER_STATUS_EVENT = 'order.status.changed';
 
+const STATUS_RANK: Record<string, number> = {
+  pending: 0,
+  confirmed: 1,
+  preparing: 2,
+  ready: 3,
+  on_the_way: 4,
+  delivered: 5,
+};
+
+/** True si `incoming` es anterior al estado que ya se está mostrando. */
+export function isStatusBehind(incoming: string, shown: string): boolean {
+  if (incoming === shown) return false;
+  if (shown === 'cancelled') return true;
+  if (shown === 'delivered') return incoming !== 'delivered';
+  if (incoming === 'cancelled') return shown !== 'pending' && shown !== 'confirmed';
+  return (STATUS_RANK[incoming] ?? -1) < (STATUS_RANK[shown] ?? -1);
+}
+
 export type OrderStatusChangedEvent = {
   orderId: string;
   userId: string | null;
