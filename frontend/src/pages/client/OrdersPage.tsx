@@ -4,7 +4,7 @@ import { api } from '../../api/client';
 import { isStatusBehind, useOrderStatusEvents } from '../../api/order-events';
 import type { OrderSummary, RepeatOrderResult } from '../../api/types';
 import { useCart } from '../../cart/CartContext';
-import { getToken, getUser, isCustomer } from '../../auth/session';
+import { getToken, getUserId, isCustomer } from '../../auth/session';
 import { formatPrice } from '../../lib/money';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -33,7 +33,7 @@ function formatDate(iso: string): string {
 
 export function OrdersPage() {
   const token = getToken();
-  const userId = getUser()?.id ?? '';
+  const userId = getUserId();
 
   if (!isCustomer() || !token || !userId) {
     return <Navigate to="/login" replace state={{ from: '/orders' }} />;
@@ -62,6 +62,22 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
     }
   }
 
+  async function refreshOrders() {
+    try {
+      const fresh = await api<OrderSummary[]>('/orders', { token, cache: 'no-store' });
+      setOrders((current) => {
+        const shown = new Map(current.map((order) => [order.id, order.status]));
+        return fresh.map((order) => {
+          const status = shown.get(order.id);
+          if (status && isStatusBehind(order.status, status)) return { ...order, status };
+          return order;
+        });
+      });
+    } catch {
+      /* el próximo intento vuelve a pedir los pedidos */
+    }
+  }
+
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -75,21 +91,15 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
           : order,
       ),
     );
-    void api<OrderSummary[]>('/orders', { token, cache: 'no-store' })
-      .then((fresh) => {
-        setOrders((current) => {
-          const shown = new Map(current.map((order) => [order.id, order.status]));
-          return fresh.map((order) => {
-            const status = shown.get(order.id);
-            if (status && isStatusBehind(order.status, status)) return { ...order, status };
-            return order;
-          });
-        });
-      })
-      .catch(() => {
-        /* el estado del evento queda en pantalla hasta la próxima carga */
-      });
+    void refreshOrders();
   });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void refreshOrders();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   async function repeatOrder(order: OrderSummary) {
     const hadItems = count > 0;

@@ -14,7 +14,7 @@ export type OrderStatusChangedEvent = {
 export class OrderEvents {
   constructor(private readonly pusher: PusherService) {}
 
-  notifyStatusChanged(event: OrderStatusChangedEvent) {
-    void this.pusher.publishOrderStatus(event);
+  async notifyStatusChanged(event: OrderStatusChangedEvent) {
+    await this.pusher.publishOrderStatus(event);
   }
 }

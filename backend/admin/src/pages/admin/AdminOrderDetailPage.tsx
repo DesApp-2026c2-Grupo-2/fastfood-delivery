@@ -49,6 +49,15 @@ export function AdminOrderDetailPage() {
     if (event.orderId === id) void load();
   });
 
+  useEffect(() => {
+    if (!id || saving) return;
+    const interval = setInterval(() => {
+      void load();
+    }, 3000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, token, saving]);
+
   async function changeStatus(status: OrderStatus) {
     if (!order) return;
     setSaving(true);

@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import { isStatusBehind, useOrderStatusEvents, type OrderStatusChangedEvent } from '../../api/order-events';
 import type { OrderDetail, OrderStatus, Product } from '../../api/types';
-import { getToken, getUser } from '../../auth/session';
+import { getToken, getUserId } from '../../auth/session';
 import { formatDateTime, formatPrice } from '../../lib/money';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -40,7 +40,7 @@ function applyStatusEvent(order: OrderDetail | null, event: OrderStatusChangedEv
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const token = getToken() ?? '';
-  const userId = getUser()?.id ?? '';
+  const userId = getUserId();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +87,24 @@ export function OrderDetailPage() {
     const interval = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(interval);
   }, [isTerminal]);
+
+  useEffect(() => {
+    if (!id || !token || isTerminal) return;
+    const interval = setInterval(() => {
+      void api<OrderDetail>(`/orders/${id}`, { token, cache: 'no-store' })
+        .then((orderData) => {
+          setOrder((current) => {
+            if (current && isStatusBehind(orderData.status, current.status)) return current;
+            return orderData;
+          });
+          setNow(Date.now());
+        })
+        .catch(() => {
+          /* el próximo intento vuelve a pedir el estado */
+        });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [id, token, isTerminal]);
 
   useOrderStatusEvents(token, userId, (event) => {
     if (!id || event.orderId !== id) return;

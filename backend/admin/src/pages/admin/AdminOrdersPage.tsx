@@ -84,7 +84,7 @@ export function AdminOrdersPage() {
     };
   }, [token, statusFilter, code, customer, dateFrom, dateTo, page]);
 
-  useOrderStatusEvents(token, () => {
+  function refreshList() {
     const params = new URLSearchParams();
     if (statusFilter) params.set('status', statusFilter);
     if (code) params.set('code', code);
@@ -92,16 +92,27 @@ export function AdminOrdersPage() {
     if (dateFrom) params.set('from', dateFrom);
     if (dateTo) params.set('to', dateTo);
     params.set('page', String(page));
-    void api<AdminOrderListResponse>(`/admin/orders?${params}`, { token })
+    return api<AdminOrderListResponse>(`/admin/orders?${params}`, { token, cache: 'no-store' })
       .then((result) => {
         setOrders(result.items);
         setTotal(result.total);
         setPageSize(result.pageSize);
       })
       .catch(() => {
-        /* the next explicit load will surface errors */
+        /* el próximo intento vuelve a pedir el listado */
       });
+  }
+
+  useOrderStatusEvents(token, () => {
+    void refreshList();
   });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void refreshList();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [token, statusFilter, code, customer, dateFrom, dateTo, page]);
 
   function patchParams(updates: Record<string, string>) {
     const next = new URLSearchParams(searchParams);
