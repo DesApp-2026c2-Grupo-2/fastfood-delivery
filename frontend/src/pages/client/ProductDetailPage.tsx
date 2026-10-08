@@ -1,5 +1,5 @@
 import { useCart } from '../../cart/CartContext';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Cart, Product } from '../../api/types';
@@ -22,6 +22,15 @@ export function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
   const [notesOpen, setNotesOpen] = useState(false);
+
+  // Referencia para hacer scroll al mensaje de confirmación
+  const successRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (ok && successRef.current) {
+      successRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [ok]);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,11 +95,8 @@ export function ProductDetailPage() {
     setError('');
     setOk('');
 
-    const selectedExtrasObj = availableExtras.filter((e) => selectedExtraIds.includes(e.id));
-    const extrasSummary = selectedExtrasObj.length
-      ? `Extras: ${selectedExtrasObj.map((e) => e.name).join(', ')}`
-      : '';
-    const finalNotes = [notes.trim(), extrasSummary].filter(Boolean).join(' | ');
+    // DEV-17: Las observaciones de cocina van limpias, sin mezclar con los nombres de los extras
+    const cleanNotes = notes.trim();
 
     try {
       if (isCustomer()) {
@@ -101,18 +107,19 @@ export function ProductDetailPage() {
           body: JSON.stringify({
             productId: product.id,
             quantity,
-            notes: finalNotes,
+            notes: cleanNotes, // Enviamos solo la aclaración real
             extraIds: selectedExtraIds,
           }),
         });
       } else {
-        addGuestItem(product, quantity, finalNotes);
+        // Para invitados, le pasamos las notas limpias
+        addGuestItem(product, quantity, cleanNotes);
       }
       await refresh();
       setOk(
         quantity === 1
-          ? 'Agregamos 1 unidad al carrito.'
-          : `Agregamos ${quantity} unidades al carrito.`,
+          ? '¡Sumamos 1 unidad al carrito!'
+          : `¡Sumamos ${quantity} unidades al carrito!`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo agregar al carrito');
@@ -182,7 +189,7 @@ export function ProductDetailPage() {
       <form className="card form" onSubmit={(event) => void addToCart(event)}>
         <h2>Agregar al carrito</h2>
 
-        {/* Tarjetas de adicionales con recorte centrado */}
+        {/* Tarjetas de adicionales */}
         {availableExtras.length > 0 && (
           <div className="extras-wrapper">
             <span className="extras-title">¿Querés sumarle algún adicional?</span>
@@ -233,38 +240,6 @@ export function ProductDetailPage() {
           </div>
         )}
 
-        <div className="buy-row">
-          <div className="qty" aria-label="Cantidad">
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => setQuantity((current) => Math.max(1, current - 1))}
-              aria-label="Menos"
-            >
-              −
-            </button>
-            <input
-              type="number"
-              min={1}
-              value={quantity}
-              onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))}
-              aria-label="Cantidad"
-            />
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => setQuantity((current) => current + 1)}
-              aria-label="Más"
-            >
-              +
-            </button>
-          </div>
-          <p className="buy-subtotal">
-            <span className="muted">Subtotal</span>
-            <strong>{formatPrice(unitPriceWithExtras * quantity)}</strong>
-          </p>
-        </div>
-
         {notesOpen ? (
           <label>
             Observaciones
@@ -278,8 +253,13 @@ export function ProductDetailPage() {
             />
           </label>
         ) : (
-          <button type="button" className="text-action" onClick={() => setNotesOpen(true)}>
-            Agregar observaciones
+          <button
+            type="button"
+            className="text-action"
+            onClick={() => setNotesOpen(true)}
+            style={{ alignSelf: 'flex-start', margin: '0.25rem 0' }}
+          >
+            + Agregar observaciones
           </button>
         )}
 
@@ -289,15 +269,124 @@ export function ProductDetailPage() {
           </p>
         ) : null}
 
-        {ok ? (
-          <p className="success" role="status">
-            {ok} <Link to="/products">Seguir comprando</Link> · <Link to="/cart">Ver carrito</Link>
-          </p>
-        ) : null}
+        {/* Fila principal integrada: Selector + Botón de acción con subtotal */}
+        <div className="product-action-footer">
+          <div className="qty" aria-label="Cantidad">
+            <button
+              type="button"
+              className="qty-btn"
+              onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+              aria-label="Menos"
+            >
+              −
+            </button>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={quantity}
+              onChange={(event) => {
+                const val = event.target.value.replace(/\D/g, '');
+                setQuantity(val ? Math.max(1, parseInt(val, 10)) : 1);
+              }}
+              aria-label="Cantidad"
+              className="qty-input"
+            />
+            <button
+              type="button"
+              className="qty-btn"
+              onClick={() => setQuantity((current) => current + 1)}
+              aria-label="Más"
+            >
+              +
+            </button>
+          </div>
 
-        <button type="submit" disabled={saving}>
-          {saving ? 'Agregando…' : 'Agregar al carrito'}
-        </button>
+          <button type="submit" className="add-to-cart-submit" disabled={saving}>
+            <span>{saving ? 'Agregando…' : 'Agregar al carrito'}</span>
+            <span className="add-to-cart-price">
+              {formatPrice(unitPriceWithExtras * quantity)}
+            </span>
+          </button>
+        </div>
+
+        {/* Notificación de éxito con scroll automático */}
+        {ok ? (
+          <div
+            ref={successRef}
+            style={{
+              backgroundColor: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: '12px',
+              padding: '0.75rem 1rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.5rem',
+              marginTop: '0.75rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  backgroundColor: '#22c55e',
+                  color: '#ffffff',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                ✓
+              </span>
+              <span style={{ color: '#166534', fontWeight: 600, fontSize: '0.9rem' }}>
+                {ok}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: '0.5rem',
+              }}
+            >
+              <Link
+                to="/products"
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  color: '#475569',
+                  padding: '0.35rem 0.7rem',
+                  borderRadius: '6px',
+                  backgroundColor: '#e2e8f0',
+                  textDecoration: 'none',
+                }}
+              >
+                Seguir comprando
+              </Link>
+              <Link
+                to="/cart"
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  backgroundColor: '#ea580c',
+                  padding: '0.35rem 0.8rem',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                }}
+              >
+                Ver carrito →
+              </Link>
+            </div>
+          </div>
+        ) : null}
       </form>
     </article>
   );
