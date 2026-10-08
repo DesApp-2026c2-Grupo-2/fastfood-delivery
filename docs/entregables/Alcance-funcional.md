@@ -2,10 +2,10 @@
 
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
 **Fuente:** `docs/interno/Enunciado.txt`  
-**Versión:** 1.1  
-**Actualizado:** 03/10/2026  
-**Estado:** versión de carpeta actualizada al Sprint 3 (review 08/10). Se actualiza si cambia una decisión de negocio.  
-**Documentos relacionados:** `Requerimientos-funcionales.md`, `Historias-de-usuario.md`, `docs/sprints/Ficha-Sprint-1.md`
+**Versión:** 1.3  
+**Actualizado:** 07/10/2026  
+**Estado:** cierre del Sprint 3 (corte 07/10, review 08/10) y decisión de promociones para el Sprint 4. Describe el producto comprometido y qué de eso ya está construido.  
+**Documentos relacionados:** `Supuestos-y-decisiones.md`, `Requerimientos-funcionales.md`, `Historias-de-usuario.md`, `Incrementos-de-los-sprints.md`, `docs/sprints/Ficha-Sprint-4.md`
 
 ---
 
@@ -53,7 +53,7 @@ Cada sucursal es un local físico (nombre, dirección, lat/lng, horarios, teléf
 
 ABM de categorías y productos. El producto tiene nombre, descripción, categoría, precio, imagen y estado disponible/no disponible. El cliente consulta solo productos disponibles.
 
-Las configuraciones especiales (extras, quitar ingredientes, tamaños) están **dentro del alcance del TP** y fuera del Sprint 1.
+Configuraciones especiales: el grupo las acotó a **adicionales de hamburguesa** (un producto de la categoría Adicional, ofrecido en Hamburguesas). Están implementadas desde el Sprint 2. Quitar ingredientes, tamaños y sabores no entran.
 
 ### 2.5 Carrito
 
@@ -68,13 +68,13 @@ Estados previstos (lista del enunciado, sin recortar):
 `pending` → `confirmed` → `preparing` → `ready` → `on_the_way` → `delivered`  
 `cancelled` desde `pending` o `confirmed`.
 
-En Sprint 1 solo se persiste el estado inicial. La máquina de estados, el cambio en backoffice, el seguimiento y el historial entran después.
+Desde el Sprint 2 la máquina está en uso: el admin avanza el estado y el cliente cancela en `pending` o `confirmed`. Cada cambio queda en `OrderStatusHistory`. El seguimiento, el historial y repetir pedido también están desde ese sprint.
 
 ### 2.7 Geolocalización, seguimiento e historial
 
 Las direcciones guardan ubicación geográfica. Esa ubicación se usa para asignar sucursal. El mapa con recorrido es **optativo** (`RF-GEO-03`) y queda fuera del núcleo.
 
-El cliente podrá ver la evolución del pedido (sucursal, estado, historial de cambios, ETA) y el historial (detalle, importe, fecha, estado final, repetir pedido).
+El cliente ve la evolución del pedido (sucursal, estado, historial de cambios, hora estimada y demora) y el historial (detalle, importe, fecha, estado final, repetir pedido). Está desde el Sprint 2; la hora fija y la demora, desde el Sprint 3.
 
 ### 2.8 Reportes base (obligatorios)
 
@@ -94,9 +94,11 @@ Dentro de Extensión 1:
 - Promociones administrables y aplicables al pedido (el grupo acota las reglas: no un motor infinito).
 - Reportes adicionales de pedidos, clientes, sucursales y promociones.
 
-En Sprint 1 la extensión **no se implementa**. El stock arranca en el Sprint 3 y las promociones en el Sprint 4.
+El stock está implementado desde el Sprint 3. Las promociones y los reportes (base y extra) quedan para los Sprints 4 y 5.
 
 **Política de stock (Sprint 3):** cantidad entera por sucursal y producto. Al confirmar se verifica que alcance en la sucursal asignada y se **reserva**; si falta algo, no se crea el pedido y el checkout nombra los productos que faltan. Al cancelar (`pending` o `confirmed`) se **libera** la reserva y al pasar a `delivered` se **descuenta** definitivamente. Un producto sin stock cargado en una sucursal cuenta como 0 ahí. Los adicionales también son productos y descuentan stock igual.
+
+**Política de promociones (Sprint 4):** una sola promoción por pedido, aplicada al confirmar. Tipos: porcentual, monto fijo o 2x1 de un producto. Sin código es automática (gana la que más descuenta); con código es cupón y reemplaza a la automática. El descuento no supera el subtotal y queda congelado en el pedido. No hay combos, envío gratis ni cupón de un solo uso. El 2x1 no libera stock: se reservan todas las unidades. El contrato está en `docs/sprints/Ficha-Sprint-4.md`.
 
 ---
 
@@ -119,7 +121,7 @@ No se construye, salvo plus post medio término:
 
 ## 5. Decisiones que delimitan el alcance
 
-Estas decisiones ya están tomadas para no inflar el enunciado. El detalle vive en la carpeta de supuestos cuando se cierre ese documento; acá se anotan porque cambian qué entra y qué no.
+Estas decisiones ya están tomadas para no inflar el enunciado. El detalle y el resto de las reglas viven en `Supuestos-y-decisiones.md`. Acá se anotan las que cambian qué entra y qué no.
 
 | Decisión | Valor |
 |---|---|
@@ -130,6 +132,7 @@ Estas decisiones ya están tomadas para no inflar el enunciado. El detalle vive 
 | Stock (Sprint 3) | Reservar al confirmar, liberar al cancelar, descontar al entregar. Sin fila de stock = 0 |
 | Parámetros (Sprint 3) | Tabla `Parameter`: radio de cobertura y constantes de ETA. Cambiarlos no recalcula pedidos ya confirmados |
 | Recuperar contraseña (Sprint 3) | Token demostrable (sin SMTP), vence a los 30 min y es de un solo uso |
+| Promociones (Sprint 4) | Una por pedido, aplicada al confirmar: porcentual, monto fijo o 2x1; automática o cupón. Sin combos ni envío gratis |
 | Estados Sprint 1 | Solo `pending` al confirmar |
 | Configuraciones de producto Sprint 1 | No. Solo observaciones en el ítem |
 | Imagen de producto Sprint 1 | URL (upload es mejora, no bloquea el RF) |
@@ -162,41 +165,41 @@ El incremento es un **hilo vertical**, no pantallas sueltas: configurar el menú
 
 ## 7. Mapa de páginas del producto
 
-Rutas de pantalla alineadas a los recursos de la API. Texto visible en español.
+Rutas de pantalla alineadas a los recursos de la API. Texto visible en español. Estado al **07/10/2026**.
 
 ### 7.1 App cliente (`/frontend`)
 
-| Ruta | En Sprint 1 | Función |
+| Ruta | Estado | Función |
 |---|---|---|
-| `/login` | Sí | Iniciar sesión |
-| `/register` | Sí | Registro |
-| `/products` | Sí | Catálogo filtrable por categoría |
-| `/products/:id` | Sí | Detalle y agregar al carrito |
-| `/cart` | Sí | Ítems, cantidades, observaciones, total |
-| `/checkout` | Sí | Confirmar pedido (cuenta o invitado) |
-| `/account/addresses` | Sí | ABM de direcciones (requiere cuenta) |
-| `/forgot-password` | No | Recuperar contraseña (Sprint 3) |
-| `/reset-password` | No | Nueva contraseña con el token (Sprint 3) |
-| `/account` | No | Datos personales (Sprint 3) |
-| `/branches` | No | Sucursales disponibles para una dirección o la ubicación (Sprint 3) |
-| `/orders` | No | Historial |
-| `/orders/:id` | No | Seguimiento y repetir |
+| `/login` | Hecho | Iniciar sesión |
+| `/register` | Hecho | Registro |
+| `/products` | Hecho | Catálogo filtrable por categoría |
+| `/products/:id` | Hecho | Detalle, adicionales de hamburguesa y agregar al carrito |
+| `/cart` | Hecho | Ítems, cantidades, observaciones, adicionales, total |
+| `/checkout` | Hecho | Confirmar pedido (cuenta o invitado); avisa sin cobertura o sin stock |
+| `/account/addresses` | Hecho | ABM de direcciones, alias y geolocalización del dispositivo |
+| `/forgot-password` | Hecho | Recuperar contraseña (token demo) |
+| `/reset-password` | Hecho | Nueva contraseña con el token |
+| `/account` | Hecho | Datos personales y cambio de contraseña |
+| `/branches` | Hecho | Sucursales activas dentro del radio |
+| `/orders` | Hecho | Historial y repetir (suma al carrito si ya hay ítems) |
+| `/orders/:id` | Hecho | Seguimiento: sucursal, timeline, hora estimada, demora, cancelar |
 
 ### 7.2 App admin (`/backend/admin`)
 
-| Ruta | En Sprint 1 | Función |
+| Ruta | Estado | Función |
 |---|---|---|
-| `/admin/login` | Sí | Login de administrador |
-| `/admin` | Sí | Home |
-| `/admin/categories` | Sí | ABM categorías |
-| `/admin/products` | Sí | ABM productos |
-| `/admin/branches` | Sí | ABM sucursales |
-| `/admin/orders` | No | Pedidos y cambio de estado |
-| `/admin/admins` | No | Alta de administradores |
-| `/admin/stock` | No | Stock por sucursal |
-| `/admin/promotions` | No | ABM promociones |
-| `/admin/parameters` | No | Parámetros y estados |
-| `/admin/reports` | No | Reportes |
+| `/admin/login` | Hecho | Login de administrador |
+| `/admin` | Hecho | Home |
+| `/admin/categories` | Hecho | ABM categorías |
+| `/admin/products` | Hecho | ABM productos (URL o carga de imagen) |
+| `/admin/branches` | Hecho | ABM sucursales; la dirección se puede geocodificar |
+| `/admin/orders` | Hecho | Pedidos, código completo, cambio de estado, hora y demora |
+| `/admin/admins` | Hecho | Alta, edición y baja de administradores |
+| `/admin/stock` | Hecho | Stock por sucursal (disponible y reservado) |
+| `/admin/parameters` | Hecho | Radio, constantes de ETA y estados en lectura |
+| `/admin/promotions` | Sprint 4 | ABM promociones |
+| `/admin/reports` | Sprint 4–5 | Reportes base y extra |
 
 ---
 
@@ -216,27 +219,47 @@ Si hay que recortar, se recorta mapa, notificaciones y Extensión 2. **No se rec
 
 ---
 
-## 9. Trazabilidad enunciado → este alcance
+## 9. Qué está hecho al cierre del Sprint 3
 
-| Bloque del enunciado | ¿En el producto? | ¿En Sprint 1? |
+De los **40 RF obligatorios**, están cubiertos **35**. Faltan el ABM de promociones (`RF-ADM-05`) y los cuatro reportes base (`RF-RPT-01` a `RF-RPT-04`).
+
+De la **Extensión 1** está el stock en el checkout (`RF-STK-01` a `RF-STK-04`). Faltan promociones, reportes extra y la alerta de stock mínimo.
+
+| Hecho (Sprints 1 a 3) | Pendiente |
+|---|---|
+| Cuenta de cliente completa: registro, sesión, perfil, recuperar contraseña, direcciones | Promociones (ABM y aplicación en el pedido) |
+| Catálogo, carrito, adicionales de hamburguesa, checkout de cuenta e invitado | Reportes base de productos |
+| Pedido vivo: estados, cancelar, seguimiento con hora y demora, historial, repetir | Reportes extra de Extensión 1 |
+| Admin: productos, categorías, sucursales, pedidos, stock, parámetros, más administradores | Alerta de stock mínimo |
+| Asignación por radio y reserva de stock | Mapa y Extensión 2 (siguen fuera) |
+
+El detalle de cada incremento está en `Incrementos-de-los-sprints.md`.
+
+---
+
+## 10. Trazabilidad enunciado → este alcance
+
+| Bloque del enunciado | ¿En el producto? | Al 07/10/2026 |
 |---|---|---|
-| Gestión de usuarios (clientes) | Sí | Registro, login, direcciones, nuevo pedido |
-| Administradores | Sí | Seed + login + app independiente |
-| Sucursales | Sí | ABM + asignación simple |
-| Catálogo | Sí | ABM + consulta; sin configs especiales |
-| Carrito | Sí | Completo (sin configs especiales) |
-| Realización de pedidos | Sí | Confirmación + estado inicial |
-| Geolocalización | Sí (mapa optativo) | Lat/lng en direcciones |
-| Seguimiento | Sí | No |
-| Historial | Sí | No |
-| Sistema administrativo (resto del ABM) | Sí | Solo productos, categorías, sucursales |
-| Reportes base | Sí | No |
-| Extensión 1 | Sí (compromiso) | No |
+| Gestión de usuarios (clientes) | Sí | Completo |
+| Administradores | Sí | Seed, login, alta, edición y baja |
+| Sucursales | Sí | ABM, radio de cobertura y listado para el cliente |
+| Catálogo | Sí | ABM, consulta y adicionales de hamburguesa |
+| Carrito | Sí | Completo, con adicionales |
+| Realización de pedidos | Sí | Confirmación, máquina de estados y cancelación |
+| Geolocalización | Sí (mapa optativo) | Lat/lng, GPS del cliente y geocodificación de sucursales. Sin mapa |
+| Seguimiento | Sí | Sucursal, timeline, hora estimada y demora |
+| Historial | Sí | Listado, detalle y repetir |
+| Sistema administrativo | Sí | Falta promociones |
+| Reportes base | Sí | No empezados |
+| Extensión 1 | Sí (compromiso) | Stock sí; promociones y reportes extra no |
 | Extensión 2 | No (plus) | No |
 
 ## Historial
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.3 | 07/10/2026 | Política de promociones del Sprint 4 (una por pedido, aplicada al confirmar) |
+| 1.2 | 07/10/2026 | Estado al cierre del Sprint 3: páginas hechas, 35/40 RF base y stock de Extensión 1 |
 | 1.1 | 03/10/2026 | Asignación con radio de cobertura, sucursales disponibles, política de stock y decisiones del Sprint 3; visión de sprints según lo cubierto |
 | 1.0 | 07/09/2026 | Versión inicial en la carpeta |

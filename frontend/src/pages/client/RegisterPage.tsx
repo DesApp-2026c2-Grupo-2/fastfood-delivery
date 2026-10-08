@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { LoginResponse } from '../../api/types';
+import { useSession } from '../../auth/SessionContext';
 import { isCustomer, saveSession } from '../../auth/session';
 import { mergeGuestCartIntoAccount } from '../../cart/guestCart';
 import { BrandLogo } from '../../components/BrandLogo';
@@ -14,6 +15,7 @@ type FormErrors = {
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const { refresh: refreshSession } = useSession();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -68,6 +70,7 @@ export function RegisterPage() {
         body: JSON.stringify({ name: name.trim(), email: email.trim(), password }),
       });
       saveSession(data.accessToken, data.user, remember);
+      refreshSession();
       try {
         await mergeGuestCartIntoAccount(data.accessToken);
       } catch {

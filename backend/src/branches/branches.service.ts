@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   Injectable,
   NotFoundException,
@@ -13,6 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AvailableBranchesQueryDto } from './dto/available-branches-query.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
+import { GeocodeNotFoundError, GeocodeUnavailableError, geocodeAddress } from './geocode';
 
 export type CoveringBranch = { branch: Branch; distanceKm: number };
 
@@ -66,6 +68,20 @@ export class BranchesService {
     return this.prisma.branch.findMany({
       orderBy: { name: 'asc' },
     });
+  }
+
+  async geocode(address: string) {
+    try {
+      return await geocodeAddress(address);
+    } catch (error) {
+      if (error instanceof GeocodeNotFoundError) {
+        throw new BadRequestException(error.message);
+      }
+      if (error instanceof GeocodeUnavailableError) {
+        throw new BadGatewayException(error.message);
+      }
+      throw error;
+    }
   }
 
   async findOne(id: string) {

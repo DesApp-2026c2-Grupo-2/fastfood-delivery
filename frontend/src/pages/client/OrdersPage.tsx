@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
+import { isStatusBehind, useOrderStatusEvents } from '../../api/order-events';
 import type { OrderSummary, RepeatOrderResult } from '../../api/types';
 import { useCart } from '../../cart/CartContext';
-import { getToken, isCustomer } from '../../auth/session';
+import { getToken, getUserId, isCustomer } from '../../auth/session';
 import { formatPrice } from '../../lib/money';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -32,17 +33,18 @@ function formatDate(iso: string): string {
 
 export function OrdersPage() {
   const token = getToken();
+  const userId = getUserId();
 
-  if (!isCustomer() || !token) {
+  if (!isCustomer() || !token || !userId) {
     return <Navigate to="/login" replace state={{ from: '/orders' }} />;
   }
 
-  return <OrdersContent token={token} />;
+  return <OrdersContent token={token} userId={userId} />;
 }
 
-function OrdersContent({ token }: { token: string }) {
+function OrdersContent({ token, userId }: { token: string; userId: string }) {
   const navigate = useNavigate();
-  const { refresh } = useCart();
+  const { count, refresh } = useCart();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -52,11 +54,27 @@ function OrdersContent({ token }: { token: string }) {
     setLoading(true);
     setError('');
     try {
-      setOrders(await api<OrderSummary[]>('/orders', { token }));
+      setOrders(await api<OrderSummary[]>('/orders', { token, cache: 'no-store' }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar los pedidos');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function refreshOrders() {
+    try {
+      const fresh = await api<OrderSummary[]>('/orders', { token, cache: 'no-store' });
+      setOrders((current) => {
+        const shown = new Map(current.map((order) => [order.id, order.status]));
+        return fresh.map((order) => {
+          const status = shown.get(order.id);
+          if (status && isStatusBehind(order.status, status)) return { ...order, status };
+          return order;
+        });
+      });
+    } catch {
+      /* el próximo intento vuelve a pedir los pedidos */
     }
   }
 
@@ -65,7 +83,26 @@ function OrdersContent({ token }: { token: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useOrderStatusEvents(token, userId, (event) => {
+    setOrders((current) =>
+      current.map((order) =>
+        order.id === event.orderId && !isStatusBehind(event.status, order.status)
+          ? { ...order, status: event.status }
+          : order,
+      ),
+    );
+    void refreshOrders();
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void refreshOrders();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [token]);
+
   async function repeatOrder(order: OrderSummary) {
+    const hadItems = count > 0;
     setRepeatingId(order.id);
     setError('');
     try {
@@ -74,7 +111,15 @@ function OrdersContent({ token }: { token: string }) {
         token,
       });
       await refresh();
-      const notice = result.skipped.length > 0 ? result.skipped.map((s) => s.message).join(' ') : undefined;
+      const messages: string[] = [];
+      if (hadItems) {
+        messages.push('Sumamos los ítems del pedido a lo que ya tenías en el carrito.');
+      }
+      if (result.skipped.length > 0) {
+        messages.push(...result.skipped.map((s) => s.message));
+      }
+      const notice = messages.length > 0 ? messages.join(' ') : undefined;
+
       navigate('/cart', { state: notice ? { notice } : undefined });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo repetir el pedido');
@@ -127,7 +172,13 @@ function OrdersContent({ token }: { token: string }) {
                   disabled={repeatingId === order.id}
                   onClick={() => void repeatOrder(order)}
                 >
-                  {repeatingId === order.id ? 'Repitiendo…' : 'Repetir pedido'}
+                  {repeatingId === order.id
+                    ? count > 0
+                      ? 'Agregando…'
+                      : 'Repitiendo…'
+                    : count > 0
+                      ? 'Agregar al carrito'
+                      : 'Repetir pedido'}
                 </button>
               </div>
             </li>

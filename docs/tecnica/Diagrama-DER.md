@@ -1,10 +1,12 @@
 # Diagrama DER
 
 **Proyecto:** Pedidos en casas de comidas rápidas  
-**Versión:** 1.1  
-**Actualizado:** 21/09/2026  
+**Versión:** 1.2  
+**Actualizado:** 07/10/2026  
 **Fuente:** `backend/prisma/schema.prisma`  
 **Notación:** Crow’s Foot (modelo lógico)
+
+El documento de carpeta, al día del Sprint 3 (stock, parámetros, token de reset, historial de estados, hora estimada y alias), es [`docs/entregables/Modelo-de-datos.md`](../entregables/Modelo-de-datos.md). El diagrama de abajo quedó en el Sprint 2 y no incluye esas entidades.
 
 Todas las entidades (salvo `ProductImage`, `OrderItem`, `CartItemExtra` y `OrderItemExtra`) incluyen `createdAt` y `updatedAt`. Esos campos no se repiten en cada caja para no saturar el diagrama.
 
@@ -161,5 +163,6 @@ erDiagram
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.2 | 07/10/2026 | El modelo vigente pasa a `docs/entregables/Modelo-de-datos.md`. Este diagrama queda como el del Sprint 2 |
 | 1.1 | 21/09/2026 | Adicionales de hamburguesa (DEV-10): `CartItemExtra`, `OrderItemExtra` y `CartItem.extrasKey` |
 | 1.0 | 07/09/2026 | DER inicial según `schema.prisma` (guest checkout, N:N Product–Category) |

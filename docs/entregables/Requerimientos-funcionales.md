@@ -2,9 +2,9 @@
 
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
 **Fuente:** `docs/interno/Enunciado.txt`  
-**Versión:** 1.1  
-**Actualizado:** 03/10/2026  
-**Estado:** versión de carpeta Sprint 1. Los IDs son estables. El alcance (qué entra en cada sprint) está en `docs/entregables/Alcance-funcional.md`. Las historias que cubren cada RF están en `docs/entregables/Historias-de-usuario.md`.
+**Versión:** 1.2  
+**Actualizado:** 07/10/2026  
+**Estado:** IDs estables. Al cierre del Sprint 3 están cubiertos 35 de 40 RF obligatorios y el stock de Extensión 1. El alcance está en `Alcance-funcional.md`. Las historias, en `Historias-de-usuario.md`.
 
 ## 1. Cómo leer este documento
 
@@ -123,7 +123,7 @@ El enunciado exige una aplicación administrativa independiente que comparte la 
 | RF-ADM-09 | Gestión de parámetros del sistema | El sistema deberá permitir consultar y modificar parámetros de funcionamiento (por ejemplo radio de cobertura, valores de ETA u otros que defina el grupo). | Administrador | Obligatorio | `Parameter` | Entidad “Parámetros del sistema.” |
 | RF-ADM-10 | Gestión de pedidos en backoffice | El sistema deberá permitir al administrador consultar pedidos y cambiar su estado. | Administrador | Obligatorio | `Order` | Necesario para “entrega del pedido al cliente” y para RF-ORD-03. No está listado como entidad ABM, pero el proceso completo lo exige. |
 
-Nota: RF-ADM-05 y RF-ADM-06 cubren el **ABM** pedido en el bloque administrativo. Las reglas de reserva de stock al confirmar un pedido y la aplicación de promociones en el checkout son RF de Extensión 1 (sección 4). Hasta que los docentes confirmen lo contrario, el mínimo es poder cargar esos datos; no necesariamente usarlos en el checkout.
+Nota: RF-ADM-05 y RF-ADM-06 cubren el **ABM** pedido en el bloque administrativo. El stock no se queda en la carga: desde el Sprint 3 el checkout lo verifica y lo reserva (RF-STK-02, RF-STK-04). Las promociones tampoco se quedan en el ABM: desde el Sprint 4 se aplican al confirmar, con las reglas de `docs/sprints/Ficha-Sprint-4.md` (RF-PRM-02).
 
 ### 3.10 Reportes base
 
@@ -248,7 +248,46 @@ No cambia la prioridad del RF. Solo indica cuándo el grupo planea cubrirlo.
 | 5 | RF-RPT-10 a RF-RPT-22, RF-STK-05 (si hay tiempo), pulido de RF ya cubiertos |
 | Fuera (optativo / plus) | RF-GEO-03 (mapa), todos los RF de Extensión 2 |
 
-## 9. Pendientes de confirmación con docentes
+## 9. Estado de implementación (07/10/2026)
+
+Un RF está **cubierto** cuando el flujo existe en la API y en la pantalla correspondiente. El detalle de cada incremento está en `Incrementos-de-los-sprints.md`.
+
+### Cubiertos — funcionalidades base (35 / 40)
+
+| RF | Desde |
+|---|---|
+| RF-CLI-01, RF-CLI-02, RF-CLI-05, RF-CLI-07 | Sprint 1 |
+| RF-ADM-01, RF-ADM-02, RF-ADM-04 | Sprint 1 |
+| RF-BRN-01 | Sprint 1 |
+| RF-BRN-02, RF-GEO-02 | Sprint 1 con la regla simple; desde el Sprint 3, activa más cercana dentro del radio |
+| RF-CAT-01, RF-CAT-02, RF-CAT-03 | Sprint 1 |
+| RF-CRT-01 a RF-CRT-04 | Sprint 1; desde el Sprint 2 el ítem también lleva adicionales de hamburguesa |
+| RF-ORD-01 | Sprint 1 |
+| RF-GEO-01 | Sprint 1 (lat/lng); el Sprint 2 suma la ubicación del dispositivo |
+| RF-CLI-06, RF-HIS-01, RF-HIS-02 | Sprint 2 |
+| RF-ORD-02, RF-ORD-03, RF-ORD-04, RF-ADM-10 | Sprint 2 |
+| RF-TRK-01, RF-TRK-02, RF-TRK-03 | Sprint 2; el Sprint 3 fija la hora estimada y muestra la demora |
+| RF-CAT-04 | Sprint 2, acotado a adicionales de hamburguesa |
+| RF-CLI-03, RF-CLI-04 | Sprint 3 |
+| RF-ADM-03, RF-ADM-07 | Sprint 3 (alta, edición y baja; el administrador inicial no se borra) |
+| RF-ADM-06, RF-ADM-08, RF-ADM-09 | Sprint 3 |
+| RF-BRN-03 | Sprint 3 |
+
+### Cubiertos — Extensión 1
+
+RF-STK-01, RF-STK-02, RF-STK-03 y RF-STK-04, desde el Sprint 3.
+
+### Pendientes
+
+| RF | Cuándo |
+|---|---|
+| RF-ADM-05, RF-PRM-01, RF-PRM-02 | Sprint 4 |
+| RF-RPT-01 a RF-RPT-04 | Sprint 4 |
+| RF-RPT-10 a RF-RPT-22 | Sprint 5 |
+| RF-STK-05 | Sprint 5, si hay tiempo |
+| RF-GEO-03 y toda la Extensión 2 | Fuera de compromiso |
+
+## 10. Pendientes de confirmación con docentes
 
 Cerrados por decisión de grupo (se consultan si un docente contradice):
 
@@ -258,14 +297,14 @@ Cerrados por decisión de grupo (se consultan si un docente contradice):
 4. **RF-ADM-06:** el stock no se queda en carga de datos. Desde el Sprint 3 el checkout verifica y reserva stock en la sucursal asignada (RF-STK-02, RF-STK-04).
 5. **RF-ADM-08 y RF-ADM-09:** pantalla en el admin (`/admin/parameters`) sobre la tabla `Parameter`, que el sistema usa al confirmar (radio de cobertura y constantes de ETA). Los estados de pedido se listan en modo lectura; la máquina de estados no se edita.
 6. **RF-CLI-03:** flujo demostrable sin SMTP. El token de recuperación se muestra en modo demo, vence a los 30 minutos y es de un solo uso. El correo real queda como mejora.
+7. **RF-ADM-05:** el ABM no alcanza. Desde el Sprint 4 una promoción vigente se aplica al confirmar y queda en el importe (RF-PRM-02). Una sola por pedido: porcentual, monto fijo o 2x1, automática o con cupón. Sin combos, sin envío gratis y sin cupón de un solo uso. El contrato está en `docs/sprints/Ficha-Sprint-4.md`.
 
-Sigue abierto:
-
-1. RF-ADM-05: ¿el ABM de promociones exige aplicarlas en el checkout, o alcanza con cargarlas? Se define en el Sprint 4.
+No quedan preguntas abiertas de este documento.
 
 ## Historial
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.2 | 07/10/2026 | Estado al cierre del Sprint 3 (35/40 obligatorios y stock). Cerrada la consulta de RF-ADM-05: las promociones se aplican al confirmar en el Sprint 4 |
 | 1.1 | 03/10/2026 | Asignación a sprints según lo cubierto en S2 y S3; cerradas las consultas de RF-ADM-06, RF-ADM-08/09 y RF-CLI-03 |
 | 1.0 | 07/09/2026 | Versión inicial en la carpeta |

@@ -1,7 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireCustomer } from './auth/RequireCustomer';
+import { SessionProvider } from './auth/SessionContext';
 import { CartProvider } from './cart/CartContext';
 import { ClientLayout } from './layouts/ClientLayout';
+import { AccountPage } from './pages/client/AccountPage';
 import { AddressesPage } from './pages/client/AddressesPage';
 import { BranchesPage } from './pages/client/BranchesPage';
 import { CartPage } from './pages/client/CartPage';
@@ -17,27 +19,30 @@ import { ResetPasswordPage } from './pages/client/ResetPasswordPage';
 
 export default function App() {
   return (
-    <CartProvider>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route element={<ClientLayout />}>
-          <Route path="/" element={<Navigate to="/products" replace />} />
-          <Route path="/products" element={<ProductListPage />} />
-          <Route path="/products/:id" element={<ProductDetailPage />} />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/branches" element={<BranchesPage />} />
-          <Route element={<RequireCustomer />}>
-            <Route path="/account/addresses" element={<AddressesPage />} />
-            <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/orders/:id" element={<OrderDetailPage />} />
+    <SessionProvider>
+      <CartProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route element={<ClientLayout />}>
+            <Route path="/" element={<Navigate to="/products" replace />} />
+            <Route path="/products" element={<ProductListPage />} />
+            <Route path="/products/:id" element={<ProductDetailPage />} />
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/branches" element={<BranchesPage />} />
+            <Route element={<RequireCustomer />}>
+              <Route path="/account" element={<AccountPage />} />
+              <Route path="/account/addresses" element={<AddressesPage />} />
+              <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/orders/:id" element={<OrderDetailPage />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/products" replace />} />
           </Route>
-          <Route path="*" element={<Navigate to="/products" replace />} />
-        </Route>
-      </Routes>
-    </CartProvider>
+        </Routes>
+      </CartProvider>
+    </SessionProvider>
   );
 }

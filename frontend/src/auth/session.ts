@@ -18,6 +18,26 @@ export function getToken(): string | null {
   return read(CUSTOMER_TOKEN_KEY);
 }
 
+function readJwtSub(token: string): string {
+  try {
+    const part = token.split('.')[1];
+    if (!part) return '';
+    const json = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/'))) as { sub?: unknown };
+    return typeof json.sub === 'string' ? json.sub : '';
+  } catch {
+    return '';
+  }
+}
+
+export function getUserId(): string {
+  const token = getToken();
+  if (token) {
+    const sub = readJwtSub(token);
+    if (sub) return sub;
+  }
+  return getUser()?.id ?? '';
+}
+
 export function getUser(): User | null {
   const raw = read(CUSTOMER_USER_KEY);
   if (!raw) return null;
@@ -33,6 +53,11 @@ export function clearSession() {
   localStorage.removeItem(CUSTOMER_USER_KEY);
   sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
   sessionStorage.removeItem(CUSTOMER_USER_KEY);
+}
+
+export function updateStoredUser(user: User) {
+  const store = sessionStorage.getItem(CUSTOMER_TOKEN_KEY) ? sessionStorage : localStorage;
+  store.setItem(CUSTOMER_USER_KEY, JSON.stringify(user));
 }
 
 export function isCustomer(): boolean {

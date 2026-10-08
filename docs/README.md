@@ -1,7 +1,7 @@
 # Documentación
 
-**Versión:** 1.1  
-**Actualizado:** 24/09/2026
+**Versión:** 1.4  
+**Actualizado:** 07/10/2026
 
 La carpeta está partida para no mezclar material de trabajo, sprints, carpeta de la materia y docs técnicos.
 
@@ -10,7 +10,7 @@ La carpeta está partida para no mezclar material de trabajo, sprints, carpeta d
 | [`interno/`](interno/) | Material de la materia y notas del equipo | Nosotros |
 | [`sprints/`](sprints/) | Fichas, incrementos y reparto de cada sprint | Equipo y review |
 | [`entregables/`](entregables/) | Documentos de la carpeta (lo que pide la materia) | Entrega |
-| [`tecnica/`](tecnica/) | Modelo de datos, APIs, testing | Desarrollo y carpeta técnica |
+| [`tecnica/`](tecnica/) | Contratos con ejemplo de JSON y diagrama de trabajo | Desarrollo |
 
 ## interno/
 
@@ -24,32 +24,41 @@ Fuentes de la materia y docs que no se entregan como carpeta.
 
 ## sprints/
 
-Un archivo por sprint. Las fichas cubren el entregable **Incrementos de los sprints**.
+Un archivo por sprint. El resumen de incrementos para la carpeta está en `entregables/`. Las fichas guardan el planning y el reparto.
 
 - `Ficha-Sprint-1.md` / `.docx`
 - `Ficha-Sprint-2.md` / `.docx`
 - `Ficha-Sprint-3.md`
+- `Ficha-Sprint-4.md` / `.docx`
 - `Plan-reparto-Sprint-1.md`
 - `Plan-reparto-Sprint-2.md`
 
 ## entregables/
 
-Lo que la materia pide en la carpeta, salvo incrementos (en `sprints/`) y el bloque técnico (en `tecnica/`).
+La carpeta que pide la materia, al día del cierre del Sprint 3 (07/10/2026). **Lo que se entrega es el Word** (`.docx`). El Markdown es la fuente: si se edita, hay que volver a exportar.
 
-| Pedido de la materia | Archivo | Estado |
+```bash
+python docs/interno/exportar-entregables-docx.py
+```
+
+| Pedido de la materia | Word | Fuente |
 |---|---|---|
-| Alcance funcional | `Alcance-funcional.md` | Listo |
-| Requerimientos funcionales | `Requerimientos-funcionales.md` | Listo |
-| Historias de usuario | `Historias-de-usuario.md` | Listo |
-| Supuestos y decisiones de negocio | `02-Supuestos-y-decisiones.md` | Pendiente |
-| Incrementos de los sprints | ver `sprints/` | En curso |
-| Modelo de datos | `tecnica/Diagrama-DER.md` | Listo |
-| Diseño de APIs | — | Pendiente |
-| Testing y automatización | — | Pendiente |
+| Alcance funcional | `Alcance funcional.docx` | `Alcance-funcional.md` |
+| Supuestos y decisiones de negocio | `Supuestos y decisiones de negocio.docx` | `Supuestos-y-decisiones.md` |
+| Requerimientos funcionales | `Requerimientos funcionales.docx` | `Requerimientos-funcionales.md` |
+| Historias de usuario | `Historias de usuario.docx` | `Historias-de-usuario.md` |
+| Incrementos de los sprints | `Incrementos de los sprints.docx` | `Incrementos-de-los-sprints.md` |
+| Modelo de datos | `Modelo de datos.docx` | `Modelo-de-datos.md` |
+| Diseño de APIs | `Diseño de APIs.docx` | `Diseno-de-APIs.md` |
+| Testing y automatización | `Testing y automatización.docx` | `Testing-y-automatizacion.md` |
+
+Las fichas de cada sprint siguen en `sprints/` (el detalle del planning). Los contratos con ejemplo de JSON siguen en `tecnica/`.
 
 ## tecnica/
 
-- `Diagrama-DER.md` — modelo lógico (Crow’s Foot), alineado a `backend/prisma/schema.prisma`
+- `Diagrama-DER.md` — diagrama del Sprint 2. El modelo vigente está en `entregables/Modelo-de-datos.md`
+- `API-pedidos-cliente.md` — ejemplos de historial, seguimiento, cancelar y repetir
+- `API-sprint-3.md` — ejemplos de stock, parámetros, perfil, reset y sucursales disponibles
 
 ## Cómo versionar
 
@@ -65,5 +74,8 @@ Al editar un doc: subir la versión, poner la fecha de hoy y agregar una fila al
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.4 | 07/10/2026 | La ficha del Sprint 4 también está en Word |
+| 1.3 | 07/10/2026 | Los ocho entregables también están en Word (`.docx`) |
+| 1.2 | 07/10/2026 | Entra la ficha del Sprint 4. `entregables/` cubre los ocho documentos de la materia, al cierre del Sprint 3 |
 | 1.1 | 24/09/2026 | Índice: entra `Ficha-Sprint-3.md` |
 | 1.0 | 07/09/2026 | Organización de `docs/` y convención de versionado |

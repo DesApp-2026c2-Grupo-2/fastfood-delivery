@@ -618,7 +618,7 @@ export class OrdersService {
       }
     });
 
-    this.orderEvents.notifyStatusChanged({
+    await this.orderEvents.notifyStatusChanged({
       orderId: id,
       userId: current.userId,
       status,
