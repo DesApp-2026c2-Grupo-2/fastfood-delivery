@@ -2,9 +2,9 @@
 
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
 **Fuente:** `docs/interno/Enunciado.txt`  
-**Versión:** 1.3  
-**Actualizado:** 07/10/2026  
-**Estado:** cierre del Sprint 3 (corte 07/10, review 08/10) y decisión de promociones para el Sprint 4. Describe el producto comprometido y qué de eso ya está construido.  
+**Versión:** 1.4  
+**Actualizado:** 12/10/2026  
+**Estado:** cierre del Sprint 3 y feedback del profesor para el Sprint 4 (sucursal elegida por el cliente, mapa de pin, promociones y reportes).  
 **Documentos relacionados:** `Supuestos-y-decisiones.md`, `Requerimientos-funcionales.md`, `Historias-de-usuario.md`, `Incrementos-de-los-sprints.md`, `docs/sprints/Ficha-Sprint-4.md`
 
 ---
@@ -45,9 +45,11 @@ Cada sucursal es un local físico (nombre, dirección, lat/lng, horarios, teléf
 
 **Estrategia de asignación (Sprint 1):** sucursal **activa más cercana** a la dirección de entrega, distancia Haversine. Si no hay ninguna activa, no se crea el pedido.
 
-**Estrategia de asignación (desde Sprint 3):** sucursal **activa más cercana dentro del radio de cobertura** (parámetro `coverage_radius_km`, 5 km por defecto, editable en `/admin/parameters`). Si ninguna llega, no se crea el pedido y el checkout avisa que esa dirección no tiene cobertura. El horario de atención se muestra pero no se usa para asignar.
+**Estrategia de asignación (desde Sprint 3, vigente hasta el feedback del 12/10):** sucursal **activa más cercana dentro del radio de cobertura** (parámetro `coverage_radius_km`, 5 km por defecto, editable en `/admin/parameters`). Si ninguna llega, no se crea el pedido y el checkout avisa que esa dirección no tiene cobertura. El horario de atención se muestra pero no se usa para asignar.
 
-**Sucursales disponibles (Sprint 3):** el cliente ve en `/branches` las sucursales activas dentro del radio, para una dirección guardada o para la ubicación del dispositivo, de la más cercana a la más lejana. La primera es la que se asigna al confirmar.
+**Estrategia de asignación (desde Sprint 4):** la elige el **cliente**. Puede **retirar** en el local o recibir el pedido en su **domicilio**. En domicilio se listan las activas dentro del radio; en retiro, todas las activas. En los dos casos van primero las que tienen stock de todo el carrito. Si en domicilio ninguna cubre, no se confirma.
+
+**Sucursales (Sprint 4):** en `/branches` se ven las que cubren la ubicación y también **todas** las activas. La del pedido se elige en el checkout, no es automáticamente la primera.
 
 ### 2.4 Catálogo
 
@@ -72,7 +74,7 @@ Desde el Sprint 2 la máquina está en uso: el admin avanza el estado y el clien
 
 ### 2.7 Geolocalización, seguimiento e historial
 
-Las direcciones guardan ubicación geográfica. Esa ubicación se usa para asignar sucursal. El mapa con recorrido es **optativo** (`RF-GEO-03`) y queda fuera del núcleo.
+Las direcciones guardan ubicación geográfica. Desde el Sprint 4 un mapa chico (pin) sirve para confirmar esa ubicación y la de una sucursal. El mapa con recorrido sigue **optativo** (`RF-GEO-03`) y queda fuera.
 
 El cliente ve la evolución del pedido (sucursal, estado, historial de cambios, hora estimada y demora) y el historial (detalle, importe, fecha, estado final, repetir pedido). Está desde el Sprint 2; la hora fija y la demora, desde el Sprint 3.
 
@@ -111,11 +113,11 @@ No se construye, salvo plus post medio término:
 | App de repartidores | Extensión 2 |
 | Calificaciones de pedidos | Extensión 2 |
 | Notificaciones (email/push/in-app de eventos) | Extensión 2 |
-| Mapa con recorrido estimado | Optativo del enunciado |
-| Navegación real / Google Places | El enunciado no lo exige; lat/lng se cargan a mano en el núcleo |
+| Mapa con recorrido estimado | Optativo del enunciado. El pin para confirmar una dirección o sucursal sí entra en el Sprint 4 |
+| Navegación real / Google Places | El enunciado no lo exige. La búsqueda es Nominatim y el mapa es OpenStreetMap |
 | Motor genérico de reglas de producto | Solo configuraciones acotadas, más adelante |
 | Horario de atención en la asignación de sucursal | Simplificación aceptada; el radio y el stock sí se usan desde el Sprint 3 |
-| Correo real para recuperar contraseña | Flujo demostrable con token en modo demo; el correo es mejora |
+| Correo real para recuperar contraseña | Opcional en el Sprint 4. Sin SMTP sigue el token en pantalla |
 
 ---
 
@@ -128,10 +130,11 @@ Estas decisiones ya están tomadas para no inflar el enunciado. El detalle y el 
 | Aplicaciones | Dos SPAs independientes (cliente y admin), misma API y misma BD |
 | Extensión | Propuesta 1 |
 | Asignación Sprint 1 | Activa más cercana (Haversine) |
-| Asignación desde Sprint 3 | Activa más cercana dentro del radio de cobertura (parámetro). Sin cobertura, no se crea el pedido |
+| Asignación desde Sprint 3 | Activa más cercana dentro del radio. Vigente en lo ya construido |
+| Asignación desde Sprint 4 | La elige el cliente: retiro (todas las activas) o domicilio (dentro del radio). Primero las que tienen stock del carrito |
 | Stock (Sprint 3) | Reservar al confirmar, liberar al cancelar, descontar al entregar. Sin fila de stock = 0 |
 | Parámetros (Sprint 3) | Tabla `Parameter`: radio de cobertura y constantes de ETA. Cambiarlos no recalcula pedidos ya confirmados |
-| Recuperar contraseña (Sprint 3) | Token demostrable (sin SMTP), vence a los 30 min y es de un solo uso |
+| Recuperar contraseña (Sprint 3) | Token demostrable, 30 min, un solo uso. El mail es opcional en el Sprint 4 |
 | Promociones (Sprint 4) | Una por pedido, aplicada al confirmar: porcentual, monto fijo o 2x1; automática o cupón. Sin combos ni envío gratis |
 | Estados Sprint 1 | Solo `pending` al confirmar |
 | Configuraciones de producto Sprint 1 | No. Solo observaciones en el ítem |
@@ -139,7 +142,7 @@ Estas decisiones ya están tomadas para no inflar el enunciado. El detalle y el 
 | Carrito autenticado | Persistido en backend, uno por cliente |
 | Visitante | Puede ver catálogo, armar carrito local y confirmar un pedido como invitado (`POST /api/orders/guest`). **No reemplaza** registro, login ni direcciones de cuenta |
 | Moneda / zona | ARS, timezone Argentina |
-| Mapa | Fuera del núcleo |
+| Mapa | Pin para confirmar dirección o sucursal (Sprint 4). El recorrido sigue fuera |
 
 El checkout de invitado es una **capacidad adicional del grupo**. El enunciado sigue exigiendo registro, sesión y direcciones del cliente; esos RF no se dan por cubiertos con el flujo guest.
 
@@ -212,10 +215,10 @@ No sustituye las fichas de cada sprint. Sirve para no abrir frentes de más.
 | 1 | 10/09 | Núcleo: auth, catálogo, sucursales, carrito, confirmar pedido, docs v0 |
 | 2 | 24/09 | Estados del pedido, gestión de pedidos en admin, seguimiento, cancelar, historial, repetir pedido, adicionales de hamburguesa |
 | 3 | 08/10 | Stock por sucursal (Ext. 1), perfil, recuperar contraseña, alta de admins, parámetros y radio de cobertura, sucursales disponibles, hora estimada y demora |
-| 4 | 29/10 | Promociones, reportes base, medio término (22/10) con demo estable |
-| 5 | 19/11 | Reportes extra de Extensión 1, testing, carpeta final (entrega 12/11), demo 27/11 |
+| 4 | 29/10 | Devolución del Sprint 3, retiro o domicilio, promociones, reportes base, presentación del 22/10 |
+| 5 | 19/11 | Reportes extra de Extensión 1, promo con condición si la base ya está, PDF único (12/11), demo 27/11 |
 
-Si hay que recortar, se recorta mapa, notificaciones y Extensión 2. **No se recorta** el flujo de pedido ni el ABM de productos y categorías.
+Si hay que recortar, se recorta el recorrido en el mapa, las notificaciones y la Extensión 2. **No se recorta** el flujo de pedido ni el ABM de productos y categorías.
 
 ---
 
@@ -231,7 +234,7 @@ De la **Extensión 1** está el stock en el checkout (`RF-STK-01` a `RF-STK-04`)
 | Catálogo, carrito, adicionales de hamburguesa, checkout de cuenta e invitado | Reportes base de productos |
 | Pedido vivo: estados, cancelar, seguimiento con hora y demora, historial, repetir | Reportes extra de Extensión 1 |
 | Admin: productos, categorías, sucursales, pedidos, stock, parámetros, más administradores | Alerta de stock mínimo |
-| Asignación por radio y reserva de stock | Mapa y Extensión 2 (siguen fuera) |
+| Asignación automática por radio y reserva de stock | Que el cliente elija sucursal (retiro o domicilio) y el pin para confirmar una dirección. El recorrido sigue fuera |
 
 El detalle de cada incremento está en `Incrementos-de-los-sprints.md`.
 
@@ -259,6 +262,7 @@ El detalle de cada incremento está en `Incrementos-de-los-sprints.md`.
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.4 | 12/10/2026 | Feedback del profesor: el cliente elige sucursal, mapa de pin, mail opcional. La promo con condición queda en el Sprint 5 |
 | 1.3 | 07/10/2026 | Política de promociones del Sprint 4 (una por pedido, aplicada al confirmar) |
 | 1.2 | 07/10/2026 | Estado al cierre del Sprint 3: páginas hechas, 35/40 RF base y stock de Extensión 1 |
 | 1.1 | 03/10/2026 | Asignación con radio de cobertura, sucursales disponibles, política de stock y decisiones del Sprint 3; visión de sprints según lo cubierto |
