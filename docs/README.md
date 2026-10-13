@@ -1,7 +1,7 @@
 # Documentación
 
-**Versión:** 1.4  
-**Actualizado:** 07/10/2026
+**Versión:** 1.5  
+**Actualizado:** 12/10/2026
 
 La carpeta está partida para no mezclar material de trabajo, sprints, carpeta de la materia y docs técnicos.
 
@@ -32,6 +32,7 @@ Un archivo por sprint. El resumen de incrementos para la carpeta está en `entre
 - `Ficha-Sprint-4.md` / `.docx`
 - `Plan-reparto-Sprint-1.md`
 - `Plan-reparto-Sprint-2.md`
+- `Plan-reparto-Sprint-4.md`
 
 ## entregables/
 
@@ -74,6 +75,7 @@ Al editar un doc: subir la versión, poner la fecha de hoy y agregar una fila al
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.5 | 12/10/2026 | Reparto del Sprint 4: dos días por persona (`Plan-reparto-Sprint-4.md`) |
 | 1.4 | 07/10/2026 | La ficha del Sprint 4 también está en Word |
 | 1.3 | 07/10/2026 | Los ocho entregables también están en Word (`.docx`) |
 | 1.2 | 07/10/2026 | Entra la ficha del Sprint 4. `entregables/` cubre los ocho documentos de la materia, al cierre del Sprint 3 |
