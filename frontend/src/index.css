@@ -3138,3 +3138,438 @@ h2 {
     width: 100%;
   }
 }
+
+/* ==========================================
+   Selector de cantidad (Píldora unificada)
+   ========================================== */
+.buy-row .qty {
+  display: inline-flex;
+  align-items: center;
+  background-color: #fff7ed;
+  border: 1.5px solid #fed7aa;
+  border-radius: 9999px;
+  padding: 3px 5px;
+  gap: 4px;
+}
+
+.buy-row .qty .qty-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background-color: #ffffff;
+  color: #ea580c;
+  font-size: 1.15rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 0;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.buy-row .qty .qty-btn:active {
+  transform: scale(0.92);
+  background-color: #ffedd5;
+}
+
+.buy-row .qty .qty-input {
+  text-align: center;
+  border: none;
+  background: transparent;
+  width: 36px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  box-shadow: none;
+}
+
+/* ==========================================
+   Barra de acción equilibrada y liviana
+   ========================================== */
+.product-action-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end; /* agrupa hacia la derecha o podés usar flex-start */
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+  width: 100%;
+}
+
+.product-action-footer .qty {
+  display: inline-flex;
+  align-items: center;
+  background-color: #fff7ed;
+  border: 1.5px solid #fed7aa;
+  border-radius: 9999px;
+  padding: 3px 6px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.product-action-footer .qty .qty-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background-color: #ffffff;
+  color: #ea580c;
+  font-size: 1.15rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 0;
+  transition: transform 0.1s ease;
+}
+
+.product-action-footer .qty .qty-btn:active {
+  transform: scale(0.92);
+}
+
+.product-action-footer .qty .qty-input {
+  text-align: center;
+  border: none;
+  background: transparent;
+  width: 36px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
+  padding: 0;
+  margin: 0;
+  outline: none;
+}
+
+/* Botón estilizado y compacto */
+.add-to-cart-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background-color: #ea580c;
+  color: #ffffff;
+  border: none;
+  border-radius: 9999px; /* Formato cápsula elegante */
+  padding: 0.65rem 1.4rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(234, 88, 12, 0.22);
+  transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+}
+
+.add-to-cart-submit:hover:not(:disabled) {
+  background-color: #c2410c;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.32);
+}
+
+.add-to-cart-submit:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.add-to-cart-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Píldora suave para el precio adentro del botón */
+.add-to-cart-price {
+  font-size: 0.9rem;
+  font-weight: 800;
+  background-color: rgba(0, 0, 0, 0.15);
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  letter-spacing: -0.2px;
+}
+
+/* En celulares se ajusta al 100% de forma proporcional */
+@media (max-width: 600px) {
+  .product-action-footer {
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .add-to-cart-submit {
+    flex: 1;
+    justify-content: space-between;
+    padding: 0.7rem 1.1rem;
+  }
+}
+
+/* Sucursales disponibles (HU-19) */
+.branches-search {
+  display: grid;
+  gap: 0.9rem;
+  justify-items: start;
+  padding: 1.1rem 1.25rem;
+}
+
+.branches-addresses {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  width: 100%;
+  display: grid;
+  gap: 0.6rem;
+  border: 2px dashed var(--line);
+  border-radius: 1.1rem;
+  background: var(--accent-soft);
+}
+
+.branches-addresses legend {
+  padding: 0 0.35rem;
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.branches-hint {
+  margin: 0;
+}
+
+.branches-radius {
+  margin: 0;
+  font-weight: 700;
+}
+
+.branches-empty {
+  margin-top: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.branches-empty p {
+  margin: 0;
+}
+
+.branch-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.branch-card {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+  padding: 1.1rem 1.25rem;
+}
+
+.branch-card--assigned {
+  border-color: var(--accent);
+}
+
+.branch-card-title {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.branch-card-title strong {
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.branch-distance {
+  flex-shrink: 0;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.branch-assigned {
+  margin-top: 0;
+}
+
+.branch-line {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.addresses-branches-link {
+  margin: 0.35rem 0 0;
+  font-weight: 700;
+}
+
+/* Avisos del checkout (sin cobertura / sin stock) */
+.checkout-notice {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem 1.15rem;
+  border: 2px solid #fecaca;
+  border-radius: 1.1rem;
+  background: #fef2f2;
+}
+
+.checkout-notice p {
+  margin: 0;
+}
+
+.checkout-notice strong {
+  color: #991b1b;
+}
+
+.checkout-notice-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  font-weight: 700;
+}
+
+.checkout-notice-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.order-items .order-item--short {
+  color: #991b1b;
+}
+
+.order-item-shortage {
+  display: block;
+  font-weight: 700;
+  color: var(--danger);
+}
+
+.checkout-branch {
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  border-radius: 0.85rem;
+  background: var(--accent-soft);
+}
+
+.checkout-branch--none {
+  background: #fef2f2;
+  color: #991b1b;
+  font-weight: 700;
+}
+
+@media (max-width: 719px) {
+  .branches-search > button {
+    width: 100%;
+  }
+}
+
+.card,
+.form,
+.list-item,
+.card-link {
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 1.4rem;
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+
+/* Aislar miniaturas de adicionales para que no hereden los 220px ni bordes de .detail img */
+.detail .extra-thumb-box img,
+.detail img.extra-thumb {
+  width: auto !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+}
+
+@media (max-width: 600px) {
+  /* 1. Forzar padding idéntico en ambos lados de la tarjeta */
+  article.detail form,
+  article.detail .card,
+  article.detail .form {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+
+  /* 2. Grilla de adicionales: centrada con 3 arriba y 2 abajo */
+  .extras-grid {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 0 !important;
+    margin: 0.5rem auto !important;
+  }
+
+  .extra-card {
+    flex: 0 1 calc(33.333% - 8px) !important;
+    width: calc(33.333% - 8px) !important;
+    max-width: 96px !important;
+    min-width: 78px !important;
+    box-sizing: border-box !important;
+    padding: 8px 4px 6px !important;
+    margin: 0 !important;
+  }
+
+  .extra-thumb-box {
+    width: 100% !important;
+    height: 52px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-bottom: 0.35rem !important;
+  }
+
+  .extra-item-name {
+    font-size: 0.72rem !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
+  }
+
+  .extra-item-price {
+    font-size: 0.7rem !important;
+  }
+
+  /* 3. Barra de compra: contenida y con respiro a la derecha */
+  .product-action-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin-top: 1.25rem !important;
+    padding: 0 !important;
+  }
+
+  .product-action-footer .qty {
+    flex-shrink: 0 !important;
+  }
+
+  .add-to-cart-submit {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    padding: 0.65rem 0.6rem !important;
+    font-size: 0.8rem !important;
+    gap: 4px !important;
+  }
+
+  .add-to-cart-price {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    font-size: 0.8rem !important;
+  }
+}

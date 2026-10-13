@@ -12,18 +12,22 @@ function parseNotesAndExtras(notesRaw?: string | null) {
   if (!notesRaw) return { extrasNames: [], kitchenNote: '' };
 
   const text = notesRaw.trim();
-  const match = text.match(/^(?:extras?:?|con:?)\s*([^|;\n]+)(?:[|;\n]+(.*))?$/i);
+  
+  // Soporta tanto "Extras: A, B | nota" como "nota | Extras: A, B"
+  let extrasNames: string[] = [];
+  let kitchenNote = text;
 
-  if (match) {
-    const extrasNames = match[1]
+  const extrasMatch = text.match(/(?:^|[|;\n])\s*(?:extras?:?|con:?)\s*([^|;\n]+)/i);
+  if (extrasMatch) {
+    extrasNames = extrasMatch[1]
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    const kitchenNote = (match[2] || '').trim();
-    return { extrasNames, kitchenNote };
+
+    kitchenNote = text.replace(extrasMatch[0], '').replace(/^[|;\s]+|[|;\s]+$/g, '').trim();
   }
 
-  return { extrasNames: [], kitchenNote: text };
+  return { extrasNames, kitchenNote };
 }
 
 export function CartPage() {
@@ -185,7 +189,7 @@ function CartLine({
   onNotes,
   onRemove,
 }: {
-  item: CartItem;
+  item: CartItem & { extras?: Array<{ id: string; name: string; price: number; imageUrl?: string | null }> };
   allProducts: Product[];
   busy: boolean;
   onQuantity: (quantity: number) => void;
@@ -195,7 +199,38 @@ function CartLine({
   const [open, setOpen] = useState(false);
   const skipSave = useRef(false);
 
-  const { extrasNames, kitchenNote } = parseNotesAndExtras(item.notes);
+  const parsed = parseNotesAndExtras(item.notes);
+
+  // Cruzamos información con allProducts para encontrar la imagen real (imageUrl o images[0].url)
+  const resolvedExtras = item.extras && item.extras.length > 0
+    ? item.extras.map((e) => {
+        const matched = allProducts.find(
+          (p) =>
+            p.id === e.id ||
+            p.name.toLowerCase().trim() === e.name.toLowerCase().trim()
+        );
+        const img = e.imageUrl || matched?.imageUrl || matched?.images?.[0]?.url;
+        return {
+          name: e.name,
+          price: e.price,
+          imageUrl: img,
+        };
+      })
+    : parsed.extrasNames.map((name) => {
+        const matched = allProducts.find(
+          (p) =>
+            p.name.toLowerCase().trim() === name.toLowerCase().trim() ||
+            name.toLowerCase().includes(p.name.toLowerCase().trim())
+        );
+        const img = matched?.imageUrl || matched?.images?.[0]?.url;
+        return {
+          name,
+          price: matched?.price,
+          imageUrl: img,
+        };
+      });
+
+  const kitchenNote = parsed.kitchenNote;
   const [draftNote, setDraftNote] = useState(kitchenNote);
 
   function close(nextDraftNote: string) {
@@ -204,8 +239,8 @@ function CartLine({
     setDraftNote(cleaned);
 
     let finalNotes = '';
-    if (extrasNames.length > 0) {
-      finalNotes = `Extras: ${extrasNames.join(', ')}`;
+    if (parsed.extrasNames.length > 0) {
+      finalNotes = `Extras: ${parsed.extrasNames.join(', ')}`;
       if (cleaned) {
         finalNotes += ` | ${cleaned}`;
       }
@@ -231,8 +266,8 @@ function CartLine({
           <strong>{item.product.name}</strong>
           <p className="muted">{formatPrice(item.unitPrice)} c/u</p>
 
-          {/* Adicionales con estilo limpio */}
-          {extrasNames.length > 0 && (
+          {/* Adicionales con miniaturas y precios */}
+          {resolvedExtras.length > 0 && (
             <div
               className="cart-item-extras"
               style={{
@@ -242,69 +277,64 @@ function CartLine({
                 margin: '0.35rem 0',
               }}
             >
-              {extrasNames.map((extraName, idx) => {
-                const matched = allProducts.find(
-                  (p) =>
-                    p.name.toLowerCase().trim() === extraName.toLowerCase().trim() ||
-                    extraName.toLowerCase().includes(p.name.toLowerCase().trim())
-                );
-
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      fontSize: '0.85rem',
-                    }}
-                  >
-                    <span style={{ color: '#fdba74', fontWeight: 700, userSelect: 'none' }}>
-                      └
+              {resolvedExtras.map((extra, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  <span style={{ color: '#fdba74', fontWeight: 700, userSelect: 'none' }}>
+                    └
+                  </span>
+                  {extra.imageUrl ? (
+                    <img
+                      src={mediaUrl(extra.imageUrl)}
+                      alt={extra.name}
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        objectFit: 'contain',
+                        background: '#fff7ed',
+                        border: '1px solid #fed7aa',
+                        borderRadius: '6px',
+                        padding: '2px',
+                        flexShrink: 0,
+                      }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <span
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: '#fff7ed',
+                        border: '1px solid #fed7aa',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                      }}
+                    >
+                      ✨
                     </span>
-                    {matched?.imageUrl ? (
-                      <img
-                        src={mediaUrl(matched.imageUrl)}
-                        alt={extraName}
-                        style={{
-                          width: '24px',
-                          height: '24px',
-                          objectFit: 'contain',
-                          background: '#fff7ed',
-                          border: '1px solid #fed7aa',
-                          borderRadius: '6px',
-                          padding: '2px',
-                          flexShrink: 0,
-                        }}
-                      />
-                    ) : (
-                      <span
-                        style={{
-                          width: '24px',
-                          height: '24px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          background: '#fff7ed',
-                          border: '1px solid #fed7aa',
-                          borderRadius: '6px',
-                          fontSize: '0.75rem',
-                        }}
-                      >
-                        ✨
-                      </span>
-                    )}
-                    <span style={{ fontWeight: 500, color: '#334155' }}>
-                      {extraName}
+                  )}
+                  <span style={{ fontWeight: 500, color: '#334155' }}>
+                    {extra.name}
+                  </span>
+                  {extra.price ? (
+                    <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 400 }}>
+                      (+{formatPrice(extra.price)})
                     </span>
-                    {matched?.price ? (
-                      <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 400 }}>
-                        (+{formatPrice(matched.price)})
-                      </span>
-                    ) : null}
-                  </div>
-                );
-              })}
+                  ) : null}
+                </div>
+              ))}
             </div>
           )}
 
