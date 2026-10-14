@@ -6,6 +6,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaExceptionFilter } from '../src/common/prisma-exception.filter';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { coveringBranchId } from './support/covering-branch';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@rapido.local';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin123!';
@@ -21,6 +22,8 @@ type Customer = { token: string; userId: string; addressId: string };
 let adminToken: string;
 let ana: Customer;
 let beto: Customer;
+// Desde HU-23 el cliente elige la sucursal: la que cubre las direcciones de prueba.
+let branchId: string;
 let createdBranchId: string | undefined;
 let otherCategoryId: string;
 let burger: { id: string; name: string };
@@ -66,7 +69,7 @@ async function placeOrder(customer: Customer, lines: object[] = [{ productId: dr
   const order = await request(server)
     .post('/api/orders')
     .set(auth(customer.token))
-    .send({ addressId: customer.addressId });
+    .send({ fulfillment: 'delivery', branchId, addressId: customer.addressId });
   expect(order.status).toBe(201);
   return order.body.id as string;
 }
@@ -170,6 +173,7 @@ beforeAll(async () => {
 
   ana = await registerCustomer('ana');
   beto = await registerCustomer('beto');
+  branchId = await coveringBranchId(server, -34.61, -58.42);
 }, 60_000);
 
 beforeEach(async () => {
@@ -207,6 +211,7 @@ describe('GET /api/orders', () => {
     expect(response.body.find((order: { id: string }) => order.id === first)).toEqual({
       id: first,
       status: 'pending',
+      fulfillment: 'delivery',
       totalAmount: 1500,
       createdAt: expect.any(String),
       branch: { id: expect.any(String), name: expect.any(String) },

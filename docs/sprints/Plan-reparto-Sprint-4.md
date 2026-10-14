@@ -39,12 +39,12 @@ La ficha (contrato de sucursal, promo y reportes) es `Ficha-Sprint-4.md`. Este p
 
 Rama: `feat/nicolas-retiro-sucursal`
 
-- [ ] `Order.fulfillment` (`delivery` / `pickup`). Pedidos viejos quedan `delivery`. En retiro, `addressId` vacío.
-- [ ] `POST /api/orders` y `POST /api/orders/guest` reciben `fulfillment` y `branchId`. El servidor ya no elige la más cercana.
-- [ ] Domicilio: la sucursal tiene que estar activa y dentro del radio. Retiro: activa, sin dirección. Si no, 400 y no se crea el pedido.
-- [ ] Listado para el checkout con `canFulfill` (stock de todo el carrito), distancia y si entra en el radio. Primero las que pueden cumplir el pedido.
-- [ ] Geocode: hasta 5 candidatos (DEV-20). Sigue siendo Nominatim, Argentina.
-- [ ] Tests: retiro sin dirección, domicilio fuera del radio, sin stock en la sucursal elegida.
+- [x] `Order.fulfillment` (`delivery` / `pickup`). Pedidos viejos quedan `delivery`. En retiro, `addressId` vacío.
+- [x] `POST /api/orders` y `POST /api/orders/guest` reciben `fulfillment` y `branchId`. El servidor ya no elige la más cercana.
+- [x] Domicilio: la sucursal tiene que estar activa y dentro del radio. Retiro: activa, sin dirección. Si no, 400 y no se crea el pedido.
+- [x] Listado para el checkout con `canFulfill` (stock de todo el carrito), distancia y si entra en el radio. Primero las que pueden cumplir el pedido.
+- [x] Geocode: hasta 5 candidatos (DEV-20). Sigue siendo Nominatim, Argentina.
+- [x] Tests: retiro sin dirección, domicilio fuera del radio, sin stock en la sucursal elegida.
 - [ ] Merge a `main` el **miércoles 14 a la noche**.
 
 **No toca:** pantallas. La promo no entra en estos dos días.

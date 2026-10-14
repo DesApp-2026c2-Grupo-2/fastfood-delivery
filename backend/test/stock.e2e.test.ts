@@ -94,12 +94,17 @@ async function stockOf(product: Product) {
   return row ?? { available: 0, reserved: 0 };
 }
 
+// Desde HU-23 el cliente elige la sucursal: todos los pedidos de este archivo van a `branch`.
+function deliveryTo(customer: Customer) {
+  return { fulfillment: 'delivery', branchId: branch.id, addressId: customer.addressId };
+}
+
 async function checkout(customer: Customer, lines: object[]) {
   for (const line of lines) {
     const added = await request(server).post('/api/cart/items').set(auth(customer.token)).send(line);
     expect(added.status).toBe(201);
   }
-  return request(server).post('/api/orders').set(auth(customer.token)).send({ addressId: customer.addressId });
+  return request(server).post('/api/orders').set(auth(customer.token)).send(deliveryTo(customer));
 }
 
 async function placeOrder(customer: Customer, lines: object[]) {
@@ -115,6 +120,8 @@ function guestOrder(items: object[]) {
     .send({
       name: 'Invitado Stock',
       email: `guest.stock.e2e.${stamp}@rapido.local`,
+      fulfillment: 'delivery',
+      branchId: branch.id,
       street: 'Bv. Oroño 1000, Rosario',
       ...LOCATION,
       items,
@@ -199,7 +206,7 @@ afterAll(async () => {
   });
   await prisma.order.deleteMany({ where: { id: { in: orders.map((order) => order.id) } } });
   // Las direcciones de pedidos de invitado no cuelgan de un usuario: no se borran en cascada.
-  const guestAddressIds = orders.filter((order) => !order.userId).map((order) => order.addressId);
+  const guestAddressIds = orders.flatMap((order) => (!order.userId && order.addressId ? [order.addressId] : []));
   await prisma.address.deleteMany({ where: { id: { in: guestAddressIds } } });
   const userIds = [ana, beto].filter(Boolean).map((customer) => customer.userId);
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
@@ -382,7 +389,7 @@ describe('Verificar y reservar al confirmar (HU-18)', () => {
 
     const responses = await Promise.all(
       [ana, beto].map((customer) =>
-        request(server).post('/api/orders').set(auth(customer.token)).send({ addressId: customer.addressId }),
+        request(server).post('/api/orders').set(auth(customer.token)).send(deliveryTo(customer)),
       ),
     );
 

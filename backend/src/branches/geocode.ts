@@ -1,6 +1,8 @@
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const MIN_INTERVAL_MS = 1_100;
 const REQUEST_TIMEOUT_MS = 8_000;
+// DEV-20: con un solo resultado, direcciones ambiguas o mal escritas quedaban sin salida.
+export const MAX_CANDIDATES = 5;
 
 export type GeocodeResult = {
   latitude: number;
@@ -33,17 +35,15 @@ export function buildNominatimUrl(address: string): string {
   const url = new URL(NOMINATIM_URL);
   url.searchParams.set('q', address);
   url.searchParams.set('format', 'jsonv2');
-  url.searchParams.set('limit', '1');
+  url.searchParams.set('limit', String(MAX_CANDIDATES));
   url.searchParams.set('countrycodes', 'ar');
   return url.toString();
 }
 
-export function parseNominatimResults(body: unknown): GeocodeResult | null {
-  if (!Array.isArray(body) || body.length === 0) return null;
-  const first = body[0];
-  if (!first || typeof first !== 'object') return null;
+function parseCandidate(entry: unknown): GeocodeResult | null {
+  if (!entry || typeof entry !== 'object') return null;
 
-  const record = first as { lat?: unknown; lon?: unknown; display_name?: unknown };
+  const record = entry as { lat?: unknown; lon?: unknown; display_name?: unknown };
   const latitude = roundCoordinate(Number(record.lat));
   const longitude = roundCoordinate(Number(record.lon));
   if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) return null;
@@ -54,6 +54,15 @@ export function parseNominatimResults(body: unknown): GeocodeResult | null {
     longitude,
     displayName: typeof record.display_name === 'string' ? record.display_name : '',
   };
+}
+
+/** Hasta MAX_CANDIDATES resultados válidos, en el orden de relevancia de Nominatim. Vacío si no hay ninguno. */
+export function parseNominatimResults(body: unknown): GeocodeResult[] {
+  if (!Array.isArray(body)) return [];
+  return body
+    .map(parseCandidate)
+    .filter((candidate): candidate is GeocodeResult => candidate !== null)
+    .slice(0, MAX_CANDIDATES);
 }
 
 function enqueue<T>(task: () => Promise<T>): Promise<T> {
@@ -75,7 +84,7 @@ function enqueue<T>(task: () => Promise<T>): Promise<T> {
 export function geocodeAddress(
   address: string,
   fetchImpl: typeof fetch = fetch,
-): Promise<GeocodeResult> {
+): Promise<GeocodeResult[]> {
   const query = address.trim();
   if (!query) {
     return Promise.reject(new GeocodeNotFoundError());
@@ -101,10 +110,10 @@ export function geocodeAddress(
     }
 
     const body: unknown = await response.json().catch(() => null);
-    const result = parseNominatimResults(body);
-    if (!result) {
+    const candidates = parseNominatimResults(body);
+    if (candidates.length === 0) {
       throw new GeocodeNotFoundError();
     }
-    return result;
+    return candidates;
   });
 }

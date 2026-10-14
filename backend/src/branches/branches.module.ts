@@ -5,10 +5,11 @@ import { ParametersModule } from '../parameters/parameters.module';
 import { AdminBranchesController } from './admin-branches.controller';
 import { BranchesController } from './branches.controller';
 import { BranchesService } from './branches.service';
+import { GeocodeController } from './geocode.controller';
 
 @Module({
   imports: [AuthModule, AddressesModule, ParametersModule],
-  controllers: [AdminBranchesController, BranchesController],
+  controllers: [AdminBranchesController, BranchesController, GeocodeController],
   providers: [BranchesService],
   exports: [BranchesService],
 })

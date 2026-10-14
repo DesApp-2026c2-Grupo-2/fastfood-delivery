@@ -92,6 +92,26 @@ export class StockService {
   }
 
   /**
+   * Qué le falta a cada sucursal para cumplir un pedido (HU-23). Sin faltantes, la sucursal tiene stock de
+   * todos los productos y adicionales del carrito. Solo lee: la reserva real se hace al confirmar.
+   */
+  async shortagesByBranch(branchIds: string[], lines: StockLine[]) {
+    const rows = await this.prisma.stock.findMany({
+      where: { branchId: { in: branchIds }, productId: { in: lines.map((line) => line.productId) } },
+      select: { branchId: true, productId: true, available: true },
+    });
+    const availableByKey = new Map(rows.map((row) => [`${row.branchId}:${row.productId}`, row.available]));
+    return new Map(
+      branchIds.map((branchId) => [
+        branchId,
+        lines
+          .map((line) => ({ ...line, available: availableByKey.get(`${branchId}:${line.productId}`) ?? 0 }))
+          .filter((line) => line.available < line.quantity),
+      ]),
+    );
+  }
+
+  /**
    * Verifica y reserva el stock de un pedido nuevo: available -= qty, reserved += qty. Se llama dentro
    * de la transacción que crea el pedido, así un 409 no deja nada a medias.
    */

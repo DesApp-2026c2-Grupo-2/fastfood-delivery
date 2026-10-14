@@ -1,13 +1,15 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { Fulfillment, OrderStatus, Prisma } from '@prisma/client';
 import { AddressesService } from '../addresses/addresses.service';
-import { BranchesService, CoveringBranch } from '../branches/branches.service';
+import { JwtPayload } from '../auth/jwt-payload';
+import { BranchesService } from '../branches/branches.service';
 import { CartService } from '../cart/cart.service';
 import { byName, ExtrasService } from '../extras/extras.service';
 import { ParametersService } from '../parameters/parameters.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { stockLines } from '../stock/stock-lines';
 import { StockService } from '../stock/stock.service';
+import { CheckoutBranchesDto } from './dto/checkout-branches.dto';
 import { CreateGuestOrderDto } from './dto/create-guest-order.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { deliveryTiming, estimateDeliveryAt } from './eta';
@@ -163,11 +165,11 @@ function serialize(order: OrderWithRelations) {
       name: order.branch.name,
       address: order.branch.address,
     },
-    address: {
-      id: order.address.id,
-      alias: order.address.alias,
-      street: order.address.street,
-    },
+    fulfillment: order.fulfillment,
+    // En retiro no hay dirección.
+    address: order.address
+      ? { id: order.address.id, alias: order.address.alias, street: order.address.street }
+      : null,
     guestName: order.guestName,
     guestEmail: order.guestEmail,
     items: serializeItems(order.items),
@@ -191,11 +193,11 @@ function serializeAdmin(order: OrderAdminDetail) {
       name: order.branch.name,
       address: order.branch.address,
     },
-    address: {
-      id: order.address.id,
-      alias: order.address.alias,
-      street: order.address.street,
-    },
+    fulfillment: order.fulfillment,
+    // En retiro no hay dirección.
+    address: order.address
+      ? { id: order.address.id, alias: order.address.alias, street: order.address.street }
+      : null,
     items: serializeItems(order.items),
     history: order.statusHistory.map((event) => ({
       id: event.id,
@@ -250,29 +252,18 @@ export class OrdersService {
   ) {}
 
   async createFromCart(userId: string, dto: CreateOrderDto) {
-    const address = await this.addressesService.findOneForUser(userId, dto.addressId);
+    // Retiro no lleva dirección: aunque llegue un addressId, el pedido queda sin ella.
+    const address =
+      dto.fulfillment === Fulfillment.delivery
+        ? await this.addressesService.findOneForUser(userId, dto.addressId as string)
+        : null;
+    const cart = await this.loadCart(userId);
 
-    const cart = await this.prisma.cart.findUnique({
-      where: { userId },
-      include: { items: { include: { product: true, extras: { include: { extra: true } } } } },
-    });
-
-    if (!cart || cart.items.length === 0) {
-      throw new BadRequestException('El carrito está vacío');
-    }
-
-    const unavailable = cart.items.find((item) => !item.product.available);
-    if (unavailable) {
-      throw new BadRequestException(`"${unavailable.product.name}" ya no está disponible`);
-    }
-    const unavailableExtra = cart.items
-      .flatMap((item) => item.extras)
-      .find(({ extra }) => !extra.available);
-    if (unavailableExtra) {
-      throw new BadRequestException(`"${unavailableExtra.extra.name}" ya no está disponible`);
-    }
-
-    const { branch, distanceKm } = await this.assignBranch(Number(address.latitude), Number(address.longitude));
+    const { branch, distanceKm } = await this.branchesService.resolveChosen(
+      dto.branchId,
+      dto.fulfillment,
+      address ? { latitude: Number(address.latitude), longitude: Number(address.longitude) } : null,
+    );
     const totalAmount = cart.items.reduce((sum, item) => {
       const extrasTotal = sumPrices(item.extras.map(({ extra }) => extra.price));
       return sum + (Number(item.product.price) + extrasTotal) * item.quantity;
@@ -300,7 +291,8 @@ export class OrdersService {
         data: {
           userId,
           branchId: branch.id,
-          addressId: address.id,
+          fulfillment: dto.fulfillment,
+          addressId: address?.id ?? null,
           totalAmount,
           status: 'pending',
           createdAt,
@@ -339,7 +331,12 @@ export class OrdersService {
 
   async createGuest(dto: CreateGuestOrderDto) {
     const lines = await this.resolveLines(dto.items);
-    const { branch, distanceKm } = await this.assignBranch(dto.latitude, dto.longitude);
+    const delivery = dto.fulfillment === Fulfillment.delivery;
+    const { branch, distanceKm } = await this.branchesService.resolveChosen(
+      dto.branchId,
+      dto.fulfillment,
+      delivery ? { latitude: dto.latitude as number, longitude: dto.longitude as number } : null,
+    );
     const totalAmount = lines.reduce((sum, line) => {
       const extrasTotal = sumPrices(line.extras.map((extra) => extra.price));
       return sum + (Number(line.product.price) + extrasTotal) * line.quantity;
@@ -355,21 +352,24 @@ export class OrdersService {
     const order = await this.prisma.$transaction(async (tx) => {
       await this.stockService.reserve(tx, branch, stockLines(lines));
 
-      const address = await tx.address.create({
-        data: {
-          street: dto.street.trim(),
-          latitude: dto.latitude,
-          longitude: dto.longitude,
-          isDefault: true,
-        },
-      });
+      const address = delivery
+        ? await tx.address.create({
+            data: {
+              street: (dto.street as string).trim(),
+              latitude: dto.latitude as number,
+              longitude: dto.longitude as number,
+              isDefault: true,
+            },
+          })
+        : null;
 
       const created = await tx.order.create({
         data: {
           guestName: dto.name.trim(),
           guestEmail: dto.email.trim().toLowerCase(),
           branchId: branch.id,
-          addressId: address.id,
+          fulfillment: dto.fulfillment,
+          addressId: address?.id ?? null,
           totalAmount,
           status: 'pending',
           createdAt,
@@ -402,6 +402,60 @@ export class OrdersService {
     });
 
     return serialize(order);
+  }
+
+  /**
+   * Sucursales entre las que el cliente puede elegir para este carrito (HU-23), primero las que tienen
+   * stock de todo (producto y adicionales) y después, de la más cercana a la más lejana.
+   * Domicilio: solo activas dentro del radio de la dirección. Retiro: todas las activas.
+   */
+  async listBranchesForCheckout(dto: CheckoutBranchesDto, user?: JwtPayload) {
+    const units = await this.checkoutUnits(dto, user);
+
+    const hasOrigin = dto.addressId !== undefined || dto.latitude !== undefined || dto.longitude !== undefined;
+    const origin = hasOrigin
+      ? await this.branchesService.resolveOrigin(
+          { addressId: dto.addressId, lat: dto.latitude, lng: dto.longitude },
+          user,
+        )
+      : null;
+    if (dto.fulfillment === Fulfillment.delivery && !origin) {
+      throw new BadRequestException('Indicá la dirección de entrega');
+    }
+
+    const { radiusKm, branches } = await this.branchesService.findActiveByDistance(origin);
+    const offered =
+      dto.fulfillment === Fulfillment.delivery ? branches.filter((entry) => entry.withinRadius) : branches;
+    const shortages = await this.stockService.shortagesByBranch(
+      offered.map(({ branch }) => branch.id),
+      units,
+    );
+
+    const rows = offered.map(({ branch, distanceKm, withinRadius }) => {
+      const missing = shortages.get(branch.id) ?? [];
+      return {
+        id: branch.id,
+        name: branch.name,
+        address: branch.address,
+        phone: branch.phone,
+        openingHours: branch.openingHours,
+        latitude: Number(branch.latitude),
+        longitude: Number(branch.longitude),
+        distanceKm: distanceKm === null ? null : Math.round(distanceKm * 100) / 100,
+        withinRadius,
+        canFulfill: missing.length === 0,
+        missing: missing.map((line) => ({
+          productId: line.productId,
+          name: line.name,
+          requested: line.quantity,
+          available: line.available,
+        })),
+      };
+    });
+    // sort es estable: dentro de cada grupo queda el orden por cercanía.
+    rows.sort((a, b) => Number(b.canFulfill) - Number(a.canFulfill));
+
+    return { fulfillment: dto.fulfillment, radiusKm, branches: rows };
   }
 
   async findAllAdmin(query: {
@@ -441,6 +495,7 @@ export class OrdersService {
       items: orders.map((order) => ({
         id: order.id,
         status: order.status,
+        fulfillment: order.fulfillment,
         totalAmount: Number(order.totalAmount),
         createdAt: order.createdAt,
         customerName: order.user?.name ?? order.guestName ?? 'Invitado',
@@ -487,6 +542,7 @@ export class OrdersService {
     return orders.map((order) => ({
       id: order.id,
       status: order.status,
+      fulfillment: order.fulfillment,
       totalAmount: Number(order.totalAmount),
       createdAt: order.createdAt,
       branch: order.branch,
@@ -570,6 +626,24 @@ export class OrdersService {
     }
 
     return { cart: await this.cartService.getCart(userId), skipped };
+  }
+
+  // Las unidades que pediría el cliente: los ítems que manda (invitado) o, con sesión, su carrito.
+  private async checkoutUnits(dto: CheckoutBranchesDto, user?: JwtPayload) {
+    if (dto.items) {
+      return stockLines(await this.resolveLines(dto.items));
+    }
+    if (!user) {
+      throw new BadRequestException('El carrito está vacío');
+    }
+    const cart = await this.loadCart(user.sub);
+    return stockLines(
+      cart.items.map((item) => ({
+        product: item.product,
+        quantity: item.quantity,
+        extras: item.extras.map(({ extra }) => extra),
+      })),
+    );
   }
 
   private async assertOwnedByUser(userId: string, id: string) {
@@ -674,18 +748,27 @@ export class OrdersService {
     );
   }
 
-  // La sucursal activa más cercana dentro del radio de cobertura. Si ninguna llega, no se crea el pedido.
-  private async assignBranch(latitude: number, longitude: number): Promise<CoveringBranch> {
-    const { radiusKm, branches } = await this.branchesService.findCovering(latitude, longitude);
-    if (branches.length === 0) {
-      throw new BadRequestException({
-        statusCode: 400,
-        error: 'Bad Request',
-        code: 'OUT_OF_COVERAGE',
-        message: `No hay sucursales que lleguen a esa dirección (radio de ${radiusKm.toLocaleString('es-AR')} km)`,
-        radiusKm,
-      });
+  // El carrito del cliente tal como se va a pedir: con algo adentro y todo disponible.
+  private async loadCart(userId: string) {
+    const cart = await this.prisma.cart.findUnique({
+      where: { userId },
+      include: { items: { include: { product: true, extras: { include: { extra: true } } } } },
+    });
+
+    if (!cart || cart.items.length === 0) {
+      throw new BadRequestException('El carrito está vacío');
     }
-    return branches[0];
+
+    const unavailable = cart.items.find((item) => !item.product.available);
+    if (unavailable) {
+      throw new BadRequestException(`"${unavailable.product.name}" ya no está disponible`);
+    }
+    const unavailableExtra = cart.items
+      .flatMap((item) => item.extras)
+      .find(({ extra }) => !extra.available);
+    if (unavailableExtra) {
+      throw new BadRequestException(`"${unavailableExtra.extra.name}" ya no está disponible`);
+    }
+    return cart;
   }
 }
