@@ -6,6 +6,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaExceptionFilter } from '../src/common/prisma-exception.filter';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { coveringBranchId } from './support/covering-branch';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@rapido.local';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin123!';
@@ -184,7 +185,7 @@ describe('Sprint 1', () => {
     const order = await request(server)
       .post('/api/orders')
       .set('Authorization', `Bearer ${token}`)
-      .send({ addressId: address.body.id });
+      .send({ fulfillment: 'delivery', branchId: branch.id, addressId: address.body.id });
 
     expect(order.status).toBe(201);
     expect(order.body.status).toBe('pending');
@@ -226,6 +227,8 @@ describe('Sprint 1', () => {
     const order = await request(server).post('/api/orders/guest').send({
       name: 'Invitado E2E',
       email: `guest.e2e.${stamp}@rapido.local`,
+      fulfillment: 'delivery',
+      branchId: await coveringBranchId(server, -34.59, -58.39),
       street: 'Av. Santa Fe 1200, CABA',
       latitude: -34.59,
       longitude: -58.39,

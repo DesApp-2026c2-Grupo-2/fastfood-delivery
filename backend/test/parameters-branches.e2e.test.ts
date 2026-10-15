@@ -84,13 +84,14 @@ function available(query: Record<string, string | number>, token?: string) {
   return token ? call.set(auth(token)) : call;
 }
 
-async function checkout(customer: Customer, addressId = customer.addressId, quantity = 1) {
+// Desde HU-23 el cliente elige la sucursal; el servidor ya no asigna la más cercana.
+async function checkout(customer: Customer, branchId: string, addressId = customer.addressId, quantity = 1) {
   const added = await request(server)
     .post('/api/cart/items')
     .set(auth(customer.token))
     .send({ productId: drink.id, quantity });
   expect(added.status).toBe(201);
-  return request(server).post('/api/orders').set(auth(customer.token)).send({ addressId });
+  return request(server).post('/api/orders').set(auth(customer.token)).send({ fulfillment: 'delivery', branchId, addressId });
 }
 
 beforeAll(async () => {
@@ -162,7 +163,7 @@ afterAll(async () => {
     select: { id: true, userId: true, addressId: true },
   });
   await prisma.order.deleteMany({ where: { id: { in: orders.map((order) => order.id) } } });
-  const guestAddressIds = orders.filter((order) => !order.userId).map((order) => order.addressId);
+  const guestAddressIds = orders.flatMap((order) => (!order.userId && order.addressId ? [order.addressId] : []));
   await prisma.address.deleteMany({ where: { id: { in: guestAddressIds } } });
   const userIds = [ana, beto].filter(Boolean).map((customer) => customer.userId);
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
@@ -265,7 +266,7 @@ describe('Parámetros del sistema (HU-19)', () => {
     await patchParameters({ eta_prep_base_min: 40, eta_min_per_item: 10 });
 
     // La dirección de ana está encima de la sucursal: el traslado es 0.
-    const order = await checkout(ana, ana.addressId, 2);
+    const order = await checkout(ana, center.id, ana.addressId, 2);
     expect(order.status).toBe(201);
     const promised = (new Date(order.body.estimatedDeliveryAt).getTime() - new Date(order.body.createdAt).getTime()) / MINUTE_MS;
     expect(promised).toBe(40 + 2 * 10);
@@ -335,18 +336,32 @@ describe('GET /api/branches/available (HU-19)', () => {
   });
 });
 
-describe('Asignación de sucursal dentro del radio al confirmar (HU-19)', () => {
-  it('asigna la activa más cercana a la dirección', async () => {
-    const fromCenter = await checkout(ana);
-    const fromNorth = await checkout(beto);
+describe('Sucursal elegida dentro del radio al confirmar (HU-19, HU-23)', () => {
+  it('guarda la sucursal que eligió el cliente, aunque haya otra más cercana', async () => {
+    // ana vive encima de center y beto encima de north; cada uno elige la otra, que está a ~3 km.
+    const fromCenter = await checkout(ana, north.id);
+    const fromNorth = await checkout(beto, center.id);
 
     expect(fromCenter.status).toBe(201);
-    expect(fromCenter.body.branch.id).toBe(center.id);
+    expect(fromCenter.body.branch.id).toBe(north.id);
     expect(fromNorth.status).toBe(201);
-    expect(fromNorth.body.branch.id).toBe(north.id);
+    expect(fromNorth.body.branch.id).toBe(center.id);
   });
 
-  it('si ninguna sucursal cubre la dirección responde 400 y no crea el pedido', async () => {
+  it('una sucursal inactiva o inexistente responde 400 y no crea el pedido', async () => {
+    const before = await prisma.order.count({ where: { userId: ana.userId } });
+
+    const inactive = await checkout(ana, closed.id);
+    const missing = await checkout(ana, 'no-existe');
+
+    for (const response of [inactive, missing]) {
+      expect(response.status).toBe(400);
+      expect(response.body.code).toBe('BRANCH_UNAVAILABLE');
+    }
+    expect(await prisma.order.count({ where: { userId: ana.userId } })).toBe(before);
+  });
+
+  it('si la sucursal elegida no llega a la dirección responde 400 y no crea el pedido', async () => {
     const east = await request(server)
       .post('/api/me/addresses')
       .set(auth(ana.token))
@@ -355,14 +370,14 @@ describe('Asignación de sucursal dentro del radio al confirmar (HU-19)', () => 
     await patchParameters({ coverage_radius_km: 2.5 });
     const before = await prisma.order.count({ where: { userId: ana.userId } });
 
-    const response = await checkout(ana, east.body.id);
+    const response = await checkout(ana, center.id, east.body.id);
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({
       statusCode: 400,
       error: 'Bad Request',
       code: 'OUT_OF_COVERAGE',
-      message: 'No hay sucursales que lleguen a esa dirección (radio de 2,5 km)',
+      message: `Sucursal E2E Radio Centro ${stamp} no llega a esa dirección (radio de 2,5 km)`,
       radiusKm: 2.5,
     });
     expect(await prisma.order.count({ where: { userId: ana.userId } })).toBe(before);
@@ -371,7 +386,7 @@ describe('Asignación de sucursal dentro del radio al confirmar (HU-19)', () => 
 
     // Con el radio de siempre la misma dirección ya tiene sucursal.
     await patchParameters({ coverage_radius_km: 5 });
-    const retry = await request(server).post('/api/orders').set(auth(ana.token)).send({ addressId: east.body.id });
+    const retry = await checkout(ana, center.id, east.body.id);
     expect(retry.status).toBe(201);
     expect(retry.body.branch.id).toBe(center.id);
   });
@@ -384,6 +399,8 @@ describe('Asignación de sucursal dentro del radio al confirmar (HU-19)', () => 
       .send({
         name: 'Invitado Radio',
         email: `guest.params.e2e.${stamp}@rapido.local`,
+        fulfillment: 'delivery',
+        branchId: center.id,
         street: 'Av. Sabattini 3000, Córdoba',
         ...EAST,
         items: [{ productId: drink.id, quantity: 1 }],
