@@ -4,12 +4,16 @@ import type { Branch } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { BranchPinMap } from '../../components/BranchPinMap';
 import { formatCoordinate, requestDevicePosition } from '../../lib/geolocation';
-import { useSuccessNotice } from '../../lib/success-notice';
+import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
 
 type GeocodeCandidate = {
   latitude: number;
   longitude: number;
   displayName: string;
+  name?: string;
+  houseNumber?: string;
+  postcode?: string;
+  locality?: string;
 };
 
 type GeocodeResult = GeocodeCandidate & {
@@ -57,6 +61,23 @@ function samePin(candidate: GeocodeCandidate, latitude: string, longitude: strin
   return formatCoordinate(candidate.latitude) === latitude && formatCoordinate(candidate.longitude) === longitude;
 }
 
+function addressLines(candidate: GeocodeCandidate) {
+  const parts = candidate.displayName
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const title = candidate.houseNumber
+    ? [candidate.houseNumber, ...parts.slice(0, 2)].join(', ')
+    : parts.slice(0, 2).join(', ') || candidate.displayName;
+  const place = parts.slice(2, 5).join(' · ');
+  const postcode =
+    candidate.postcode && !`${title} ${place}`.includes(candidate.postcode) ? candidate.postcode : '';
+  return {
+    title,
+    detail: [place, postcode].filter(Boolean).join(' · '),
+  };
+}
+
 export function AdminBranchesPage() {
   const token = getToken() ?? '';
   const [screen, setScreen] = useState<Screen>('list');
@@ -64,7 +85,7 @@ export function AdminBranchesPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [error, setError] = useState('');
+  const [error, setError] = useTimedNotice();
   const [ok, setOk] = useSuccessNotice();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -193,10 +214,8 @@ export function AdminBranchesPage() {
       applyCandidate(
         first,
         list.length > 1
-          ? `Encontramos ${list.length} direcciones. Elegí una o mové el pin.`
-          : first.displayName
-            ? `Encontramos: ${first.displayName}. Revisá el pin antes de guardar.`
-            : 'Coordenadas cargadas. Revisá el pin antes de guardar.',
+          ? `Hay ${list.length} coincidencias. Tocá la que corresponde al local.`
+          : 'Encontramos la dirección. Si el pin no cae justo, movelo en el mapa.',
       );
     } catch (err) {
       setCandidates([]);
@@ -231,14 +250,27 @@ export function AdminBranchesPage() {
     const latitude = Number(form.latitude);
     const longitude = Number(form.longitude);
     if (!form.name.trim() || !form.address.trim()) {
+      setOk('');
       setError('Completá nombre y dirección.');
       return;
     }
+    if (!form.openingHours.trim()) {
+      setOk('');
+      setError('Completá el horario.');
+      return;
+    }
+    if (!form.phone.trim()) {
+      setOk('');
+      setError('Completá el teléfono.');
+      return;
+    }
     if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+      setOk('');
       setError('Latitud inválida (-90 a 90).');
       return;
     }
     if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      setOk('');
       setError('Longitud inválida (-180 a 180).');
       return;
     }
@@ -313,142 +345,150 @@ export function AdminBranchesPage() {
           </p>
         ) : null}
 
-        <form className="card form product-form" onSubmit={onSubmit}>
-          <label>
-            Nombre
-            <input
-              value={form.name}
-              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-              required
-              maxLength={120}
-              placeholder="Mordi Centro"
-            />
-          </label>
-          <label>
-            Dirección
-            <input
-              value={form.address}
-              onChange={(event) => {
-                setForm((current) => ({ ...current, address: event.target.value }));
-                setCandidates([]);
-              }}
-              required
-              maxLength={200}
-              placeholder="Av. Corrientes 1234, CABA"
-            />
-          </label>
-          <div className="row">
-            <button
-              type="button"
-              className="secondary"
-              disabled={geocoding || locating || saving || !form.address.trim()}
-              onClick={() => void searchCoordinates()}
-            >
-              {geocoding ? 'Buscando…' : 'Buscar coordenadas'}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              disabled={geocoding || locating || saving}
-              onClick={() => void useDeviceLocation()}
-            >
-              {locating ? 'Obteniendo ubicación…' : 'Usar mi ubicación'}
-            </button>
-          </div>
-          {locationHint ? (
-            <p className="muted" role="status">
-              {locationHint}
-            </p>
-          ) : null}
-          {candidates.length > 1 ? (
-            <fieldset className="geocode-candidates">
-              <legend>Direcciones encontradas</legend>
-              {candidates.map((candidate, index) => (
-                <label key={`${candidate.latitude}-${candidate.longitude}-${index}`} className="checkbox">
+        <form className="card form branch-form" onSubmit={onSubmit} noValidate>
+          <div className="branch-form-grid">
+            <div className="branch-form-col">
+              <label>
+                Nombre
+                <input
+                  value={form.name}
+                  onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                  maxLength={120}
+                  placeholder="Mordi Centro"
+                />
+              </label>
+              <label>
+                Dirección
+                <input
+                  value={form.address}
+                  onChange={(event) => {
+                    setForm((current) => ({ ...current, address: event.target.value }));
+                    setCandidates([]);
+                  }}
+                  maxLength={200}
+                  placeholder="Av. Corrientes 1234, CABA"
+                />
+              </label>
+              <p className="field-hint">
+                Buscar coordenadas usa la dirección de arriba. Si aparece más de un punto, elegí uno de la lista.
+              </p>
+              <div className="row">
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={geocoding || locating || saving || !form.address.trim()}
+                  onClick={() => void searchCoordinates()}
+                >
+                  {geocoding ? 'Buscando…' : 'Buscar coordenadas'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={geocoding || locating || saving}
+                  onClick={() => void useDeviceLocation()}
+                >
+                  {locating ? 'Obteniendo ubicación…' : 'Usar mi ubicación'}
+                </button>
+              </div>
+              {locationHint ? (
+                <p className="muted" role="status">
+                  {locationHint}
+                </p>
+              ) : null}
+              {candidates.length > 1 ? (
+                <fieldset className="geocode-options">
+                  <legend>Elegí la dirección</legend>
+                  {candidates.map((candidate, index) => {
+                    const selected = samePin(candidate, form.latitude, form.longitude);
+                    const lines = addressLines(candidate);
+                    return (
+                      <button
+                        key={`${candidate.latitude}-${candidate.longitude}-${index}`}
+                        type="button"
+                        className={selected ? 'geocode-option is-on' : 'geocode-option'}
+                        aria-pressed={selected}
+                        onClick={() =>
+                          applyCandidate(candidate, 'Elegida. Si el pin no cae justo, movelo en el mapa.')
+                        }
+                      >
+                        <span className="geocode-option-mark" aria-hidden="true">
+                          {selected ? '✓' : index + 1}
+                        </span>
+                        <span>
+                          <strong>{lines.title}</strong>
+                          {lines.detail ? <span className="muted">{lines.detail}</span> : null}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </fieldset>
+              ) : null}
+              <BranchPinMap
+                latitude={coordinateOrNull(form.latitude, -90, 90)}
+                longitude={coordinateOrNull(form.longitude, -180, 180)}
+                onMove={placePin}
+              />
+              <p className="field-hint">
+                Si la búsqueda no encuentra la calle, hacé clic en el mapa o arrastrá el pin. Latitud y longitud
+                siguen al pin.
+              </p>
+            </div>
+            <div className="branch-form-col">
+              <div className="row">
+                <label>
+                  Latitud
                   <input
-                    type="radio"
-                    name="geocode-candidate"
-                    checked={samePin(candidate, form.latitude, form.longitude)}
-                    onChange={() =>
-                      applyCandidate(
-                        candidate,
-                        candidate.displayName
-                          ? `Elegiste: ${candidate.displayName}. Podés mover el pin si no coincide.`
-                          : 'Dirección elegida. Podés mover el pin si no coincide.',
-                      )
-                    }
+                    value={form.latitude}
+                    onChange={(event) => setForm((current) => ({ ...current, latitude: event.target.value }))}
+                    inputMode="decimal"
+                    placeholder="-34.6037"
                   />
-                  {candidate.displayName || `${formatCoordinate(candidate.latitude)}, ${formatCoordinate(candidate.longitude)}`}
                 </label>
-              ))}
-            </fieldset>
-          ) : null}
-          <BranchPinMap
-            latitude={coordinateOrNull(form.latitude, -90, 90)}
-            longitude={coordinateOrNull(form.longitude, -180, 180)}
-            onMove={placePin}
-          />
-          <p className="field-hint">
-            Si la búsqueda no encuentra la calle, hacé clic en el mapa o arrastrá el pin. Las coordenadas de abajo
-            siguen al pin.
-          </p>
-          <div className="row">
-            <label>
-              Latitud
-              <input
-                value={form.latitude}
-                onChange={(event) => setForm((current) => ({ ...current, latitude: event.target.value }))}
-                required
-                inputMode="decimal"
-                placeholder="-34.6037"
-              />
-            </label>
-            <label>
-              Longitud
-              <input
-                value={form.longitude}
-                onChange={(event) => setForm((current) => ({ ...current, longitude: event.target.value }))}
-                required
-                inputMode="decimal"
-                placeholder="-58.3816"
-              />
-            </label>
-          </div>
-          <label>
-            Horarios
-            <input
-              value={form.openingHours}
-              onChange={(event) => setForm((current) => ({ ...current, openingHours: event.target.value }))}
-              required
-              maxLength={200}
-              placeholder="Lun-Dom 10:00-23:00"
-            />
-          </label>
-          <label>
-            Teléfono
-            <input
-              value={form.phone}
-              onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
-              required
-              maxLength={40}
-              placeholder="+54 11 4000-0000"
-            />
-          </label>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={form.active}
-              onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))}
-            />
-            Sucursal activa (puede recibir pedidos nuevos)
-          </label>
-          <div className="row">
-            <button type="submit" disabled={saving || geocoding || locating}>
-              {saving ? 'Guardando…' : form.id ? 'Guardar cambios' : 'Crear sucursal'}
-            </button>
-            <button type="button" className="secondary" onClick={goToList}>
-              Cancelar
-            </button>
+                <label>
+                  Longitud
+                  <input
+                    value={form.longitude}
+                    onChange={(event) => setForm((current) => ({ ...current, longitude: event.target.value }))}
+                    inputMode="decimal"
+                    placeholder="-58.3816"
+                  />
+                </label>
+              </div>
+              <label>
+                Horarios
+                <input
+                  value={form.openingHours}
+                  onChange={(event) => setForm((current) => ({ ...current, openingHours: event.target.value }))}
+                  maxLength={200}
+                  placeholder="Lun-Dom 10:00-23:00"
+                />
+              </label>
+              <label>
+                Teléfono
+                <input
+                  value={form.phone}
+                  onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
+                  maxLength={40}
+                  placeholder="+54 11 4000-0000"
+                />
+              </label>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={form.active}
+                  onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))}
+                />
+                Sucursal activa (puede recibir pedidos nuevos)
+              </label>
+              <div className="row">
+                <button type="submit" disabled={saving || geocoding || locating}>
+                  {saving ? 'Guardando…' : form.id ? 'Guardar cambios' : 'Crear sucursal'}
+                </button>
+                <button type="button" className="secondary" onClick={goToList}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
           </div>
         </form>
       </section>

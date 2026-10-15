@@ -578,17 +578,82 @@ h2 {
   transform: rotate(-45deg);
 }
 
-.geocode-candidates {
+.geocode-options {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.55rem;
   margin: 0;
   padding: 0;
   border: 0;
 }
 
-.geocode-candidates legend {
-  margin-bottom: 0.15rem;
+.geocode-options legend {
+  margin-bottom: 0.1rem;
   font-weight: 800;
+}
+
+.geocode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 0.85rem;
+  border: 2px solid var(--line);
+  border-radius: 1rem;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 3px 3px 0 var(--shadow);
+  text-align: left;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.geocode-option:hover {
+  border-color: var(--accent);
+}
+
+.geocode-option:active {
+  transform: none;
+  box-shadow: 3px 3px 0 var(--shadow);
+}
+
+.geocode-option.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 3px 3px 0 var(--accent-dark);
+}
+
+.geocode-option.is-on:active {
+  box-shadow: 3px 3px 0 var(--accent-dark);
+}
+
+.geocode-option strong,
+.geocode-option .muted {
+  display: block;
+}
+
+.geocode-option .muted {
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.geocode-option-mark {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--accent-dark);
+  font-weight: 800;
+}
+
+.geocode-option.is-on .geocode-option-mark {
+  border-color: var(--accent-dark);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 .password-field {
@@ -639,6 +704,46 @@ h2 {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(28, 25, 23, 0.45);
+}
+
+.modal {
+  width: min(28rem, 100%);
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.2rem;
+}
+
+.modal h2,
+.modal p {
+  margin: 0;
+}
+
+.modal p {
+  color: var(--muted);
+}
+
+.modal-actions {
+  justify-content: center;
+}
+
+.admin-marks {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.admin-marks .badge {
+  margin-top: 0;
 }
 
 .list {
@@ -804,6 +909,40 @@ h2 {
 }
 
 .product-form {
+  max-width: 36rem;
+}
+
+.branch-form {
+  max-width: none;
+}
+
+.branch-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.85fr);
+  gap: 1rem 1.5rem;
+  align-items: start;
+}
+
+.branch-form-col {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  min-width: 0;
+}
+
+.branch-form .row label {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+@media (max-width: 899px) {
+  .branch-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stack:has(> .product-form) > .error[role='alert'],
+.stack:has(> .product-form) > .success[role='status'] {
   max-width: 36rem;
 }
 
@@ -1514,6 +1653,54 @@ button.order-code-copy {
   align-items: end;
 }
 
+.stock-toolbar input[type='search'],
+.stock-toolbar select {
+  border-color: var(--line);
+}
+
+.stock-toolbar select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.5rem;
+  cursor: pointer;
+  color: var(--ink);
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.6 6.1 8 10.4l4.4-4.3' fill='none' stroke='%23f97316' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 1rem;
+}
+
+.stock-toolbar select:disabled {
+  cursor: not-allowed;
+  color: var(--muted);
+}
+
+.stock-toolbar input[type='search']:focus,
+.stock-toolbar select:focus {
+  border-color: var(--accent);
+  outline: 3px solid var(--accent-soft);
+}
+
+.stock-toolbar select:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.6 6.1 8 10.4l4.4-4.3' fill='none' stroke='%23ea580c' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.stock-toolbar input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 1.15rem;
+  width: 1.15rem;
+  margin-left: 0.35rem;
+  cursor: pointer;
+  background: center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6.2' fill='none' stroke='%23fdba74' stroke-width='1.6'/%3E%3Cpath d='M5.4 5.4l5.2 5.2M10.6 5.4l-5.2 5.2' stroke='%23fdba74' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.stock-toolbar input[type='search']:focus::-webkit-search-cancel-button {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6.2' fill='none' stroke='%23ea580c' stroke-width='1.6'/%3E%3Cpath d='M5.4 5.4l5.2 5.2M10.6 5.4l-5.2 5.2' stroke='%23ea580c' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
 .stock-sheet {
   background: var(--card);
   border: 2px solid var(--line);
@@ -1580,6 +1767,15 @@ button.order-code-copy {
   align-items: center;
   padding: 0.35rem 0.75rem;
   border-top: 1px solid var(--line);
+}
+
+.stock-line--empty {
+  margin: 0.35rem 0.55rem;
+  padding-left: 0.55rem;
+  padding-right: 0.55rem;
+  background: #ffe4e6;
+  border: 2px solid var(--danger);
+  border-radius: 0.85rem;
 }
 
 .stock-line--head {

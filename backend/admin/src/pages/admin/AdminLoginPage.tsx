@@ -5,6 +5,7 @@ import type { LoginResponse } from '../../api/types';
 import { isAdmin, saveSession } from '../../auth/session';
 import { BrandLogo } from '../../components/BrandLogo';
 import { SvgIcon } from '../../icons/SvgIcon';
+import { useTimedNotice } from '../../lib/success-notice';
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
@@ -12,7 +13,7 @@ export function AdminLoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useTimedNotice();
   const [loading, setLoading] = useState(false);
 
   if (isAdmin()) {
@@ -21,6 +22,19 @@ export function AdminLoginPage() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError('El email es obligatorio.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('El email no es válido.');
+      return;
+    }
+    if (!password) {
+      setError('La contraseña es obligatoria.');
+      return;
+    }
     setError('');
     setLoading(true);
     try {
@@ -44,18 +58,18 @@ export function AdminLoginPage() {
   return (
     <div className="app-shell">
       <main className="main login-wrap">
-        <form className="card form login-card" onSubmit={onSubmit}>
+        <form className="card form login-card" onSubmit={onSubmit} noValidate>
           <BrandLogo size={120} />
           <h1>Mordi</h1>
           <p className="muted">Entrá con el usuario inicial del sistema.</p>
           <label>
             Email
             <input
-              type="email"
+              type="text"
+              inputMode="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               autoComplete="username"
-              required
             />
           </label>
           <label>
@@ -66,7 +80,6 @@ export function AdminLoginPage() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="current-password"
-                required
               />
               <button
                 type="button"

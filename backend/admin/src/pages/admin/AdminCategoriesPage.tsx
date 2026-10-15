@@ -3,7 +3,7 @@ import { api } from '../../api/client';
 import type { Category } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { slugify } from '../../lib/slug';
-import { useSuccessNotice } from '../../lib/success-notice';
+import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
 
 type FormState = { id?: string; name: string; slug: string };
 type Screen = 'list' | 'form';
@@ -19,7 +19,7 @@ export function AdminCategoriesPage() {
   const [slugLocked, setSlugLocked] = useState(false);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [error, setError] = useState('');
+  const [error, setError] = useTimedNotice();
   const [ok, setOk] = useSuccessNotice();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -178,14 +178,12 @@ export function AdminCategoriesPage() {
           </p>
         ) : null}
 
-        <form id="category-form" className="card form product-form" onSubmit={onSubmit}>
+        <form id="category-form" className="card form product-form" onSubmit={onSubmit} noValidate>
           <label>
             Nombre
             <input
               value={form.name}
               onChange={(event) => onNameChange(event.target.value)}
-              required
-              minLength={2}
               maxLength={80}
               placeholder="Hamburguesas"
               autoComplete="off"

@@ -7,7 +7,7 @@ import { ProductTags, productCategories } from '../../components/ProductTags';
 import { SvgIcon } from '../../icons/SvgIcon';
 import { mediaUrl } from '../../lib/media';
 import { slugify } from '../../lib/slug';
-import { useSuccessNotice } from '../../lib/success-notice';
+import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
 
 type FormState = {
   id?: string;
@@ -63,7 +63,7 @@ export function AdminProductsPage() {
   const [filterCategory, setFilterCategory] = useState('');
   const [availability, setAvailability] = useState<AvailabilityFilter>('all');
   const [page, setPage] = useState(1);
-  const [error, setError] = useState('');
+  const [error, setError] = useTimedNotice();
   const [ok, setOk] = useSuccessNotice();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -316,13 +316,12 @@ export function AdminProductsPage() {
           </p>
         ) : null}
 
-        <form id="product-form" className="card form product-form" onSubmit={onSubmit}>
+        <form id="product-form" className="card form product-form" onSubmit={onSubmit} noValidate>
           <label>
             Nombre
             <input
               value={form.name}
               onChange={(event) => onNameChange(event.target.value)}
-              required
               maxLength={120}
               placeholder="Hamburguesa clásica"
               autoComplete="off"
@@ -359,7 +358,6 @@ export function AdminProductsPage() {
             <textarea
               value={form.description}
               onChange={(event) => setForm({ ...form, description: event.target.value })}
-              required
               maxLength={2000}
               rows={3}
             />
@@ -388,12 +386,10 @@ export function AdminProductsPage() {
           <label>
             Precio (ARS)
             <input
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               value={form.price}
               onChange={(event) => setForm({ ...form, price: event.target.value })}
-              required
             />
           </label>
           <div className="file-field">

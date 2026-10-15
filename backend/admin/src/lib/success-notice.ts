@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-/** DEV-18: un aviso de éxito se va solo. Los de error no pasan por acá. */
+/** Un aviso de éxito o de error se va solo a los 4 segundos. */
 export const SUCCESS_NOTICE_MS = 4_000;
 
-export function useSuccessNotice() {
+export function useTimedNotice() {
   const [message, setMessage] = useState('');
   const timer = useRef<number | undefined>(undefined);
 
@@ -18,3 +18,5 @@ export function useSuccessNotice() {
 
   return [message, setNotice] as const;
 }
+
+export const useSuccessNotice = useTimedNotice;
