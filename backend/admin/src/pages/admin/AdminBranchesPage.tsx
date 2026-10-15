@@ -2,12 +2,18 @@ import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
 import type { Branch } from '../../api/types';
 import { getToken } from '../../auth/session';
+import { BranchPinMap } from '../../components/BranchPinMap';
 import { formatCoordinate, requestDevicePosition } from '../../lib/geolocation';
+import { useSuccessNotice } from '../../lib/success-notice';
 
-type GeocodeResult = {
+type GeocodeCandidate = {
   latitude: number;
   longitude: number;
   displayName: string;
+};
+
+type GeocodeResult = GeocodeCandidate & {
+  candidates?: GeocodeCandidate[];
 };
 
 type FormState = {
@@ -39,6 +45,18 @@ function toNumber(value: number | string): number {
   return typeof value === 'number' ? value : Number(value);
 }
 
+function coordinateOrNull(value: string, min: number, max: number): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) return null;
+  return parsed;
+}
+
+function samePin(candidate: GeocodeCandidate, latitude: string, longitude: string) {
+  return formatCoordinate(candidate.latitude) === latitude && formatCoordinate(candidate.longitude) === longitude;
+}
+
 export function AdminBranchesPage() {
   const token = getToken() ?? '';
   const [screen, setScreen] = useState<Screen>('list');
@@ -47,12 +65,13 @@ export function AdminBranchesPage() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
-  const [ok, setOk] = useState('');
+  const [ok, setOk] = useSuccessNotice();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locationHint, setLocationHint] = useState('');
+  const [candidates, setCandidates] = useState<GeocodeCandidate[]>([]);
 
   async function load() {
     setLoading(true);
@@ -94,6 +113,8 @@ export function AdminBranchesPage() {
 
   function resetForm() {
     setForm(emptyForm);
+    setCandidates([]);
+    setLocationHint('');
   }
 
   function goToList() {
@@ -124,7 +145,27 @@ export function AdminBranchesPage() {
     setError('');
     setOk('');
     setLocationHint('');
+    setCandidates([]);
     setScreen('form');
+  }
+
+  function applyCandidate(candidate: GeocodeCandidate, hint: string) {
+    setForm((current) => ({
+      ...current,
+      latitude: formatCoordinate(candidate.latitude),
+      longitude: formatCoordinate(candidate.longitude),
+    }));
+    setLocationHint(hint);
+  }
+
+  function placePin(latitude: number, longitude: number) {
+    setForm((current) => ({
+      ...current,
+      latitude: formatCoordinate(latitude),
+      longitude: formatCoordinate(longitude),
+    }));
+    setError('');
+    setLocationHint('Punto marcado en el mapa. Esas coordenadas se guardan con la sucursal.');
   }
 
   async function searchCoordinates() {
@@ -144,17 +185,21 @@ export function AdminBranchesPage() {
         token,
         body: JSON.stringify({ address }),
       });
-      setForm((current) => ({
-        ...current,
-        latitude: formatCoordinate(result.latitude),
-        longitude: formatCoordinate(result.longitude),
-      }));
-      setLocationHint(
-        result.displayName
-          ? `Encontramos: ${result.displayName}. Revisá las coordenadas antes de guardar.`
-          : 'Coordenadas cargadas. Revisalas antes de guardar.',
+      const list = result.candidates?.length
+        ? result.candidates
+        : [{ latitude: result.latitude, longitude: result.longitude, displayName: result.displayName }];
+      const first = list[0];
+      setCandidates(list);
+      applyCandidate(
+        first,
+        list.length > 1
+          ? `Encontramos ${list.length} direcciones. Elegí una o mové el pin.`
+          : first.displayName
+            ? `Encontramos: ${first.displayName}. Revisá el pin antes de guardar.`
+            : 'Coordenadas cargadas. Revisá el pin antes de guardar.',
       );
     } catch (err) {
+      setCandidates([]);
       setError(err instanceof Error ? err.message : 'No se pudo buscar la dirección');
     } finally {
       setGeocoding(false);
@@ -165,6 +210,7 @@ export function AdminBranchesPage() {
     setLocating(true);
     setError('');
     setLocationHint('');
+    setCandidates([]);
     try {
       const position = await requestDevicePosition();
       setForm((current) => ({
@@ -256,7 +302,7 @@ export function AdminBranchesPage() {
           <div>
             <h1>{form.id ? 'Editar sucursal' : 'Crear sucursal'}</h1>
             <p className="muted">
-              Buscá las coordenadas con la dirección o con tu ubicación. Si hace falta, ajustalas a mano.
+              Buscá la dirección para mover el pin, o marcalo en el mapa. Lo que queda en el pin es lo que se guarda.
             </p>
           </div>
         </header>
@@ -282,7 +328,10 @@ export function AdminBranchesPage() {
             Dirección
             <input
               value={form.address}
-              onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
+              onChange={(event) => {
+                setForm((current) => ({ ...current, address: event.target.value }));
+                setCandidates([]);
+              }}
               required
               maxLength={200}
               placeholder="Av. Corrientes 1234, CABA"
@@ -311,6 +360,38 @@ export function AdminBranchesPage() {
               {locationHint}
             </p>
           ) : null}
+          {candidates.length > 1 ? (
+            <fieldset className="geocode-candidates">
+              <legend>Direcciones encontradas</legend>
+              {candidates.map((candidate, index) => (
+                <label key={`${candidate.latitude}-${candidate.longitude}-${index}`} className="checkbox">
+                  <input
+                    type="radio"
+                    name="geocode-candidate"
+                    checked={samePin(candidate, form.latitude, form.longitude)}
+                    onChange={() =>
+                      applyCandidate(
+                        candidate,
+                        candidate.displayName
+                          ? `Elegiste: ${candidate.displayName}. Podés mover el pin si no coincide.`
+                          : 'Dirección elegida. Podés mover el pin si no coincide.',
+                      )
+                    }
+                  />
+                  {candidate.displayName || `${formatCoordinate(candidate.latitude)}, ${formatCoordinate(candidate.longitude)}`}
+                </label>
+              ))}
+            </fieldset>
+          ) : null}
+          <BranchPinMap
+            latitude={coordinateOrNull(form.latitude, -90, 90)}
+            longitude={coordinateOrNull(form.longitude, -180, 180)}
+            onMove={placePin}
+          />
+          <p className="field-hint">
+            Si la búsqueda no encuentra la calle, hacé clic en el mapa o arrastrá el pin. Las coordenadas de abajo
+            siguen al pin.
+          </p>
           <div className="row">
             <label>
               Latitud

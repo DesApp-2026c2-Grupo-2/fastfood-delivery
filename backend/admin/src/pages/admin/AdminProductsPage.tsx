@@ -7,6 +7,7 @@ import { ProductTags, productCategories } from '../../components/ProductTags';
 import { SvgIcon } from '../../icons/SvgIcon';
 import { mediaUrl } from '../../lib/media';
 import { slugify } from '../../lib/slug';
+import { useSuccessNotice } from '../../lib/success-notice';
 
 type FormState = {
   id?: string;
@@ -63,7 +64,7 @@ export function AdminProductsPage() {
   const [availability, setAvailability] = useState<AvailabilityFilter>('all');
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
-  const [ok, setOk] = useState('');
+  const [ok, setOk] = useSuccessNotice();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 

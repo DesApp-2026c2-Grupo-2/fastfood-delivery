@@ -3,6 +3,7 @@ import { api } from '../../api/client';
 import type { Category } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { slugify } from '../../lib/slug';
+import { useSuccessNotice } from '../../lib/success-notice';
 
 type FormState = { id?: string; name: string; slug: string };
 type Screen = 'list' | 'form';
@@ -19,7 +20,7 @@ export function AdminCategoriesPage() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
-  const [ok, setOk] = useState('');
+  const [ok, setOk] = useSuccessNotice();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 

@@ -3,6 +3,7 @@ import { api } from '../../api/client';
 import type { Branch, StockLine } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { mediaUrl } from '../../lib/media';
+import { SUCCESS_NOTICE_MS, useSuccessNotice } from '../../lib/success-notice';
 import { MAX_AVAILABLE, parseAvailable, stockAdjustments, type StockAdjustment } from '../../lib/stock-adjustment';
 
 export function AdminStockPage() {
@@ -15,7 +16,7 @@ export function AdminStockPage() {
   const [bulkQty, setBulkQty] = useState('');
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
-  const [note, setNote] = useState('');
+  const [note, setNote] = useSuccessNotice();
   const [rowError, setRowError] = useState<Record<string, string>>({});
   const [savedId, setSavedId] = useState('');
   const [loadingBranches, setLoadingBranches] = useState(true);
@@ -99,6 +100,12 @@ export function AdminStockPage() {
       selectAllRef.current.indeterminate = selectedVisible > 0 && !allVisibleSelected;
     }
   }, [selectedVisible, allVisibleSelected]);
+
+  useEffect(() => {
+    if (!savedId) return;
+    const timer = window.setTimeout(() => setSavedId(''), SUCCESS_NOTICE_MS);
+    return () => window.clearTimeout(timer);
+  }, [savedId]);
 
   function toggle(productId: string) {
     setSelected((current) => {
@@ -389,7 +396,11 @@ export function AdminStockPage() {
                       {message}
                     </p>
                   ) : null}
-                  {savedId === line.productId ? <p className="success stock-line-note">Listo.</p> : null}
+                  {savedId === line.productId ? (
+                    <p className="success stock-line-note" role="status">
+                      Listo.
+                    </p>
+                  ) : null}
                 </li>
               );
             })}
