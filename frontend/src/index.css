@@ -1703,13 +1703,13 @@ h2 {
 }
 
 .warning {
-  background: #fee2e2;
-  color: #991b1b;
-  padding: 0.4rem 0.7rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  max-width: 500px;
-  text-align: center;
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+  border: 2px solid #fdba74;
+  border-radius: 1rem;
+  background: #ffedd5;
+  color: #9a3412;
+  font-weight: 800;
 }
 
 .bottom-nav-button {
