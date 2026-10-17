@@ -6,6 +6,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaExceptionFilter } from '../src/common/prisma-exception.filter';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { coveringBranchId } from './support/covering-branch';
 
 const stamp = Date.now();
 
@@ -16,6 +17,8 @@ let prisma: PrismaService;
 let token: string;
 let userId: string;
 let addressId: string;
+let branchId: string;
+let guestBranchId: string;
 let createdBranchId: string | undefined;
 let burger: { id: string; name: string };
 let bacon: { id: string; name: string };
@@ -124,6 +127,9 @@ beforeAll(async () => {
     .send({ street: 'Av. Rivadavia 5000, CABA', latitude: -34.61, longitude: -58.42, isDefault: true });
   expect(address.status).toBe(201);
   addressId = address.body.id;
+  // Desde HU-23 el cliente elige la sucursal: la que cubre la dirección de cada pedido.
+  branchId = await coveringBranchId(server, -34.61, -58.42);
+  guestBranchId = await coveringBranchId(server, -34.59, -58.39);
 }, 60_000);
 
 beforeEach(async () => {
@@ -139,7 +145,7 @@ afterAll(async () => {
   });
   await prisma.order.deleteMany({ where: { id: { in: orders.map((order) => order.id) } } });
   // Las direcciones de pedidos de invitado no cuelgan de un usuario: no se borran en cascada.
-  const guestAddressIds = orders.filter((order) => !order.userId).map((order) => order.addressId);
+  const guestAddressIds = orders.flatMap((order) => (!order.userId && order.addressId ? [order.addressId] : []));
   await prisma.address.deleteMany({ where: { id: { in: guestAddressIds } } });
   await prisma.user.deleteMany({ where: { id: userId } });
   await prisma.product.deleteMany({ where: { id: { in: productIds } } });
@@ -187,7 +193,7 @@ describe('orden de los adicionales', () => {
     const cart = await addToCart({ productId: burger.id, quantity: 1, extraIds: [cheddar.id, lower.id, bacon.id] });
     expect(cart.body.items[0].extras.map((extra: { id: string }) => extra.id)).toEqual(expected);
 
-    const order = await request(server).post('/api/orders').set(bearer()).send({ addressId });
+    const order = await request(server).post('/api/orders').set(bearer()).send({ fulfillment: 'delivery', branchId, addressId });
     expect(order.status).toBe(201);
     expect(order.body.items[0].extras.map((extra: { id: string }) => extra.id)).toEqual(expected);
   });
@@ -304,7 +310,7 @@ describe('POST /api/orders con adicionales', () => {
     await addToCart({ productId: burger.id, quantity: 2, extraIds: [bacon.id, cheddar.id], notes: 'bien cocida' });
     await addToCart({ productId: drink.id, quantity: 1 });
 
-    const response = await request(server).post('/api/orders').set(bearer()).send({ addressId });
+    const response = await request(server).post('/api/orders').set(bearer()).send({ fulfillment: 'delivery', branchId, addressId });
 
     expect(response.status).toBe(201);
     expect(response.body.status).toBe('pending');
@@ -338,7 +344,7 @@ describe('POST /api/orders con adicionales', () => {
     await addToCart({ productId: burger.id, quantity: 1, extraIds: [bacon.id] });
     await prisma.product.update({ where: { id: bacon.id }, data: { available: false } });
 
-    const response = await request(server).post('/api/orders').set(bearer()).send({ addressId });
+    const response = await request(server).post('/api/orders').set(bearer()).send({ fulfillment: 'delivery', branchId, addressId });
 
     expect(response.status).toBe(400);
     expect(String(response.body.message)).toContain(`"${bacon.name}" ya no está disponible`);
@@ -349,6 +355,8 @@ describe('POST /api/orders/guest con adicionales', () => {
   const guest = (items: object[]) => ({
     name: 'Invitado Extras',
     email: `guest.extras.${stamp}@rapido.local`,
+    fulfillment: 'delivery',
+    branchId: guestBranchId,
     street: 'Av. Santa Fe 1200, CABA',
     latitude: -34.59,
     longitude: -58.39,

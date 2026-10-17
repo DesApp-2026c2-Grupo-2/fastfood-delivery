@@ -23,6 +23,12 @@ enum OrderStatus {
   cancelled
 }
 
+// Cómo recibe el cliente el pedido (HU-23). En retiro no hay dirección ni traslado.
+enum Fulfillment {
+  delivery
+  pickup
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -193,7 +199,9 @@ model Order {
   id          String      @id @default(cuid())
   userId      String?
   branchId    String
-  addressId   String
+  // Vacío en los pedidos de retiro (HU-23).
+  addressId   String?
+  fulfillment Fulfillment @default(delivery)
   guestName   String?
   guestEmail  String?
   status      OrderStatus @default(pending)
@@ -205,7 +213,7 @@ model Order {
   stockReserved Boolean     @default(false)
   user        User?       @relation(fields: [userId], references: [id])
   branch      Branch      @relation(fields: [branchId], references: [id])
-  address     Address     @relation(fields: [addressId], references: [id])
+  address     Address?    @relation(fields: [addressId], references: [id], onDelete: Restrict)
   items       OrderItem[]
   statusHistory OrderStatusHistory[]
   createdAt   DateTime    @default(now())
