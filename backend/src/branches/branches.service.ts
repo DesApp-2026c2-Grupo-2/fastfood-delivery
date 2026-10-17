@@ -128,6 +128,30 @@ export class BranchesService {
     };
   }
 
+  /**
+   * GET /api/branches (DEV-22): todas las activas, también las que no llegan a la ubicación. La ubicación
+   * es opcional; sin ella no hay distancia y quedan por nombre.
+   */
+  async findAllActive(query: AvailableBranchesQueryDto, user?: JwtPayload) {
+    const hasLocation = query.addressId !== undefined || query.lat !== undefined || query.lng !== undefined;
+    const origin = hasLocation ? await this.resolveOrigin(query, user) : null;
+    const { radiusKm, branches } = await this.findActiveByDistance(origin);
+    return {
+      radiusKm,
+      branches: branches.map(({ branch, distanceKm, withinRadius }) => ({
+        id: branch.id,
+        name: branch.name,
+        address: branch.address,
+        phone: branch.phone,
+        openingHours: branch.openingHours,
+        latitude: Number(branch.latitude),
+        longitude: Number(branch.longitude),
+        distanceKm: distanceKm === null ? null : Math.round(distanceKm * 100) / 100,
+        withinRadius,
+      })),
+    };
+  }
+
   findAll() {
     return this.prisma.branch.findMany({
       orderBy: { name: 'asc' },
