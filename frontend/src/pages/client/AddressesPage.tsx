@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import type { Address } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
 import { formatCoordinate, requestDevicePosition } from '../../lib/geolocation';
+import { useAutoClear } from '../../lib/useAutoClear';
 
 type FormState = {
   id?: string;
@@ -48,6 +49,7 @@ function AddressesContent({ token }: { token: string }) {
   const [form, setForm] = useState<FormState | null>(null);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
+  useAutoClear(ok, () => setOk(''));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
