@@ -3,8 +3,9 @@ import { Link, Navigate } from 'react-router-dom';
 import { ApiError, api } from '../../api/client';
 import type {
   Address,
-  AvailableBranchesResponse,
   Cart,
+  CheckoutBranchesResponse,
+  Fulfillment,
   Order,
   OutOfCoverageError,
   OutOfStockError,
@@ -31,6 +32,13 @@ function formatUnits(count: number): string {
   return count === 1 ? '1 unidad' : `${count} unidades`;
 }
 
+function parseCoordinate(value: string, min: number, max: number): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : null;
+}
+
 export function CheckoutPage() {
   const loggedIn = isCustomer();
   const token = getToken() ?? '';
@@ -43,11 +51,15 @@ export function CheckoutPage() {
   const [street, setStreet] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
+  const [fulfillment, setFulfillment] = useState<Fulfillment>('delivery');
+  const [branchId, setBranchId] = useState('');
+  const [branchOptions, setBranchOptions] = useState<CheckoutBranchesResponse | null>(null);
+  const [branchesLoading, setBranchesLoading] = useState(false);
+  const [branchesError, setBranchesError] = useState('');
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState('');
   const [coverageError, setCoverageError] = useState<OutOfCoverageError | null>(null);
   const [stockError, setStockError] = useState<OutOfStockError | null>(null);
-  const [coverage, setCoverage] = useState<AvailableBranchesResponse | null>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const [guestErrors, setGuestErrors] = useState<GuestFormErrors>({});
   const [loading, setLoading] = useState(true);
@@ -85,22 +97,75 @@ export function CheckoutPage() {
     };
   }, [loggedIn, token]);
 
+  // Sucursales para elegir: dependen de retiro/domicilio, de la ubicación y del carrito.
   useEffect(() => {
-    setCoverage(null);
-    if (!loggedIn || !addressId) return;
+    if (loading || !cart || cart.items.length === 0) return;
+
+    function reset() {
+      setBranchOptions(null);
+      setBranchesLoading(false);
+    }
+
+    const body: Record<string, unknown> = { fulfillment };
+    if (loggedIn) {
+      if (fulfillment === 'delivery') {
+        if (!addressId) return reset();
+        body.addressId = addressId;
+      }
+    } else {
+      body.items = cart.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        notes: item.notes,
+      }));
+      if (fulfillment === 'delivery') {
+        const lat = parseCoordinate(latitude, -90, 90);
+        const lng = parseCoordinate(longitude, -180, 180);
+        if (lat === null || lng === null) return reset();
+        body.latitude = lat;
+        body.longitude = lng;
+      }
+    }
+
     let cancelled = false;
-    const query = new URLSearchParams({ addressId }).toString();
-    api<AvailableBranchesResponse>(`/branches/available?${query}`, { token })
-      .then((result) => {
-        if (!cancelled) setCoverage(result);
+    setBranchesLoading(true);
+    setBranchesError('');
+    const timer = setTimeout(() => {
+      api<CheckoutBranchesResponse>('/branches/checkout', {
+        method: 'POST',
+        token,
+        body: JSON.stringify(body),
       })
-      .catch(() => {
-        // Sin vista previa: el checkout igual valida la cobertura al confirmar.
-      });
+        .then((result) => {
+          if (!cancelled) setBranchOptions(result);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setBranchOptions(null);
+          setBranchesError(err instanceof Error ? err.message : 'No se pudieron cargar las sucursales');
+        })
+        .finally(() => {
+          if (!cancelled) setBranchesLoading(false);
+        });
+    }, 300);
+
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [loggedIn, addressId, token]);
+  }, [loading, cart, loggedIn, token, fulfillment, addressId, latitude, longitude]);
+
+  // Si hay una sola sucursal, viene elegida. Si la elegida ya no está en la lista, se limpia.
+  useEffect(() => {
+    if (!branchOptions) {
+      setBranchId('');
+      return;
+    }
+    setBranchId((current) => {
+      if (branchOptions.branches.some((branch) => branch.id === current)) return current;
+      return branchOptions.branches.length === 1 ? branchOptions.branches[0].id : '';
+    });
+  }, [branchOptions]);
 
   useEffect(() => {
     if (coverageError || stockError) {
@@ -112,6 +177,11 @@ export function CheckoutPage() {
     setError('');
     setCoverageError(null);
     setStockError(null);
+  }
+
+  function changeFulfillment(next: Fulfillment) {
+    setFulfillment(next);
+    clearConfirmErrors();
   }
 
   function showConfirmError(err: unknown) {
@@ -126,8 +196,12 @@ export function CheckoutPage() {
 
   async function confirmLoggedIn(event: FormEvent) {
     event.preventDefault();
-    if (!addressId) {
+    if (fulfillment === 'delivery' && !addressId) {
       setError('Elegí una dirección de entrega.');
+      return;
+    }
+    if (!branchId) {
+      setError('Elegí la sucursal.');
       return;
     }
     setSaving(true);
@@ -136,10 +210,13 @@ export function CheckoutPage() {
       const created = await api<Order>('/orders', {
         method: 'POST',
         token,
-        body: JSON.stringify({ addressId }),
+        body: JSON.stringify({
+          fulfillment,
+          branchId,
+          ...(fulfillment === 'delivery' ? { addressId } : {}),
+        }),
       });
       await refresh();
-
       setOrder(created);
     } catch (err) {
       showConfirmError(err);
@@ -152,9 +229,6 @@ export function CheckoutPage() {
     const nextErrors: GuestFormErrors = {};
     const trimmedName = name.trim();
     const trimmedEmail = email.trim();
-    const trimmedStreet = street.trim();
-    const trimmedLat = latitude.trim();
-    const trimmedLng = longitude.trim();
 
     if (!trimmedName) {
       nextErrors.name = 'Completá tu nombre.';
@@ -168,24 +242,20 @@ export function CheckoutPage() {
       nextErrors.email = 'El formato del email no es válido.';
     }
 
-    if (!trimmedStreet) {
-      nextErrors.street = 'Completá la dirección de entrega.';
-    }
+    if (fulfillment === 'delivery') {
+      if (!street.trim()) {
+        nextErrors.street = 'Completá la dirección de entrega.';
+      }
 
-    if (!trimmedLat) {
-      nextErrors.latitude = 'Ingresá la latitud.';
-    } else {
-      const lat = Number(trimmedLat);
-      if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+      if (!latitude.trim()) {
+        nextErrors.latitude = 'Ingresá la latitud.';
+      } else if (parseCoordinate(latitude, -90, 90) === null) {
         nextErrors.latitude = 'Latitud inválida (-90 a 90).';
       }
-    }
 
-    if (!trimmedLng) {
-      nextErrors.longitude = 'Ingresá la longitud.';
-    } else {
-      const lng = Number(trimmedLng);
-      if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+      if (!longitude.trim()) {
+        nextErrors.longitude = 'Ingresá la longitud.';
+      } else if (parseCoordinate(longitude, -180, 180) === null) {
         nextErrors.longitude = 'Longitud inválida (-180 a 180).';
       }
     }
@@ -201,9 +271,11 @@ export function CheckoutPage() {
     if (!validateGuest()) {
       return;
     }
+    if (!branchId) {
+      setError('Elegí la sucursal.');
+      return;
+    }
 
-    const lat = Number(latitude);
-    const lng = Number(longitude);
     const current = cart ?? getGuestCart();
 
     setSaving(true);
@@ -213,9 +285,15 @@ export function CheckoutPage() {
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim(),
-          street: street.trim(),
-          latitude: lat,
-          longitude: lng,
+          fulfillment,
+          branchId,
+          ...(fulfillment === 'delivery'
+            ? {
+                street: street.trim(),
+                latitude: Number(latitude),
+                longitude: Number(longitude),
+              }
+            : {}),
           items: current.items.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
@@ -260,11 +338,17 @@ export function CheckoutPage() {
           <p>
             <strong>Sucursal:</strong> {order.branch.name}
           </p>
-          <p>
-            <strong>Entrega:</strong>{' '}
-            {order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}
-            {order.address.street}
-          </p>
+          {order.address ? (
+            <p>
+              <strong>Entrega:</strong>{' '}
+              {order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}
+              {order.address.street}
+            </p>
+          ) : (
+            <p>
+              <strong>Retiro en sucursal:</strong> {order.branch.address}
+            </p>
+          )}
           <p>
             <strong>Fecha:</strong> {formatDateTime(order.createdAt)}
           </p>
@@ -295,6 +379,15 @@ export function CheckoutPage() {
     return <Navigate to="/cart" replace />;
   }
 
+  // DEV-24: sin sucursales para elegir, no se puede confirmar y se explica por qué.
+  let blockedReason = '';
+  if (branchOptions && branchOptions.branches.length === 0) {
+    blockedReason =
+      fulfillment === 'delivery'
+        ? `Ninguna sucursal llega a esta dirección (radio de ${branchOptions.radiusKm.toLocaleString('es-AR')} km). Elegí otra dirección o pedí para retirar.`
+        : 'No hay sucursales activas en este momento.';
+  }
+
   return (
     <section className="stack">
       <header className="page-head">
@@ -302,8 +395,8 @@ export function CheckoutPage() {
           <h1>Confirmar pedido</h1>
           <p className="muted">
             {loggedIn
-              ? 'Se asigna la sucursal activa más cercana a tu dirección.'
-              : 'No hace falta cuenta. Completá tus datos y la dirección de entrega.'}
+              ? 'Elegí si lo retirás o te lo llevamos, y desde qué sucursal.'
+              : 'No hace falta cuenta. Completá tus datos y elegí cómo recibir tu pedido.'}
           </p>
         </div>
       </header>
@@ -344,53 +437,76 @@ export function CheckoutPage() {
               </li>
             ))}
           </ul>
-          <p className="muted">Ajustá las cantidades en el carrito y volvé a confirmar.</p>
+          <p className="muted">Ajustá las cantidades en el carrito o elegí otra sucursal.</p>
           <p className="checkout-notice-links">
             <Link to="/cart">Ajustar carrito</Link>
           </p>
         </div>
       ) : null}
 
-      {loggedIn && addresses.length === 0 ? (
-        <p className="empty">
-          Necesitás una dirección de entrega. <Link to="/account/addresses">Cargá una acá</Link>.
-        </p>
-      ) : null}
-
-      {loggedIn && addresses.length > 0 ? (
+      {loggedIn ? (
         <form className="card form" onSubmit={(event) => void confirmLoggedIn(event)} noValidate>
-          <h2>Dirección de entrega</h2>
-          {addresses.map((address) => (
-            <label key={address.id} className="checkbox address-choice">
-              <input
-                type="radio"
-                name="addressId"
-                checked={addressId === address.id}
-                onChange={() => {
-                  setAddressId(address.id);
-                  clearConfirmErrors();
-                }}
-              />
-              <span>
-                {address.alias?.trim() ? (
-                  <>
-                    {address.alias.trim()}
-                    <small className="muted"> · {address.street}</small>
-                  </>
-                ) : (
-                  address.street
-                )}
-                {address.isDefault ? <small className="muted"> · principal</small> : null}
-              </span>
-            </label>
-          ))}
-          {coverage ? <AssignedBranch coverage={coverage} /> : null}
-          <OrderSummary cart={cart} saving={saving} shortages={stockError?.items ?? []} />
-        </form>
-      ) : null}
+          <FulfillmentToggle value={fulfillment} onChange={changeFulfillment} />
 
-      {!loggedIn ? (
+          {fulfillment === 'delivery' ? (
+            addresses.length === 0 ? (
+              <p className="empty">
+                Necesitás una dirección de entrega. <Link to="/account/addresses">Cargá una acá</Link> o
+                pedí para retirar.
+              </p>
+            ) : (
+              <>
+                <h2>Dirección de entrega</h2>
+                {addresses.map((address) => (
+                  <label key={address.id} className="checkbox address-choice">
+                    <input
+                      type="radio"
+                      name="addressId"
+                      checked={addressId === address.id}
+                      onChange={() => {
+                        setAddressId(address.id);
+                        clearConfirmErrors();
+                      }}
+                    />
+                    <span>
+                      {address.alias?.trim() ? (
+                        <>
+                          {address.alias.trim()}
+                          <small className="muted"> · {address.street}</small>
+                        </>
+                      ) : (
+                        address.street
+                      )}
+                      {address.isDefault ? <small className="muted"> · principal</small> : null}
+                    </span>
+                  </label>
+                ))}
+              </>
+            )
+          ) : null}
+
+          <BranchPicker
+            options={branchOptions}
+            loading={branchesLoading}
+            error={branchesError}
+            branchId={branchId}
+            onChange={(id) => {
+              setBranchId(id);
+              clearConfirmErrors();
+            }}
+            hint=""
+          />
+          <OrderSummary
+            cart={cart}
+            saving={saving}
+            shortages={stockError?.items ?? []}
+            blockedReason={blockedReason}
+          />
+        </form>
+      ) : (
         <form className="card form" onSubmit={(event) => void confirmGuest(event)} noValidate>
+          <FulfillmentToggle value={fulfillment} onChange={changeFulfillment} />
+
           <h2>Tus datos</h2>
           <label>
             Nombre
@@ -425,83 +541,174 @@ export function CheckoutPage() {
             ) : null}
           </label>
 
-          <h2>Dirección de entrega</h2>
-          <label>
-            Dirección
-            <input
-              value={street}
-              onChange={(event) => {
-                setStreet(event.target.value);
-                if (guestErrors.street) setGuestErrors((prev) => ({ ...prev, street: undefined }));
-              }}
-              maxLength={200}
-              placeholder="Av. Rivadavia 5000, CABA"
-            />
-            {guestErrors.street ? (
-              <small className="error" role="alert">
-                {guestErrors.street}
-              </small>
-            ) : null}
-          </label>
+          {fulfillment === 'delivery' ? (
+            <>
+              <h2>Dirección de entrega</h2>
+              <label>
+                Dirección
+                <input
+                  value={street}
+                  onChange={(event) => {
+                    setStreet(event.target.value);
+                    if (guestErrors.street) setGuestErrors((prev) => ({ ...prev, street: undefined }));
+                  }}
+                  maxLength={200}
+                  placeholder="Av. Rivadavia 5000, CABA"
+                />
+                {guestErrors.street ? (
+                  <small className="error" role="alert">
+                    {guestErrors.street}
+                  </small>
+                ) : null}
+              </label>
 
-          <div className="row">
-            <label>
-              Latitud
-              <input
-                value={latitude}
-                onChange={(event) => {
-                  setLatitude(event.target.value);
-                  if (guestErrors.latitude) setGuestErrors((prev) => ({ ...prev, latitude: undefined }));
-                }}
-                inputMode="decimal"
-                placeholder="-34.6037"
-              />
-              {guestErrors.latitude ? (
-                <small className="error" role="alert">
-                  {guestErrors.latitude}
-                </small>
-              ) : null}
-            </label>
-            <label>
-              Longitud
-              <input
-                value={longitude}
-                onChange={(event) => {
-                  setLongitude(event.target.value);
-                  if (guestErrors.longitude) setGuestErrors((prev) => ({ ...prev, longitude: undefined }));
-                }}
-                inputMode="decimal"
-                placeholder="-58.3816"
-              />
-              {guestErrors.longitude ? (
-                <small className="error" role="alert">
-                  {guestErrors.longitude}
-                </small>
-              ) : null}
-            </label>
-          </div>
-          <p className="field-hint">En este sprint latitud y longitud se cargan a mano. Sin mapa.</p>
-          <OrderSummary cart={cart} saving={saving} shortages={stockError?.items ?? []} />
+              <div className="row">
+                <label>
+                  Latitud
+                  <input
+                    value={latitude}
+                    onChange={(event) => {
+                      setLatitude(event.target.value);
+                      if (guestErrors.latitude) setGuestErrors((prev) => ({ ...prev, latitude: undefined }));
+                    }}
+                    inputMode="decimal"
+                    placeholder="-34.6037"
+                  />
+                  {guestErrors.latitude ? (
+                    <small className="error" role="alert">
+                      {guestErrors.latitude}
+                    </small>
+                  ) : null}
+                </label>
+                <label>
+                  Longitud
+                  <input
+                    value={longitude}
+                    onChange={(event) => {
+                      setLongitude(event.target.value);
+                      if (guestErrors.longitude) setGuestErrors((prev) => ({ ...prev, longitude: undefined }));
+                    }}
+                    inputMode="decimal"
+                    placeholder="-58.3816"
+                  />
+                  {guestErrors.longitude ? (
+                    <small className="error" role="alert">
+                      {guestErrors.longitude}
+                    </small>
+                  ) : null}
+                </label>
+              </div>
+              <p className="field-hint">En este sprint latitud y longitud se cargan a mano. Sin mapa.</p>
+            </>
+          ) : null}
+
+          <BranchPicker
+            options={branchOptions}
+            loading={branchesLoading}
+            error={branchesError}
+            branchId={branchId}
+            onChange={(id) => {
+              setBranchId(id);
+              clearConfirmErrors();
+            }}
+            hint={
+              fulfillment === 'delivery'
+                ? 'Completá latitud y longitud para ver qué sucursales llegan a tu dirección.'
+                : ''
+            }
+          />
+          <OrderSummary
+            cart={cart}
+            saving={saving}
+            shortages={stockError?.items ?? []}
+            blockedReason={blockedReason}
+          />
         </form>
-      ) : null}
+      )}
     </section>
   );
 }
 
-function AssignedBranch({ coverage }: { coverage: AvailableBranchesResponse }) {
-  const branch = coverage.branches[0];
-  if (!branch) {
-    return (
-      <p className="checkout-branch checkout-branch--none">
-        Ninguna sucursal llega a esta dirección (radio de {coverage.radiusKm.toLocaleString('es-AR')} km).{' '}
-        <Link to="/branches">Ver sucursales</Link>
-      </p>
-    );
-  }
+function FulfillmentToggle({
+  value,
+  onChange,
+}: {
+  value: Fulfillment;
+  onChange: (next: Fulfillment) => void;
+}) {
   return (
-    <p className="checkout-branch">
-      Te atiende <strong>{branch.name}</strong> · {formatDistance(branch.distanceKm)}
-    </p>
+    <>
+      <h2>¿Cómo lo querés recibir?</h2>
+      <div className="filters">
+        <button
+          type="button"
+          className={value === 'delivery' ? 'chip chip-active' : 'chip'}
+          onClick={() => onChange('delivery')}
+        >
+          A domicilio
+        </button>
+        <button
+          type="button"
+          className={value === 'pickup' ? 'chip chip-active' : 'chip'}
+          onClick={() => onChange('pickup')}
+        >
+          Retiro en sucursal
+        </button>
+      </div>
+    </>
+  );
+}
+
+function BranchPicker({
+  options,
+  loading,
+  error,
+  branchId,
+  onChange,
+  hint,
+}: {
+  options: CheckoutBranchesResponse | null;
+  loading: boolean;
+  error: string;
+  branchId: string;
+  onChange: (id: string) => void;
+  hint: string;
+}) {
+  return (
+    <fieldset className="tag-fieldset">
+      <legend>Sucursal</legend>
+      {loading ? <p className="muted">Buscando sucursales…</p> : null}
+      {error ? (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {!options && !loading && !error && hint ? <p className="field-hint">{hint}</p> : null}
+      {options?.branches.map((branch) => (
+        <label key={branch.id} className="checkbox address-choice">
+          <input
+            type="radio"
+            name="branchId"
+            checked={branchId === branch.id}
+            onChange={() => onChange(branch.id)}
+          />
+          <span>
+            {branch.name}
+            {branch.distanceKm !== null ? (
+              <small className="muted"> · {formatDistance(branch.distanceKm)}</small>
+            ) : null}
+            <small className="muted"> · {branch.address}</small>
+            {branch.canFulfill ? (
+              <small className="branch-stock branch-stock--ok">Tiene stock de todo tu pedido</small>
+            ) : (
+              <small className="branch-stock branch-stock--short">
+                Sin stock suficiente de: {branch.missing.map((item) => item.name).join(', ')}
+              </small>
+            )}
+          </span>
+        </label>
+      ))}
+    </fieldset>
   );
 }
 
@@ -509,10 +716,12 @@ function OrderSummary({
   cart,
   saving,
   shortages,
+  blockedReason,
 }: {
   cart: Cart;
   saving: boolean;
   shortages: OutOfStockItem[];
+  blockedReason: string;
 }) {
   return (
     <>
@@ -539,7 +748,12 @@ function OrderSummary({
         <span>Total</span>
         <strong>{formatPrice(cart.total)}</strong>
       </p>
-      <button type="submit" disabled={saving}>
+      {blockedReason ? (
+        <p className="field-hint" role="status">
+          {blockedReason}
+        </p>
+      ) : null}
+      <button type="submit" disabled={saving || Boolean(blockedReason)}>
         {saving ? 'Confirmando…' : 'Confirmar pedido'}
       </button>
       <p>
