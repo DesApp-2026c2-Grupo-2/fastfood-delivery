@@ -9,6 +9,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
 import { StockModule } from '../stock/stock.module';
 import { AdminOrderStatusesController } from './admin-order-statuses.controller';
 import { AdminOrdersController } from './admin-orders.controller';
+import { CheckoutBranchesController } from './checkout-branches.controller';
 import { OrderEvents } from './order-events';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
@@ -24,7 +25,7 @@ import { OrdersService } from './orders.service';
     RealtimeModule,
     StockModule,
   ],
-  controllers: [OrdersController, AdminOrdersController, AdminOrderStatusesController],
+  controllers: [CheckoutBranchesController, OrdersController, AdminOrdersController, AdminOrderStatusesController],
   providers: [OrdersService, OrderEvents],
 })
 export class OrdersModule {}

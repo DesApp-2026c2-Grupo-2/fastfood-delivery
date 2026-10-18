@@ -6,6 +6,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaExceptionFilter } from '../src/common/prisma-exception.filter';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { coveringBranchId } from './support/covering-branch';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@rapido.local';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin123!';
@@ -162,7 +163,11 @@ describe('Alias de dirección', () => {
     const created = await request(server)
       .post('/api/orders')
       .set(auth(customer.token))
-      .send({ addressId: address.body.id });
+      .send({
+        fulfillment: 'delivery',
+        branchId: await coveringBranchId(server, place.latitude, place.longitude),
+        addressId: address.body.id,
+      });
     expect(created.status).toBe(201);
     expect(created.body.address).toMatchObject({ alias: 'Casa', street: STREET });
 

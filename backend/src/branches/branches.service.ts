@@ -5,7 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Branch, Prisma } from '@prisma/client';
+import { Branch, Fulfillment, Prisma } from '@prisma/client';
 import { AddressesService } from '../addresses/addresses.service';
 import { JwtPayload } from '../auth/jwt-payload';
 import { haversineDistanceKm } from '../orders/geo';
@@ -45,6 +45,70 @@ export class BranchesService {
     return { radiusKm, branches };
   }
 
+  /**
+   * Todas las sucursales activas, de la más cercana a la más lejana. Sin ubicación no hay distancia
+   * y quedan por nombre. `withinRadius` dice si llegan a esa ubicación (null si no se sabe).
+   */
+  async findActiveByDistance(origin: { latitude: number; longitude: number } | null) {
+    const [radiusKm, active] = await Promise.all([
+      this.parametersService.coverageRadiusKm(),
+      this.prisma.branch.findMany({ where: { active: true }, orderBy: { name: 'asc' } }),
+    ]);
+    const branches = active
+      .map((branch) => {
+        const distanceKm = origin
+          ? haversineDistanceKm(origin.latitude, origin.longitude, Number(branch.latitude), Number(branch.longitude))
+          : null;
+        return { branch, distanceKm, withinRadius: distanceKm === null ? null : distanceKm <= radiusKm };
+      })
+      .sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
+    return { radiusKm, branches };
+  }
+
+  /**
+   * La sucursal que eligió el cliente (HU-23). Tiene que estar activa y, en domicilio, dentro del radio de
+   * cobertura de la dirección; si no, 400 y no se crea el pedido. En retiro no hay traslado (distancia 0).
+   */
+  async resolveChosen(
+    branchId: string,
+    fulfillment: Fulfillment,
+    origin: { latitude: number; longitude: number } | null,
+  ): Promise<CoveringBranch> {
+    const branch = await this.prisma.branch.findUnique({ where: { id: branchId } });
+    if (!branch || !branch.active) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'Bad Request',
+        code: 'BRANCH_UNAVAILABLE',
+        message: 'La sucursal elegida no está disponible',
+      });
+    }
+    if (fulfillment === Fulfillment.pickup) {
+      return { branch, distanceKm: 0 };
+    }
+    if (!origin) {
+      throw new BadRequestException('Indicá la dirección de entrega');
+    }
+
+    const radiusKm = await this.parametersService.coverageRadiusKm();
+    const distanceKm = haversineDistanceKm(
+      origin.latitude,
+      origin.longitude,
+      Number(branch.latitude),
+      Number(branch.longitude),
+    );
+    if (distanceKm > radiusKm) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'Bad Request',
+        code: 'OUT_OF_COVERAGE',
+        message: `${branch.name} no llega a esa dirección (radio de ${radiusKm.toLocaleString('es-AR')} km)`,
+        radiusKm,
+      });
+    }
+    return { branch, distanceKm };
+  }
+
   /** GET /api/branches/available (HU-19): lo que ve el cliente en /branches. */
   async findAvailable(query: AvailableBranchesQueryDto, user?: JwtPayload) {
     const origin = await this.resolveOrigin(query, user);
@@ -70,9 +134,14 @@ export class BranchesService {
     });
   }
 
+  /**
+   * Hasta 5 candidatos (DEV-20). `latitude`, `longitude` y `displayName` repiten el primero, así quien
+   * lea un solo resultado sigue funcionando; `candidates` es la lista completa para elegir.
+   */
   async geocode(address: string) {
     try {
-      return await geocodeAddress(address);
+      const candidates = await geocodeAddress(address);
+      return { ...candidates[0], candidates };
     } catch (error) {
       if (error instanceof GeocodeNotFoundError) {
         throw new BadRequestException(error.message);
@@ -134,7 +203,7 @@ export class BranchesService {
     return { id };
   }
 
-  private async resolveOrigin(query: AvailableBranchesQueryDto, user?: JwtPayload) {
+  async resolveOrigin(query: AvailableBranchesQueryDto, user?: JwtPayload) {
     if (query.addressId) {
       if (!user) {
         throw new UnauthorizedException('Iniciá sesión para usar una dirección guardada');

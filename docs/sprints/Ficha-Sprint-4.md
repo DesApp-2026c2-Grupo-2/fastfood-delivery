@@ -339,9 +339,10 @@ Se muestra lo mismo que el 22/10. No hay un frente nuevo después de la presenta
 
 | Método | Ruta | Uso |
 |---|---|---|
-| POST | `/api/admin/branches/geocode` | Hasta 5 candidatos |
+| POST | `/api/admin/branches/geocode` | Hasta 5 candidatos: `{ latitude, longitude, displayName, candidates: [{ latitude, longitude, displayName }] }`. Los tres primeros campos repiten el primer candidato |
+| POST | `/api/geocode` | Lo mismo, abierto al cliente y al invitado (mapa de la dirección, DEV-23) |
 | GET | `/api/branches` | Todas las activas. El listado “dentro del radio” sigue en `/api/branches/available` |
-| GET | listado para checkout | Sucursales del carrito con `canFulfill`, distancia y si entran en el radio. Lo define Nicolas en el primer merge |
+| POST | `/api/branches/checkout` | Sucursales para elegir en el checkout. Ver el contrato debajo |
 | POST | `/api/orders`, `/api/orders/guest` | `fulfillment`, `branchId`, `couponCode?` |
 | GET/POST | `/api/admin/promotions` | Listado y alta |
 | GET/PATCH | `/api/admin/promotions/:id` | Detalle y edición |
@@ -361,6 +362,29 @@ Se muestra lo mismo que el 22/10. No hay un frente nuevo después de la presenta
 ```
 
 `promotion` es `null` cuando no hay descuento. Un cupón inválido responde 400 también en la cotización.
+
+`POST /api/branches/checkout` (JWT opcional; es una lectura, pero el invitado manda los ítems en el cuerpo). Cuerpo: `{ fulfillment: "delivery" | "pickup", addressId?, latitude?, longitude?, items? }`. Con sesión y sin `items` usa el carrito guardado; el invitado manda `items` (mismo formato que `POST /api/orders/guest`). La ubicación es `addressId` (con sesión) o `latitude` + `longitude`; en `delivery` es obligatoria, en `pickup` es opcional y solo sirve para la distancia. Responde:
+
+```json
+{
+  "fulfillment": "delivery",
+  "radiusKm": 5,
+  "branches": [
+    {
+      "id": "...", "name": "...", "address": "...", "phone": "...", "openingHours": "...",
+      "latitude": -32.89, "longitude": -68.84,
+      "distanceKm": 1.11,
+      "withinRadius": true,
+      "canFulfill": false,
+      "missing": [{ "productId": "...", "name": "...", "requested": 2, "available": 0 }]
+    }
+  ]
+}
+```
+
+En `delivery` solo vienen las activas dentro del radio; en `pickup`, todas las activas. Primero las que tienen `canFulfill` y después, por cercanía. Sin ubicación, `distanceKm` y `withinRadius` son `null`. Carrito vacío o dirección que falta responde 400.
+
+`POST /api/orders` recibe `{ fulfillment, branchId, addressId? }` (`addressId` solo en `delivery`) y `POST /api/orders/guest` suma `fulfillment` y `branchId` (`street`, `latitude` y `longitude` solo en `delivery`). Una sucursal inactiva, inexistente o fuera del radio en domicilio responde 400 (`code`: `BRANCH_UNAVAILABLE` u `OUT_OF_COVERAGE`). En el detalle del pedido, `address` es `null` en retiro.
 
 Cambios de modelo:
 
