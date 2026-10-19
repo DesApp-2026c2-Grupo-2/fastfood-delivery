@@ -7,6 +7,7 @@ import { getToken } from '../../auth/session';
 import { OrderCode } from '../../components/OrderCode';
 import { mediaUrl } from '../../lib/media';
 import { orderTimingText } from '../../lib/order-timing';
+import { useTimedNotice } from '../../lib/success-notice';
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(price);
@@ -25,7 +26,7 @@ export function AdminOrderDetailPage() {
   const location = useLocation();
   const token = getToken() ?? '';
   const [order, setOrder] = useState<AdminOrderDetail | null>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useTimedNotice();
   const [saving, setSaving] = useState(false);
   const listSearch = (location.state as { listSearch?: string } | null)?.listSearch;
   const backTo = listSearch ? `/admin/orders?${listSearch}` : '/admin/orders';
