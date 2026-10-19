@@ -183,8 +183,7 @@ describe('GET /api/admin/reports/products', () => {
     const cancelledInRevenue = topRevenue.find((p: { id: string }) => p.id === productCancelled.id);
     expect(cancelledInRevenue).toBeUndefined();
 
-    // 3. Sin stock: productOutOfStock debe figurar en outOfStock
-    const outStockFound = outOfStock.find((p: { id: string }) => p.id === productOutOfStock.id);
+    const outStockFound = outOfStock.find((p: { name: string }) => p.name.includes(productOutOfStock.name));
     expect(outStockFound).toBeDefined();
     expect(outStockFound.stock).toBe(0);
   });

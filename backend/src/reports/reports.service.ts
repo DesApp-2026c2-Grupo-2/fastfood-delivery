@@ -106,14 +106,34 @@ export class ReportsService {
       .sort((a, b) => b.totalRevenue - a.totalRevenue)
       .slice(0, 10);
 
-    // Sin stock (productos activos cuyo stock sumado es <= 0 o no tienen registro en Stock)
-    const outOfStock = products
-      .map((p) => ({
-        id: p.id,
-        name: p.name,
-        stock: stockByProduct.get(p.id) ?? 0,
-      }))
-      .filter((p) => p.stock <= 0);
+    // En reports.service.ts
+// Buscar stocks en 0 de sucursales activas para productos disponibles
+const outOfStockEntries = await this.prisma.stock.findMany({
+  where: {
+    available: { lte: 0 },
+    branch: { active: true },
+    product: { available: true },
+  },
+  select: {
+    available: true,
+    product: {
+      select: { id: true, name: true },
+    },
+    branch: {
+      select: { id: true, name: true },
+    },
+  },
+  orderBy: {
+    product: { name: 'asc' },
+  },
+});
+
+const outOfStock = outOfStockEntries.map((entry) => ({
+  id: `${entry.product.id}-${entry.branch.id}`,
+  name: entry.product.name,
+  branchName: entry.branch.name,
+  stock: entry.available,
+}));
 
     return {
       topSelling,

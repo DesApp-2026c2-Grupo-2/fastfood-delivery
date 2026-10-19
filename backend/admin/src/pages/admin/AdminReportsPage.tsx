@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 interface ReportItem {
   id: string;
   name: string;
+  branchName?: string;
   unitsSold?: number;
   totalRevenue?: number;
   stock?: number;
@@ -228,13 +229,14 @@ export function AdminReportsPage() {
             <thead>
               <tr>
                 <th style={tableHeaderStyle}>Producto</th>
+                <th style={tableHeaderStyle}>Sucursal</th>
                 <th style={{ ...tableHeaderStyle, textAlign: 'right' }}>Stock Disp.</th>
               </tr>
             </thead>
             <tbody>
               {data.outOfStock.length === 0 ? (
                 <tr>
-                  <td colSpan={2} style={{ ...cellStyle, textAlign: 'center', color: '#2e7d32' }}>
+                  <td colSpan={3} style={{ ...cellStyle, textAlign: 'center', color: '#2e7d32' }}>
                     Todos los productos tienen stock disponible
                   </td>
                 </tr>
@@ -242,6 +244,9 @@ export function AdminReportsPage() {
                 data.outOfStock.map((item) => (
                   <tr key={item.id}>
                     <td style={cellStyle}>{item.name}</td>
+                    <td style={{ ...cellStyle, color: '#7a6e65', fontSize: '0.85rem' }}>
+                      {item.branchName ?? 'Todas'}
+                    </td>
                     <td style={{ ...cellStyle, textAlign: 'right', fontWeight: 700, color: '#d32f2f' }}>
                       {item.stock}
                     </td>
