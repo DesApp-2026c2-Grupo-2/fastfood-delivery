@@ -15,6 +15,7 @@ import { useCart } from '../../cart/CartContext';
 import { getToken, isCustomer } from '../../auth/session';
 import { clearGuestCart, getGuestCart, hydrateGuestCart } from '../../cart/guestCart';
 import { formatDateTime, formatPrice } from '../../lib/money';
+import { AddressLocationPicker } from '../../components/AddressLocationPicker';
 
 type GuestFormErrors = {
   name?: string;
@@ -244,7 +245,7 @@ export function CheckoutPage() {
 
     if (fulfillment === 'delivery') {
       if (!street.trim()) {
-        nextErrors.street = 'Completá la dirección de entrega.';
+        nextErrors.latitude = 'Marcá la ubicación: buscá la dirección o tocá el mapa.';
       }
 
       if (!latitude.trim()) {
@@ -561,44 +562,23 @@ export function CheckoutPage() {
                   </small>
                 ) : null}
               </label>
-
-              <div className="row">
-                <label>
-                  Latitud
-                  <input
-                    value={latitude}
-                    onChange={(event) => {
-                      setLatitude(event.target.value);
-                      if (guestErrors.latitude) setGuestErrors((prev) => ({ ...prev, latitude: undefined }));
-                    }}
-                    inputMode="decimal"
-                    placeholder="-34.6037"
-                  />
-                  {guestErrors.latitude ? (
-                    <small className="error" role="alert">
-                      {guestErrors.latitude}
-                    </small>
-                  ) : null}
-                </label>
-                <label>
-                  Longitud
-                  <input
-                    value={longitude}
-                    onChange={(event) => {
-                      setLongitude(event.target.value);
-                      if (guestErrors.longitude) setGuestErrors((prev) => ({ ...prev, longitude: undefined }));
-                    }}
-                    inputMode="decimal"
-                    placeholder="-58.3816"
-                  />
-                  {guestErrors.longitude ? (
-                    <small className="error" role="alert">
-                      {guestErrors.longitude}
-                    </small>
-                  ) : null}
-                </label>
-              </div>
-              <p className="field-hint">En este sprint latitud y longitud se cargan a mano. Sin mapa.</p>
+              <AddressLocationPicker
+                street={street}
+                latitude={latitude}
+                longitude={longitude}
+                onChange={(lat, lng) => {
+                  setLatitude(lat);
+                  setLongitude(lng);
+                  setGuestErrors((prev) => ({ ...prev, latitude: undefined, longitude: undefined }));
+                }}
+                locateOnMount={false}
+                disabled={saving}
+              />
+              {guestErrors.latitude || guestErrors.longitude ? (
+                <small className="error" role="alert">
+                  {guestErrors.latitude ?? guestErrors.longitude}
+                </small>
+              ) : null}
             </>
           ) : null}
 
