@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Address } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
-import { formatCoordinate, requestDevicePosition } from '../../lib/geolocation';
+import { AddressLocationPicker } from '../../components/AddressLocationPicker';
 import { useAutoClear } from '../../lib/useAutoClear';
 
 type FormState = {
@@ -52,8 +52,6 @@ function AddressesContent({ token }: { token: string }) {
   useAutoClear(ok, () => setOk(''));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [locating, setLocating] = useState(false);
-  const [locationHint, setLocationHint] = useState('');
 
   async function load() {
     setLoading(true);
@@ -72,35 +70,10 @@ function AddressesContent({ token }: { token: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function fillFromDevice() {
-    setLocating(true);
-    setLocationHint('');
-    setError('');
-    try {
-      const position = await requestDevicePosition();
-      setForm((current) =>
-        current
-          ? {
-              ...current,
-              latitude: formatCoordinate(position.latitude),
-              longitude: formatCoordinate(position.longitude),
-            }
-          : current,
-      );
-      setLocationHint('Ubicación del dispositivo cargada. Podés ajustarla si hace falta.');
-    } catch (err) {
-      setLocationHint(err instanceof Error ? err.message : 'No pudimos obtener tu ubicación; cargala a mano.');
-    } finally {
-      setLocating(false);
-    }
-  }
-
   function startCreate() {
     setForm(emptyForm);
     setError('');
     setOk('');
-    setLocationHint('');
-    void fillFromDevice();
   }
 
   function startEdit(address: Address) {
@@ -114,13 +87,11 @@ function AddressesContent({ token }: { token: string }) {
     });
     setError('');
     setOk('');
-    setLocationHint('');
   }
 
   function cancelForm() {
     setForm(null);
     setError('');
-    setLocationHint('');
   }
 
   async function onSubmit(event: FormEvent) {
@@ -136,6 +107,10 @@ function AddressesContent({ token }: { token: string }) {
     }
     if (!form.street.trim()) {
       setError('Completá la dirección.');
+      return;
+    }
+    if (!form.latitude.trim() || !form.longitude.trim()) {
+      setError('Marcá la ubicación: buscá la dirección o tocá el mapa.');
       return;
     }
     if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
@@ -175,7 +150,6 @@ function AddressesContent({ token }: { token: string }) {
         setOk('Dirección guardada.');
       }
       setForm(null);
-      setLocationHint('');
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar');
@@ -218,7 +192,7 @@ function AddressesContent({ token }: { token: string }) {
       <header className="page-head">
         <div>
           <h1>Mis direcciones</h1>
-          <p className="muted">Guardá dónde querés recibir tus pedidos. Podés usar la ubicación del dispositivo o cargarla a mano.</p>
+          <p className="muted">Guardá dónde querés recibir tus pedidos. Buscá la dirección y confirmá el punto en el mapa.</p>
           <p className="addresses-branches-link">
             <Link to="/branches">Ver qué sucursales me cubren</Link>
           </p>
@@ -267,40 +241,15 @@ function AddressesContent({ token }: { token: string }) {
             />
           </label>
 
-          <fieldset className="address-location">
-            <legend>Ubicación</legend>
-            <p className="field-hint">
-              Usamos latitud y longitud para asignar la sucursal más cercana. Sin mapa en este sprint.
-            </p>
-            <div className="row">
-              <label>
-                Latitud
-                <input
-                  value={form.latitude}
-                  onChange={(event) => setForm((current) => current && { ...current, latitude: event.target.value })}
-                  required
-                  inputMode="decimal"
-                  placeholder="-34.6037"
-                />
-              </label>
-              <label>
-                Longitud
-                <input
-                  value={form.longitude}
-                  onChange={(event) => setForm((current) => current && { ...current, longitude: event.target.value })}
-                  required
-                  inputMode="decimal"
-                  placeholder="-58.3816"
-                />
-              </label>
-            </div>
-            <div className="address-location-actions">
-              <button type="button" className="secondary" onClick={() => void fillFromDevice()} disabled={locating}>
-                {locating ? 'Obteniendo…' : 'Usar mi ubicación'}
-              </button>
-              {locationHint ? <p className="muted address-location-hint">{locationHint}</p> : null}
-            </div>
-          </fieldset>
+          <AddressLocationPicker
+            key={form.id ?? 'new'}
+            street={form.street}
+            latitude={form.latitude}
+            longitude={form.longitude}
+            onChange={(latitude, longitude) => setForm((current) => current && { ...current, latitude, longitude })}
+            locateOnMount={!form.id}
+            disabled={saving}
+          />
 
           <label className="checkbox">
             <input
@@ -312,7 +261,7 @@ function AddressesContent({ token }: { token: string }) {
           </label>
 
           <div className="row address-form-actions">
-            <button type="submit" disabled={saving || locating}>
+            <button type="submit" disabled={saving}>
               {saving ? 'Guardando…' : 'Guardar'}
             </button>
             <button type="button" className="secondary" onClick={cancelForm} disabled={saving}>

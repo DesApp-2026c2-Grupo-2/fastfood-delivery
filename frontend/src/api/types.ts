@@ -191,6 +191,17 @@ export type AvailableBranchesResponse = {
   branches: AvailableBranch[];
 };
 
+// GET /api/branches (DEV-22): todas las activas. Sin ubicación, distanceKm y withinRadius vienen null.
+export type ActiveBranch = Omit<AvailableBranch, 'distanceKm'> & {
+  distanceKm: number | null;
+  withinRadius: boolean | null;
+};
+
+export type ActiveBranchesResponse = {
+  radiusKm: number;
+  branches: ActiveBranch[];
+};
+
 // Errores del checkout (HU-18 / HU-19): POST /orders y /orders/guest
 export type OutOfCoverageError = {
   code: 'OUT_OF_COVERAGE';
