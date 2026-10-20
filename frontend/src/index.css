@@ -1842,6 +1842,20 @@ h2 {
   box-shadow: none;
 }
 
+.branch-stock {
+  display: block;
+  font-weight: 700;
+  margin-top: 0.15rem;
+}
+
+.branch-stock--ok {
+  color: #166534;
+}
+
+.branch-stock--short {
+  color: #9a3412;
+}
+
 @media (min-width: 800px) {
   .admin-home-links {
     grid-template-columns: 1fr 1fr;
@@ -3570,12 +3584,6 @@ h2 {
   background: #fef2f2;
   color: #991b1b;
   font-weight: 700;
-}
-
-@media (max-width: 719px) {
-  .branches-search > button {
-    width: 100%;
-  }
 }
 
 .card,
