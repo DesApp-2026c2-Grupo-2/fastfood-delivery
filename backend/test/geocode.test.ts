@@ -6,6 +6,24 @@ import {
   parseNominatimResults,
 } from '../src/branches/geocode';
 
+function located(candidate: {
+  latitude: number;
+  longitude: number;
+  displayName: string;
+  name?: string;
+  houseNumber?: string;
+  postcode?: string;
+  locality?: string;
+}) {
+  return {
+    name: '',
+    houseNumber: '',
+    postcode: '',
+    locality: '',
+    ...candidate,
+  };
+}
+
 describe('Geocodificación de direcciones (Nominatim)', () => {
   it('arma la consulta limitada a Argentina', () => {
     const url = new URL(buildNominatimUrl('Av. Colón 100, Córdoba'));

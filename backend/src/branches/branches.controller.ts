@@ -9,6 +9,13 @@ import { AvailableBranchesQueryDto } from './dto/available-branches-query.dto';
 export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}
 
+  // Todas las activas (DEV-22). La ubicación es opcional: sin ella no hay distancia.
+  @Get()
+  @UseGuards(OptionalJwtAuthGuard)
+  findAllActive(@Req() req: Request & { user?: JwtPayload }, @Query() query: AvailableBranchesQueryDto) {
+    return this.branchesService.findAllActive(query, req.user);
+  }
+
   // Con lat/lng la puede usar un invitado; con addressId hace falta el token del dueño de la dirección.
   @Get('available')
   @UseGuards(OptionalJwtAuthGuard)
