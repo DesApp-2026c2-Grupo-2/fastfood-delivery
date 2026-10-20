@@ -7,11 +7,13 @@ import { CartService } from '../cart/cart.service';
 import { byName, ExtrasService } from '../extras/extras.service';
 import { ParametersService } from '../parameters/parameters.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PromotionsService } from '../promotions/promotions.service';
 import { stockLines } from '../stock/stock-lines';
 import { StockService } from '../stock/stock.service';
 import { CheckoutBranchesDto } from './dto/checkout-branches.dto';
 import { CreateGuestOrderDto } from './dto/create-guest-order.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { QuotePromotionDto } from './dto/quote-promotion.dto';
 import { deliveryTiming, estimateDeliveryAt } from './eta';
 import { OrderEvents } from './order-events';
 import { canTransition, nextStatuses } from './order-status';
@@ -33,6 +35,51 @@ type OrderWithRelations = Prisma.OrderGetPayload<{ include: typeof withRelations
 
 function sumPrices(prices: Array<Prisma.Decimal | number>) {
   return prices.reduce<number>((sum, price) => sum + Number(price), 0);
+}
+
+type PricedLine = {
+  product: { price: Prisma.Decimal };
+  quantity: number;
+  extras: { price: Prisma.Decimal | number }[];
+};
+
+// Subtotal de lista: Σ (precio del producto + Σ adicionales) × cantidad. La promo se descuenta sobre esto.
+function linesSubtotal(lines: PricedLine[]) {
+  return lines.reduce((sum, line) => {
+    const extrasTotal = sumPrices(line.extras.map((extra) => extra.price));
+    return sum + (Number(line.product.price) + extrasTotal) * line.quantity;
+  }, 0);
+}
+
+type CartWithItems = {
+  items: {
+    product: { id: string; name: string; price: Prisma.Decimal };
+    quantity: number;
+    extras: { extra: { id: string; name: string; price: Prisma.Decimal } }[];
+  }[];
+};
+
+function cartLines(cart: CartWithItems) {
+  return cart.items.map((item) => ({
+    product: item.product,
+    quantity: item.quantity,
+    extras: item.extras.map(({ extra }) => extra),
+  }));
+}
+
+// Importes del pedido. Los pedidos anteriores a las promos tienen subtotal = total y descuento 0.
+function pricing(order: {
+  subtotal: Prisma.Decimal;
+  discountAmount: Prisma.Decimal;
+  totalAmount: Prisma.Decimal;
+  promotionName: string | null;
+}) {
+  return {
+    subtotal: Number(order.subtotal),
+    discountAmount: Number(order.discountAmount),
+    totalAmount: Number(order.totalAmount),
+    promotionName: order.promotionName,
+  };
 }
 
 const adminDetailInclude = {
@@ -158,7 +205,7 @@ function serialize(order: OrderWithRelations) {
   return {
     id: order.id,
     status: order.status,
-    totalAmount: Number(order.totalAmount),
+    ...pricing(order),
     createdAt: order.createdAt,
     branch: {
       id: order.branch.id,
@@ -181,7 +228,7 @@ function serializeAdmin(order: OrderAdminDetail) {
   return {
     id: order.id,
     status: order.status,
-    totalAmount: Number(order.totalAmount),
+    ...pricing(order),
     createdAt: order.createdAt,
     customerName: order.user?.name ?? order.guestName ?? 'Invitado',
     customerEmail: order.user?.email ?? order.guestEmail ?? '',
@@ -248,6 +295,7 @@ export class OrdersService {
     private readonly extrasService: ExtrasService,
     private readonly orderEvents: OrderEvents,
     private readonly parametersService: ParametersService,
+    private readonly promotionsService: PromotionsService,
     private readonly stockService: StockService,
   ) {}
 
@@ -264,24 +312,17 @@ export class OrdersService {
       dto.fulfillment,
       address ? { latitude: Number(address.latitude), longitude: Number(address.longitude) } : null,
     );
-    const totalAmount = cart.items.reduce((sum, item) => {
-      const extrasTotal = sumPrices(item.extras.map(({ extra }) => extra.price));
-      return sum + (Number(item.product.price) + extrasTotal) * item.quantity;
-    }, 0);
+    const lines = cartLines(cart);
     const createdAt = new Date();
+    // La promo vigente se aplica al confirmar (HU-21); no depende de la sucursal ni del tipo de entrega.
+    const price = await this.promotionsService.apply(linesSubtotal(lines), createdAt);
     const estimatedDeliveryAt = estimateDeliveryAt(
       createdAt,
       cart.items.reduce((sum, item) => sum + item.quantity, 0),
       distanceKm,
       await this.parametersService.etaSettings(),
     );
-    const units = stockLines(
-      cart.items.map((item) => ({
-        product: item.product,
-        quantity: item.quantity,
-        extras: item.extras.map(({ extra }) => extra),
-      })),
-    );
+    const units = stockLines(lines);
 
     const order = await this.prisma.$transaction(async (tx) => {
       // Sin stock suficiente sale un 409 y no se crea el pedido; el carrito queda como estaba.
@@ -293,7 +334,7 @@ export class OrdersService {
           branchId: branch.id,
           fulfillment: dto.fulfillment,
           addressId: address?.id ?? null,
-          totalAmount,
+          ...this.priceData(price),
           status: 'pending',
           createdAt,
           estimatedDeliveryAt,
@@ -337,11 +378,8 @@ export class OrdersService {
       dto.fulfillment,
       delivery ? { latitude: dto.latitude as number, longitude: dto.longitude as number } : null,
     );
-    const totalAmount = lines.reduce((sum, line) => {
-      const extrasTotal = sumPrices(line.extras.map((extra) => extra.price));
-      return sum + (Number(line.product.price) + extrasTotal) * line.quantity;
-    }, 0);
     const createdAt = new Date();
+    const price = await this.promotionsService.apply(linesSubtotal(lines), createdAt);
     const estimatedDeliveryAt = estimateDeliveryAt(
       createdAt,
       lines.reduce((sum, line) => sum + line.quantity, 0),
@@ -370,7 +408,7 @@ export class OrdersService {
           branchId: branch.id,
           fulfillment: dto.fulfillment,
           addressId: address?.id ?? null,
-          totalAmount,
+          ...this.priceData(price),
           status: 'pending',
           createdAt,
           estimatedDeliveryAt,
@@ -410,7 +448,7 @@ export class OrdersService {
    * Domicilio: solo activas dentro del radio de la dirección. Retiro: todas las activas.
    */
   async listBranchesForCheckout(dto: CheckoutBranchesDto, user?: JwtPayload) {
-    const units = await this.checkoutUnits(dto, user);
+    const units = stockLines(await this.checkoutLines(dto, user));
 
     const hasOrigin = dto.addressId !== undefined || dto.latitude !== undefined || dto.longitude !== undefined;
     const origin = hasOrigin
@@ -458,6 +496,15 @@ export class OrdersService {
     return { fulfillment: dto.fulfillment, radiusKm, branches: rows };
   }
 
+  /**
+   * Subtotal, descuento y total antes de confirmar (HU-21), con la misma regla que se aplica al crear
+   * el pedido. `promotion` es null cuando no hay descuento.
+   */
+  async quote(dto: QuotePromotionDto, user?: JwtPayload) {
+    const lines = await this.checkoutLines(dto, user);
+    return this.promotionsService.apply(linesSubtotal(lines));
+  }
+
   async findAllAdmin(query: {
     status?: OrderStatus;
     code?: string;
@@ -496,7 +543,7 @@ export class OrdersService {
         id: order.id,
         status: order.status,
         fulfillment: order.fulfillment,
-        totalAmount: Number(order.totalAmount),
+        ...pricing(order),
         createdAt: order.createdAt,
         customerName: order.user?.name ?? order.guestName ?? 'Invitado',
         customerEmail: order.user?.email ?? order.guestEmail ?? '',
@@ -543,7 +590,7 @@ export class OrdersService {
       id: order.id,
       status: order.status,
       fulfillment: order.fulfillment,
-      totalAmount: Number(order.totalAmount),
+      ...pricing(order),
       createdAt: order.createdAt,
       branch: order.branch,
       itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
@@ -628,22 +675,26 @@ export class OrdersService {
     return { cart: await this.cartService.getCart(userId), skipped };
   }
 
-  // Las unidades que pediría el cliente: los ítems que manda (invitado) o, con sesión, su carrito.
-  private async checkoutUnits(dto: CheckoutBranchesDto, user?: JwtPayload) {
+  // Lo que pediría el cliente: los ítems que manda (invitado) o, con sesión, su carrito.
+  private async checkoutLines(dto: { items?: CheckoutBranchesDto['items'] }, user?: JwtPayload) {
     if (dto.items) {
-      return stockLines(await this.resolveLines(dto.items));
+      return this.resolveLines(dto.items);
     }
     if (!user) {
       throw new BadRequestException('El carrito está vacío');
     }
-    const cart = await this.loadCart(user.sub);
-    return stockLines(
-      cart.items.map((item) => ({
-        product: item.product,
-        quantity: item.quantity,
-        extras: item.extras.map(({ extra }) => extra),
-      })),
-    );
+    return cartLines(await this.loadCart(user.sub));
+  }
+
+  // Los importes que se guardan en el pedido. El nombre de la promo se copia.
+  private priceData(price: Awaited<ReturnType<PromotionsService['apply']>>) {
+    return {
+      subtotal: price.subtotal,
+      discountAmount: price.discountAmount,
+      totalAmount: price.totalAmount,
+      promotionId: price.promotion?.id ?? null,
+      promotionName: price.promotion?.name ?? null,
+    };
   }
 
   private async assertOwnedByUser(userId: string, id: string) {

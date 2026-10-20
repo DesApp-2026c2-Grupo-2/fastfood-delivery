@@ -393,6 +393,7 @@ async function seedDelayedOrders(customerId: string) {
         branchId: branch.id,
         addressId: address.id,
         status,
+        subtotal: burger.price,
         totalAmount: burger.price,
         createdAt,
         estimatedDeliveryAt: new Date(createdAt.getTime() + demo.etaMinutes * MINUTE_MS),

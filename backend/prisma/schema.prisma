@@ -29,6 +29,11 @@ enum Fulfillment {
   pickup
 }
 
+// Tipo de promoción (HU-20, HU-21). En el Sprint 4 solo entra el porcentual automático; fixed y 2x1 quedan para después.
+enum PromotionType {
+  percent
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -211,6 +216,13 @@ model Order {
   // true mientras el pedido tiene stock reservado en su sucursal (HU-18). Los pedidos anteriores
   // al stock quedan en false: al cancelarlos o entregarlos no se toca el stock.
   stockReserved Boolean     @default(false)
+  // Precio de lista (productos + adicionales). totalAmount es lo que se cobra: subtotal − discountAmount.
+  subtotal       Decimal    @db.Decimal(10, 2)
+  discountAmount Decimal    @default(0) @db.Decimal(10, 2)
+  // La promo aplicada al confirmar. El nombre se copia: editar la promo después no cambia el pedido.
+  promotionId    String?
+  promotionName  String?
+  promotion      Promotion? @relation(fields: [promotionId], references: [id], onDelete: Restrict)
   user        User?       @relation(fields: [userId], references: [id])
   branch      Branch      @relation(fields: [branchId], references: [id])
   address     Address?    @relation(fields: [addressId], references: [id], onDelete: Restrict)
@@ -223,6 +235,24 @@ model Order {
   @@index([branchId])
   @@index([addressId])
   @@index([status])
+  @@index([promotionId])
+}
+
+// Promoción automática (sin código). Vigente: activa y, si tiene fechas, dentro de ellas. Se aplica una sola por pedido.
+model Promotion {
+  id        String        @id @default(cuid())
+  name      String
+  type      PromotionType @default(percent)
+  // percent: entero de 1 a 100.
+  value     Int
+  active    Boolean       @default(true)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  orders    Order[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([active])
 }
 
 model OrderItem {
