@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import { useSession } from '../../auth/SessionContext';
 import type { UpdateMeRequest, User } from '../../api/types';
 import { clearSession, getToken, isCustomer, updateStoredUser } from '../../auth/session';
+import { useAutoClear } from '../../lib/useAutoClear';
 
 export function AccountPage() {
   const token = getToken();
@@ -25,6 +26,7 @@ function AccountContent({ token }: { token: string }) {
   const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
+  useAutoClear(ok, () => setOk(''));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 

@@ -108,6 +108,7 @@ export type OrderItem = {
 export type Order = {
   id: string;
   status: string;
+  fulfillment?: Fulfillment;
   totalAmount: number;
   createdAt: string;
   guestName?: string | null;
@@ -121,7 +122,7 @@ export type Order = {
     id: string;
     alias?: string;
     street: string;
-  };
+  } | null;
   items: OrderItem[];
 };
 
@@ -220,4 +221,34 @@ export type OutOfStockError = {
   message: string;
   branch: { id: string; name: string };
   items: OutOfStockItem[];
+};
+
+// Retiro o domicilio y sucursal elegida (HU-23): POST /branches/checkout
+export type Fulfillment = 'delivery' | 'pickup';
+
+export type CheckoutBranchMissing = {
+  productId: string;
+  name: string;
+  requested: number;
+  available: number;
+};
+
+export type CheckoutBranch = {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  openingHours: string;
+  latitude: number;
+  longitude: number;
+  distanceKm: number | null;
+  withinRadius: boolean | null;
+  canFulfill: boolean;
+  missing: CheckoutBranchMissing[];
+};
+
+export type CheckoutBranchesResponse = {
+  fulfillment: Fulfillment;
+  radiusKm: number;
+  branches: CheckoutBranch[];
 };
