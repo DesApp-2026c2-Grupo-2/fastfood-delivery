@@ -23,6 +23,10 @@ export class AdminsService {
     return admins.map((admin) => this.serialize(admin));
   }
 
+  async findOne(id: string) {
+    return this.serialize(await this.findAdmin(id));
+  }
+
   async create(dto: CreateAdminDto) {
     await this.assertEmailAvailable(dto.email);
     const admin = await this.prisma.user.create({

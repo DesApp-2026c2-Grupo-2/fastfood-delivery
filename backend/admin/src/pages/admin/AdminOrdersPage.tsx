@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import { useOrderStatusEvents } from '../../api/order-events';
 import {
@@ -24,6 +24,7 @@ function formatWhen(iso: string) {
 
 export function AdminOrdersPage() {
   const token = getToken() ?? '';
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const statusFilter = (searchParams.get('status') ?? '') as OrderStatus | '';
   const code = searchParams.get('code') ?? '';
@@ -154,7 +155,7 @@ export function AdminOrdersPage() {
   const listSearch = searchParams.toString();
 
   return (
-    <section className="stack">
+    <section className="stack orders-page">
       <header className="page-head">
         <div>
           <h1>Pedidos</h1>
@@ -231,7 +232,7 @@ export function AdminOrdersPage() {
 
       {!loading && orders.length > 0 ? (
         <div className="table-wrap orders-table-wrap">
-          <table className="data-table">
+          <table className="data-table orders-table">
             <thead>
               <tr>
                 <th>Pedido</th>
@@ -245,8 +246,13 @@ export function AdminOrdersPage() {
             <tbody>
               {orders.map((order) => {
                 const timing = orderTimingText(order);
+                const openDetail = (event: { target: EventTarget | null }) => {
+                  const target = event.target;
+                  if (target instanceof Element && target.closest('a, button')) return;
+                  navigate(`/admin/orders/${order.id}`, { state: { listSearch } });
+                };
                 return (
-                <tr key={order.id}>
+                <tr key={order.id} className="orders-table-row" onClick={openDetail}>
                   <td>
                     <OrderCode id={order.id} to={`/admin/orders/${order.id}`} state={{ listSearch }} />
                     <p className="table-slug muted">{order.itemCount} ítems</p>
@@ -299,7 +305,7 @@ export function AdminOrdersPage() {
         </ul>
       ) : null}
 
-      {!loading && total > 0 ? (
+      {!loading && pageCount > 1 ? (
         <nav className="pagination" aria-label="Paginación de pedidos">
           <button
             type="button"

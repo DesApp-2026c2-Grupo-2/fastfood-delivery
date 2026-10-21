@@ -20,6 +20,11 @@ export class AdminAdminsController {
     return this.adminsService.findAll();
   }
 
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.adminsService.findOne(id);
+  }
+
   @Post()
   create(@Body() dto: CreateAdminDto) {
     return this.adminsService.create(dto);

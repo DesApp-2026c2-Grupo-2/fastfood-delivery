@@ -199,7 +199,8 @@ export function AdminPromotionsPage() {
       ) : null}
 
       {!loading && pageItems.length > 0 ? (
-        <div className="table-wrap">
+        <>
+        <div className="table-wrap promo-table-wrap">
           <table className="data-table">
             <thead>
               <tr>
@@ -242,9 +243,32 @@ export function AdminPromotionsPage() {
             </tbody>
           </table>
         </div>
+        <ul className="promo-card-list">
+          {pageItems.map((promotion) => (
+            <li key={promotion.id} className="order-card">
+              <div className="order-card-top">
+                <strong>{promotion.name}</strong>
+                <span className={promotion.active ? 'badge' : 'badge badge--off'}>
+                  {promotion.active ? 'activa' : 'inactiva'}
+                </span>
+              </div>
+              <p>{discountLabel(promotion)}</p>
+              <p className="muted">{rangeLabel(promotion)}</p>
+              <div className="row">
+                <button type="button" className="secondary" onClick={() => navigate(`/admin/promotions/${promotion.id}`)}>
+                  Editar
+                </button>
+                <button type="button" className="danger" onClick={() => setPendingDelete(promotion)}>
+                  Borrar
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+        </>
       ) : null}
 
-      {!loading && visible.length > 0 ? (
+      {!loading && pageCount > 1 ? (
         <nav className="pagination" aria-label="Paginación de promociones">
           <button
             type="button"

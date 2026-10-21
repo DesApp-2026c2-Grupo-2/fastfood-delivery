@@ -2,7 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { LoginResponse } from '../../api/types';
-import { isAdmin, saveSession } from '../../auth/session';
+import { consumeAuthNotice, isAdmin, saveSession } from '../../auth/session';
 import { BrandLogo } from '../../components/BrandLogo';
 import { SvgIcon } from '../../icons/SvgIcon';
 import { useTimedNotice } from '../../lib/success-notice';
@@ -14,6 +14,7 @@ export function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [error, setError] = useTimedNotice();
+  const [expiredNotice] = useState(() => consumeAuthNotice());
   const [loading, setLoading] = useState(false);
 
   if (isAdmin()) {
@@ -62,6 +63,11 @@ export function AdminLoginPage() {
           <BrandLogo size={120} />
           <h1>Mordi</h1>
           <p className="muted">Entrá con el usuario inicial del sistema.</p>
+          {expiredNotice ? (
+            <p className="error" role="status">
+              {expiredNotice}
+            </p>
+          ) : null}
           <label>
             Email
             <input

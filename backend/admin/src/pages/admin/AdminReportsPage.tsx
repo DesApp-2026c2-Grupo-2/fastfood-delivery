@@ -66,6 +66,7 @@ export function AdminReportsPage() {
     border: '1px solid #f0e6dc',
     display: 'flex',
     flexDirection: 'column',
+    overflowX: 'auto',
   };
 
   const tableHeaderStyle: React.CSSProperties = {
@@ -87,7 +88,7 @@ export function AdminReportsPage() {
   };
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="reports-page">
       <header style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#1a1412', margin: 0 }}>
           Reportes de Productos
@@ -100,8 +101,8 @@ export function AdminReportsPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-          gap: '1.5rem',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 16rem), 1fr))',
+          gap: '1rem',
         }}
       >
         {/* 1. Más vendidos */}

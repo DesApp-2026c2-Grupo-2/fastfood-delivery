@@ -1,7 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from './layouts/AdminLayout';
+import { AdminAdminFormPage } from './pages/admin/AdminAdminFormPage';
 import { AdminAdminsPage } from './pages/admin/AdminAdminsPage';
 import { AdminBranchesPage } from './pages/admin/AdminBranchesPage';
+import { AdminBranchFormPage } from './pages/admin/AdminBranchFormPage';
 import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage';
 import { AdminHomePage } from './pages/admin/AdminHomePage';
 import { AdminLoginPage } from './pages/admin/AdminLoginPage';
@@ -25,9 +27,13 @@ export default function App() {
         <Route path="stock" element={<AdminStockPage />} />
         <Route path="parameters" element={<AdminParametersPage />} />
         <Route path="admins" element={<AdminAdminsPage />} />
+        <Route path="admins/nueva" element={<AdminAdminFormPage />} />
+        <Route path="admins/:id" element={<AdminAdminFormPage />} />
         <Route path="categories" element={<AdminCategoriesPage />} />
         <Route path="products" element={<AdminProductsPage />} />
         <Route path="branches" element={<AdminBranchesPage />} />
+        <Route path="branches/nueva" element={<AdminBranchFormPage />} />
+        <Route path="branches/:id" element={<AdminBranchFormPage />} />
         <Route path="reports" element={<AdminReportsPage />} />
         <Route path="promotions" element={<AdminPromotionsPage />} />
         <Route path="promotions/nueva" element={<AdminPromotionFormPage />} />

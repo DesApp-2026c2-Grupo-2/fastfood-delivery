@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import { useOrderStatusEvents } from '../../api/order-events';
 import { ORDER_STATUS_LABEL, type AdminOrderDetail, type OrderStatus } from '../../api/types';
 import { getToken } from '../../auth/session';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import { OrderCode } from '../../components/OrderCode';
 import { mediaUrl } from '../../lib/media';
 import { orderTimingText } from '../../lib/order-timing';
@@ -32,6 +33,7 @@ export function AdminOrderDetailPage() {
   const location = useLocation();
   const token = getToken() ?? '';
   const [order, setOrder] = useState<AdminOrderDetail | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null);
   const [error, setError] = useTimedNotice();
   const [saving, setSaving] = useState(false);
   const listSearch = (location.state as { listSearch?: string } | null)?.listSearch;
@@ -79,6 +81,7 @@ export function AdminOrderDetailPage() {
           body,
         }),
       );
+      setPendingStatus(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo cambiar el estado');
     } finally {
@@ -140,13 +143,24 @@ export function AdminOrderDetailPage() {
             type="button"
             className={`btn-status btn-status--${forward}`}
             disabled={saving}
-            onClick={() => void changeStatus(forward)}
+            onClick={() => {
+              setError('');
+              setPendingStatus(forward);
+            }}
           >
             Pasar a {ORDER_STATUS_LABEL[forward]}
           </button>
         ) : null}
         {canCancel ? (
-          <button type="button" className="danger" disabled={saving} onClick={() => void changeStatus('cancelled')}>
+          <button
+            type="button"
+            className="danger"
+            disabled={saving}
+            onClick={() => {
+              setError('');
+              setPendingStatus('cancelled');
+            }}
+          >
             Cancelar pedido
           </button>
         ) : null}
@@ -169,11 +183,19 @@ export function AdminOrderDetailPage() {
           <span className="muted">{order.branch.address}</span>
         </p>
         <p>
-          Dirección:{' '}
-          <strong>
-            {order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}
-            {order.address.street}
-          </strong>
+          {order.address ? (
+            <>
+              Dirección:{' '}
+              <strong>
+                {order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}
+                {order.address.street}
+              </strong>
+            </>
+          ) : (
+            <>
+              Entrega: <strong>Retiro en sucursal</strong>
+            </>
+          )}
         </p>
         {order.status !== 'cancelled' && order.etaMinutes != null && order.etaMinutes > 0 ? (
           <p>
@@ -234,6 +256,30 @@ export function AdminOrderDetailPage() {
           </ol>
         )}
       </article>
+      {pendingStatus ? (
+        <ConfirmModal
+          title={pendingStatus === 'cancelled' ? 'Cancelar pedido' : 'Cambiar estado'}
+          message={
+            pendingStatus === 'cancelled'
+              ? 'El pedido se cancela y no se puede volver atrás.'
+              : `El pedido pasa a ${ORDER_STATUS_LABEL[pendingStatus]}. Este paso no se puede deshacer.`
+          }
+          confirmLabel={
+            pendingStatus === 'cancelled' ? 'Cancelar pedido' : `Pasar a ${ORDER_STATUS_LABEL[pendingStatus]}`
+          }
+          busyLabel="Guardando…"
+          busy={saving}
+          danger={pendingStatus === 'cancelled'}
+          error={error}
+          onConfirm={() => void changeStatus(pendingStatus)}
+          onClose={() => {
+            if (!saving) {
+              setPendingStatus(null);
+              setError('');
+            }
+          }}
+        />
+      ) : null}
     </section>
   );
 }

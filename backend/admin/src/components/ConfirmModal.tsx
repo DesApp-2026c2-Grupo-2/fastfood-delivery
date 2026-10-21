@@ -7,6 +7,7 @@ type ConfirmModalProps = {
   busyLabel?: string;
   busy?: boolean;
   error?: string;
+  danger?: boolean;
   onConfirm: () => void;
   onClose: () => void;
 };
@@ -18,6 +19,7 @@ export function ConfirmModal({
   busyLabel = 'Un momento…',
   busy = false,
   error = '',
+  danger = true,
   onConfirm,
   onClose,
 }: ConfirmModalProps) {
@@ -51,7 +53,7 @@ export function ConfirmModal({
           </p>
         ) : null}
         <div className="row modal-actions">
-          <button type="button" className="danger" disabled={busy} onClick={onConfirm}>
+          <button type="button" className={danger ? 'danger' : undefined} disabled={busy} onClick={onConfirm}>
             {busy ? busyLabel : confirmLabel}
           </button>
           <button type="button" className="secondary" disabled={busy} autoFocus onClick={onClose}>

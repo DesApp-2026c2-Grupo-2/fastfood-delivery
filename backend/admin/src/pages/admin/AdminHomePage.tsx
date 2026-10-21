@@ -103,6 +103,8 @@ export function AdminHomePage() {
   const radius = parameters?.find((parameter) => parameter.key === 'coverage_radius_km');
   const prep = parameters?.find((parameter) => parameter.key === 'eta_prep_base_min');
   const topSeller = reports?.topSelling[0];
+  const topBars = reports?.topSelling.slice(0, 5) ?? [];
+  const maxUnits = topBars.reduce((max, item) => Math.max(max, item.unitsSold ?? 0), 0);
 
   return (
     <section className="stack">
@@ -114,9 +116,9 @@ export function AdminHomePage() {
       </header>
 
       <ol className="demo-steps">
-        <li>Pedidos para seguir el estado. Stock y parámetros para la cobertura y el tiempo estimado.</li>
-        <li>Productos, categorías y sucursales arman el menú que ve el cliente.</li>
-        <li>Promociones: porcentaje con vigencia y monto mínimo, o 2x1 de un producto. Reportes muestra lo más vendido y el stock en cero.</li>
+        <li>Operación: pedidos, stock y reportes de ventas.</li>
+        <li>Carta: productos, categorías y promociones. Sucursales es el local.</li>
+        <li>Configuración: radio y tiempo estimado, y quiénes administran.</li>
       </ol>
 
       <div className="admin-home-links">
@@ -139,42 +141,40 @@ export function AdminHomePage() {
         </article>
 
         <article className="home-panel">
-          <Link className="card-link" to="/admin/parameters">
-            <span>Parámetros</span>
+          <Link className="card-link" to="/admin/reports">
+            <span>Reportes</span>
             <small>
-              {parameters === null
+              {reports === null
                 ? '…'
-                : `Radio ${radius?.value ?? '—'} km · preparación base ${prep?.value ?? '—'} min`}
+                : topSeller
+                  ? `Más vendido: ${topSeller.name} · ${topSeller.unitsSold ?? 0} u.`
+                  : 'Todavía no hay ventas'}
+              {reports && reports.outOfStock.length > 0 ? ` · ${reports.outOfStock.length} sin stock` : ''}
             </small>
           </Link>
-        </article>
-
-        <article className="home-panel">
-          <Link className="card-link" to="/admin/admins">
-            <span>Administradores</span>
-            <small>{admins === null ? '…' : `${admins.length} con acceso`}</small>
-          </Link>
-        </article>
-
-        <article className="home-panel">
-          <Link className="card-link" to="/admin/categories">
-            <span>Categorías</span>
-            <small>{categories === null ? '…' : `${categories.length} cargadas`}</small>
-          </Link>
-          {categories && latestCategories.length > 0 ? (
+          {reports === null ? (
+            <p className="home-latest-empty">Cargando…</p>
+          ) : topBars.length === 0 ? (
+            <p className="home-latest-empty">Todavía no hay ventas.</p>
+          ) : (
             <div>
-              <p className="home-latest-caption">Últimas cargadas</p>
-              <ul className="home-latest">
-                {latestCategories.map((category) => (
-                  <li key={category.id}>
-                    <strong>{category.name}</strong>
-                    <small>{formatWhen(category.createdAt)}</small>
-                  </li>
-                ))}
+              <p className="home-latest-caption">Más vendidos</p>
+              <ul className="home-bars">
+                {topBars.map((item) => {
+                  const units = item.unitsSold ?? 0;
+                  const width = maxUnits > 0 ? Math.max(8, (units / maxUnits) * 100) : 0;
+                  return (
+                    <li key={item.id}>
+                      <strong title={item.name}>{item.name}</strong>
+                      <span className="home-bar-track">
+                        <span className="home-bar-fill" style={{ width: `${width}%` }} />
+                      </span>
+                      <small>{units} u.</small>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
-          ) : (
-            <p className="home-latest-empty">{categories === null ? 'Cargando…' : 'Todavía no hay categorías.'}</p>
           )}
         </article>
 
@@ -212,6 +212,28 @@ export function AdminHomePage() {
         </article>
 
         <article className="home-panel">
+          <Link className="card-link" to="/admin/categories">
+            <span>Categorías</span>
+            <small>{categories === null ? '…' : `${categories.length} cargadas`}</small>
+          </Link>
+          {categories && latestCategories.length > 0 ? (
+            <div>
+              <p className="home-latest-caption">Últimas cargadas</p>
+              <ul className="home-latest">
+                {latestCategories.map((category) => (
+                  <li key={category.id}>
+                    <strong>{category.name}</strong>
+                    <small>{formatWhen(category.createdAt)}</small>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="home-latest-empty">{categories === null ? 'Cargando…' : 'Todavía no hay categorías.'}</p>
+          )}
+        </article>
+
+        <article className="home-panel">
           <Link className="card-link" to="/admin/promotions">
             <span>Promociones</span>
             <small>
@@ -240,20 +262,6 @@ export function AdminHomePage() {
         </article>
 
         <article className="home-panel">
-          <Link className="card-link" to="/admin/reports">
-            <span>Reportes</span>
-            <small>
-              {reports === null
-                ? '…'
-                : topSeller
-                  ? `Más vendido: ${topSeller.name} · ${topSeller.unitsSold ?? 0} u.`
-                  : 'Todavía no hay ventas'}
-              {reports && reports.outOfStock.length > 0 ? ` · ${reports.outOfStock.length} sin stock` : ''}
-            </small>
-          </Link>
-        </article>
-
-        <article className="home-panel">
           <Link className="card-link" to="/admin/branches">
             <span>Sucursales</span>
             <small>
@@ -261,6 +269,24 @@ export function AdminHomePage() {
                 ? '…'
                 : `${branches.length} cargadas · ${branches.filter((branch) => branch.active).length} activas`}
             </small>
+          </Link>
+        </article>
+
+        <article className="home-panel">
+          <Link className="card-link" to="/admin/parameters">
+            <span>Parámetros</span>
+            <small>
+              {parameters === null
+                ? '…'
+                : `Radio ${radius?.value ?? '—'} km · preparación base ${prep?.value ?? '—'} min`}
+            </small>
+          </Link>
+        </article>
+
+        <article className="home-panel">
+          <Link className="card-link" to="/admin/admins">
+            <span>Administradores</span>
+            <small>{admins === null ? '…' : `${admins.length} con acceso`}</small>
           </Link>
         </article>
       </div>

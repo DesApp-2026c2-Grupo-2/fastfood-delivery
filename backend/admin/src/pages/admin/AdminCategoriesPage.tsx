@@ -326,7 +326,7 @@ export function AdminCategoriesPage() {
         </div>
       ) : null}
 
-      {!loading && visible.length > 0 ? (
+      {!loading && pageCount > 1 ? (
         <nav className="pagination" aria-label="Paginación de categorías">
           <button
             type="button"

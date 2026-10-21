@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { LoginResponse } from '../../api/types';
 import { useSession } from '../../auth/SessionContext';
-import { isCustomer, saveSession } from '../../auth/session';
+import { consumeAuthNotice, isCustomer, saveSession, SESSION_EXPIRED_MESSAGE } from '../../auth/session';
 import { mergeGuestCartIntoAccount } from '../../cart/guestCart';
 import { BrandLogo } from '../../components/BrandLogo';
 import { PasswordField } from '../../components/PasswordField';
@@ -21,7 +21,8 @@ export function LoginPage() {
   const { refresh: refreshSession } = useSession();
   const locationState = location.state as LocationState | null;
   const from = locationState?.from;
-  const successMessage = locationState?.message;
+  const [storedNotice] = useState(() => consumeAuthNotice());
+  const successMessage = locationState?.message || storedNotice;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -95,7 +96,11 @@ export function LoginPage() {
           <p className="muted">Iniciá sesión para armar tu pedido.</p>
 
           {/* Mensaje de éxito si viene redirigido desde el reset de contraseña */}
-          {successMessage ? (
+          {successMessage === SESSION_EXPIRED_MESSAGE ? (
+            <p className="error" role="status">
+              {successMessage}
+            </p>
+          ) : successMessage ? (
             <p className="success-banner" style={{ color: '#16a34a', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.6rem', borderRadius: '8px', fontSize: '0.9rem', textAlign: 'center' }}>
               {successMessage}
             </p>
