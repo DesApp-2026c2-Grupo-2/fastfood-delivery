@@ -8,7 +8,7 @@ type BottomNavProps = {
 
 export function BottomNav({ count, customer, userName }: BottomNavProps) {
   return (
-    <nav className="bottom-nav" aria-label="Navegación principal">
+    <nav className={customer ? 'bottom-nav bottom-nav--account' : 'bottom-nav'} aria-label="Navegación principal">
       <NavLink to="/products" className="bottom-nav-item" end>
         <MenuIcon />
         <span>Catálogo</span>
@@ -25,6 +25,18 @@ export function BottomNav({ count, customer, userName }: BottomNavProps) {
         <span>Sucursales</span>
       </NavLink>
       {customer ? (
+        <NavLink to="/account/addresses" className="bottom-nav-item">
+          <PinIcon />
+          <span>Direcciones</span>
+        </NavLink>
+      ) : null}
+      {customer ? (
+        <NavLink to="/orders" className="bottom-nav-item">
+          <OrdersIcon />
+          <span>Pedidos</span>
+        </NavLink>
+      ) : null}
+      {customer ? (
         <NavLink to="/account" className="bottom-nav-item">
           <span className="session-avatar bottom-nav-avatar" aria-hidden="true">
             {userName?.charAt(0).toUpperCase()}
@@ -38,6 +50,24 @@ export function BottomNav({ count, customer, userName }: BottomNavProps) {
         </NavLink>
       )}
     </nav>
+  );
+}
+
+function PinIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z" strokeLinejoin="round" />
+      <circle cx="12" cy="11" r="2" />
+    </svg>
+  );
+}
+
+function OrdersIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M8 9h8M8 13h5" strokeLinecap="round" />
+    </svg>
   );
 }
 

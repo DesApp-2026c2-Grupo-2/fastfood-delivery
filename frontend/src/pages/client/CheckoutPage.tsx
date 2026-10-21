@@ -15,6 +15,7 @@ import { useCart } from '../../cart/CartContext';
 import { getToken, isCustomer } from '../../auth/session';
 import { clearGuestCart, getGuestCart, hydrateGuestCart } from '../../cart/guestCart';
 import { formatDateTime, formatPrice } from '../../lib/money';
+import { mediaUrl } from '../../lib/media';
 import { AddressLocationPicker } from '../../components/AddressLocationPicker';
 
 type GuestFormErrors = {
@@ -316,62 +317,86 @@ export function CheckoutPage() {
 
   if (order) {
     return (
-      <section className="stack">
+      <section className="stack checkout-page">
         <header className="page-head">
-          <div>
-            <h1>Pedido confirmado</h1>
-            <p className="muted">Quedó registrado en el sistema.</p>
-          </div>
+          <h1>Pedido confirmado</h1>
         </header>
-        <div className="card form">
-          <p>
-            <span className="badge">Pendiente</span>
-          </p>
-          <p className="muted">
-            Código <span className="order-id">{order.id}</span>
-          </p>
-          {order.guestName ? (
-            <p>
-              <strong>Cliente:</strong> {order.guestName}
-              {order.guestEmail ? ` · ${order.guestEmail}` : ''}
+        <div className="card form checkout order-confirmed">
+          <div className="checkout-block">
+            <div className="checkout-receive">
+              <span className="badge badge--pending">Pendiente</span>
+              <p className="muted">Quedó registrado. Te avisamos cuando avance.</p>
+            </div>
+          </div>
+
+          <div className="checkout-block">
+            <h2>Datos</h2>
+            <dl className="order-confirmed-facts">
+              <div className="is-wide">
+                <dt>Código</dt>
+                <dd className="order-id">{order.id}</dd>
+              </div>
+              {order.guestName ? (
+                <div className="is-wide">
+                  <dt>Cliente</dt>
+                  <dd>
+                    {order.guestName}
+                    {order.guestEmail ? <span className="checkout-choice-meta"> · {order.guestEmail}</span> : null}
+                  </dd>
+                </div>
+              ) : null}
+              <div>
+                <dt>Sucursal</dt>
+                <dd>{order.branch.name}</dd>
+              </div>
+              <div>
+                <dt>{order.address ? 'Entrega' : 'Retiro'}</dt>
+                <dd>
+                  {order.address
+                    ? `${order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}${order.address.street}`
+                    : order.branch.address}
+                </dd>
+              </div>
+              <div>
+                <dt>Fecha</dt>
+                <dd>{formatDateTime(order.createdAt)}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="checkout-block">
+            <h2>Resumen</h2>
+            <ul className="order-items">
+              {order.items.map((item) => {
+                const itemTotal = item.subtotal ?? item.quantity * item.unitPrice;
+                return (
+                  <li key={item.id}>
+                    <span className="checkout-line">
+                      {item.product.imageUrl ? (
+                        <img src={mediaUrl(item.product.imageUrl)} alt="" />
+                      ) : (
+                        <span className="checkout-line-photo" aria-hidden="true" />
+                      )}
+                      <span className="checkout-line-name">
+                        <span className="checkout-qty">{item.quantity}</span>
+                        {item.product.name}
+                      </span>
+                      <span className="checkout-line-price">{formatPrice(itemTotal)}</span>
+                    </span>
+                    {item.notes ? <small className="muted">{item.notes}</small> : null}
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="total-row">
+              <span>Total</span>
+              <strong>{formatPrice(order.totalAmount)}</strong>
             </p>
-          ) : null}
-          <p>
-            <strong>Sucursal:</strong> {order.branch.name}
-          </p>
-          {order.address ? (
-            <p>
-              <strong>Entrega:</strong>{' '}
-              {order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}
-              {order.address.street}
+            <p className="checkout-back">
+              <Link to="/products">Seguir mirando el menú</Link>
             </p>
-          ) : (
-            <p>
-              <strong>Retiro en sucursal:</strong> {order.branch.address}
-            </p>
-          )}
-          <p>
-            <strong>Fecha:</strong> {formatDateTime(order.createdAt)}
-          </p>
-          <ul className="order-items">
-            {order.items.map((item) => {
-              const itemTotal = item.subtotal ?? item.quantity * item.unitPrice;
-              return (
-                <li key={item.id}>
-                  {item.quantity} × {item.product.name} — {formatPrice(itemTotal)}
-                  {item.notes ? <small className="muted"> ({item.notes})</small> : null}
-                </li>
-              );
-            })}
-          </ul>
-          <p className="total-row">
-            <span>Importe</span>
-            <strong>{formatPrice(order.totalAmount)}</strong>
-          </p>
+          </div>
         </div>
-        <p>
-          <Link to="/products">Seguir mirando el menú</Link>
-        </p>
       </section>
     );
   }
@@ -390,16 +415,9 @@ export function CheckoutPage() {
   }
 
   return (
-    <section className="stack">
+    <section className="stack checkout-page">
       <header className="page-head">
-        <div>
-          <h1>Confirmar pedido</h1>
-          <p className="muted">
-            {loggedIn
-              ? 'Elegí si lo retirás o te lo llevamos, y desde qué sucursal.'
-              : 'No hace falta cuenta. Completá tus datos y elegí cómo recibir tu pedido.'}
-          </p>
-        </div>
+        <h1>Confirmar pedido</h1>
       </header>
 
       {error ? (
@@ -446,68 +464,82 @@ export function CheckoutPage() {
       ) : null}
 
       {loggedIn ? (
-        <form className="card form" onSubmit={(event) => void confirmLoggedIn(event)} noValidate>
-          <FulfillmentToggle value={fulfillment} onChange={changeFulfillment} />
+        <form className="card form checkout" onSubmit={(event) => void confirmLoggedIn(event)} noValidate>
+          <FulfillmentToggle
+            value={fulfillment}
+            onChange={changeFulfillment}
+            hint="Elegí si lo retirás o te lo llevamos, y desde qué sucursal."
+          />
 
           {fulfillment === 'delivery' ? (
-            addresses.length === 0 ? (
-              <p className="empty">
-                Necesitás una dirección de entrega. <Link to="/account/addresses">Cargá una acá</Link> o
-                pedí para retirar.
-              </p>
-            ) : (
-              <>
-                <h2>Dirección de entrega</h2>
-                {addresses.map((address) => (
-                  <label key={address.id} className="checkbox address-choice">
-                    <input
-                      type="radio"
-                      name="addressId"
-                      checked={addressId === address.id}
-                      onChange={() => {
-                        setAddressId(address.id);
-                        clearConfirmErrors();
-                      }}
-                    />
-                    <span>
-                      {address.alias?.trim() ? (
-                        <>
-                          {address.alias.trim()}
-                          <small className="muted"> · {address.street}</small>
-                        </>
-                      ) : (
-                        address.street
-                      )}
-                      {address.isDefault ? <small className="muted"> · principal</small> : null}
-                    </span>
-                  </label>
-                ))}
-              </>
-            )
+            <div className="checkout-block">
+              {addresses.length === 0 ? (
+                <p className="empty">
+                  Necesitás una dirección de entrega. <Link to="/account/addresses">Cargá una acá</Link> o
+                  pedí para retirar.
+                </p>
+              ) : (
+                <>
+                  <h2>Dirección de entrega</h2>
+                  {addresses.map((address) => (
+                    <label key={address.id} className="checkbox address-choice">
+                      <input
+                        type="radio"
+                        name="addressId"
+                        checked={addressId === address.id}
+                        onChange={() => {
+                          setAddressId(address.id);
+                          clearConfirmErrors();
+                        }}
+                      />
+                      <span className="checkout-choice">
+                        <span className="checkout-choice-title">
+                          {address.alias?.trim() || address.street}
+                          {address.isDefault ? <span className="checkout-pill">Principal</span> : null}
+                        </span>
+                        {address.alias?.trim() ? (
+                          <span className="checkout-choice-meta">{address.street}</span>
+                        ) : null}
+                      </span>
+                    </label>
+                  ))}
+                </>
+              )}
+            </div>
           ) : null}
 
-          <BranchPicker
-            options={branchOptions}
-            loading={branchesLoading}
-            error={branchesError}
-            branchId={branchId}
-            onChange={(id) => {
-              setBranchId(id);
-              clearConfirmErrors();
-            }}
-            hint=""
-          />
+          <div className="checkout-block">
+            <BranchPicker
+              options={branchOptions}
+              loading={branchesLoading}
+              error={branchesError}
+              branchId={branchId}
+              onChange={(id) => {
+                setBranchId(id);
+                clearConfirmErrors();
+              }}
+              hint=""
+              blockedReason={blockedReason}
+            />
+          </div>
+          <div className="checkout-block">
           <OrderSummary
             cart={cart}
             saving={saving}
             shortages={stockError?.items ?? []}
             blockedReason={blockedReason}
           />
+          </div>
         </form>
       ) : (
-        <form className="card form" onSubmit={(event) => void confirmGuest(event)} noValidate>
-          <FulfillmentToggle value={fulfillment} onChange={changeFulfillment} />
+        <form className="card form checkout" onSubmit={(event) => void confirmGuest(event)} noValidate>
+          <FulfillmentToggle
+            value={fulfillment}
+            onChange={changeFulfillment}
+            hint="No hace falta cuenta. Completá tus datos y elegí cómo recibir tu pedido."
+          />
 
+          <div className="checkout-block">
           <h2>Tus datos</h2>
           <label>
             Nombre
@@ -542,8 +574,10 @@ export function CheckoutPage() {
             ) : null}
           </label>
 
+          </div>
+
           {fulfillment === 'delivery' ? (
-            <>
+            <div className="checkout-block">
               <h2>Dirección de entrega</h2>
               <label>
                 Dirección
@@ -579,30 +613,35 @@ export function CheckoutPage() {
                   {guestErrors.latitude ?? guestErrors.longitude}
                 </small>
               ) : null}
-            </>
+            </div>
           ) : null}
 
-          <BranchPicker
-            options={branchOptions}
-            loading={branchesLoading}
-            error={branchesError}
-            branchId={branchId}
-            onChange={(id) => {
-              setBranchId(id);
-              clearConfirmErrors();
-            }}
-            hint={
-              fulfillment === 'delivery'
-                ? 'Completá latitud y longitud para ver qué sucursales llegan a tu dirección.'
-                : ''
-            }
-          />
-          <OrderSummary
-            cart={cart}
-            saving={saving}
-            shortages={stockError?.items ?? []}
-            blockedReason={blockedReason}
-          />
+          <div className="checkout-block">
+            <BranchPicker
+              options={branchOptions}
+              loading={branchesLoading}
+              error={branchesError}
+              branchId={branchId}
+              onChange={(id) => {
+                setBranchId(id);
+                clearConfirmErrors();
+              }}
+              hint={
+                fulfillment === 'delivery'
+                  ? 'Completá latitud y longitud para ver qué sucursales llegan a tu dirección.'
+                  : ''
+              }
+              blockedReason={blockedReason}
+            />
+          </div>
+          <div className="checkout-block">
+            <OrderSummary
+              cart={cart}
+              saving={saving}
+              shortages={stockError?.items ?? []}
+              blockedReason={blockedReason}
+            />
+          </div>
         </form>
       )}
     </section>
@@ -612,13 +651,18 @@ export function CheckoutPage() {
 function FulfillmentToggle({
   value,
   onChange,
+  hint,
 }: {
   value: Fulfillment;
   onChange: (next: Fulfillment) => void;
+  hint: string;
 }) {
   return (
-    <>
-      <h2>¿Cómo lo querés recibir?</h2>
+    <div className="checkout-block">
+      <div className="checkout-receive">
+        <h2>¿Cómo lo querés recibir?</h2>
+        <p className="muted">{hint}</p>
+      </div>
       <div className="filters">
         <button
           type="button"
@@ -635,7 +679,7 @@ function FulfillmentToggle({
           Retiro en sucursal
         </button>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -646,6 +690,7 @@ function BranchPicker({
   branchId,
   onChange,
   hint,
+  blockedReason,
 }: {
   options: CheckoutBranchesResponse | null;
   loading: boolean;
@@ -653,6 +698,7 @@ function BranchPicker({
   branchId: string;
   onChange: (id: string) => void;
   hint: string;
+  blockedReason: string;
 }) {
   return (
     <fieldset className="tag-fieldset">
@@ -664,6 +710,11 @@ function BranchPicker({
         </p>
       ) : null}
       {!options && !loading && !error && hint ? <p className="field-hint">{hint}</p> : null}
+      {!loading && !error && options && options.branches.length === 0 && blockedReason ? (
+        <p className="checkout-empty" role="status">
+          {blockedReason}
+        </p>
+      ) : null}
       {options?.branches.map((branch) => (
         <label key={branch.id} className="checkbox address-choice">
           <input
@@ -672,12 +723,14 @@ function BranchPicker({
             checked={branchId === branch.id}
             onChange={() => onChange(branch.id)}
           />
-          <span>
-            {branch.name}
-            {branch.distanceKm !== null ? (
-              <small className="muted"> · {formatDistance(branch.distanceKm)}</small>
-            ) : null}
-            <small className="muted"> · {branch.address}</small>
+          <span className="checkout-choice">
+            <span className="checkout-choice-title">
+              {branch.name}
+              {branch.distanceKm !== null ? (
+                <span className="checkout-choice-meta">{formatDistance(branch.distanceKm)}</span>
+              ) : null}
+            </span>
+            <span className="checkout-choice-meta">{branch.address}</span>
             {branch.canFulfill ? (
               <small className="branch-stock branch-stock--ok">Tiene stock de todo tu pedido</small>
             ) : (
@@ -711,8 +764,19 @@ function OrderSummary({
           const shortage = shortages.find((entry) => entry.productId === item.productId);
           return (
             <li key={item.id} className={shortage ? 'order-item--short' : undefined}>
-              {item.quantity} × {item.product.name} — {formatPrice(item.subtotal)}
-              {item.notes ? <small className="muted"> ({item.notes})</small> : null}
+              <span className="checkout-line">
+                {item.product.imageUrl ? (
+                  <img src={mediaUrl(item.product.imageUrl)} alt="" />
+                ) : (
+                  <span className="checkout-line-photo" aria-hidden="true" />
+                )}
+                <span className="checkout-line-name">
+                  <span className="checkout-qty">{item.quantity}</span>
+                  {item.product.name}
+                </span>
+                <span className="checkout-line-price">{formatPrice(item.subtotal)}</span>
+              </span>
+              {item.notes ? <small className="muted">{item.notes}</small> : null}
               {shortage ? (
                 <small className="order-item-shortage">
                   {shortage.available > 0
@@ -728,15 +792,10 @@ function OrderSummary({
         <span>Total</span>
         <strong>{formatPrice(cart.total)}</strong>
       </p>
-      {blockedReason ? (
-        <p className="field-hint" role="status">
-          {blockedReason}
-        </p>
-      ) : null}
       <button type="submit" disabled={saving || Boolean(blockedReason)}>
         {saving ? 'Confirmando…' : 'Confirmar pedido'}
       </button>
-      <p>
+      <p className="checkout-back">
         <Link to="/cart">Volver al carrito</Link>
       </p>
     </>

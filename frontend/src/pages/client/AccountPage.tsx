@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { useSession } from '../../auth/SessionContext';
 import type { UpdateMeRequest, User } from '../../api/types';
@@ -135,17 +135,6 @@ function AccountContent({ token }: { token: string }) {
           {ok}
         </p>
       ) : null}
-
-      <div className="account-shortcuts">
-        <Link className="card-link" to="/account/addresses">
-          <span>Mis direcciones</span>
-          <small>Dónde te llevamos el pedido</small>
-        </Link>
-        <Link className="card-link" to="/orders">
-          <span>Mis pedidos</span>
-          <small>Seguí lo que ya pediste</small>
-        </Link>
-      </div>
 
       <form className="card form" onSubmit={onSubmit}>
         <h2>Datos personales</h2>

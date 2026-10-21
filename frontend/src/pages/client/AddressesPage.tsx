@@ -192,9 +192,9 @@ function AddressesContent({ token }: { token: string }) {
       <header className="page-head">
         <div>
           <h1>Mis direcciones</h1>
-          <p className="muted">Guardá dónde querés recibir tus pedidos. Buscá la dirección y confirmá el punto en el mapa.</p>
-          <p className="addresses-branches-link">
-            <Link to="/branches">Ver qué sucursales me cubren</Link>
+          <p className="muted addresses-intro">
+            Dónde te llevamos el pedido.{' '}
+            <Link to="/branches">Ver qué sucursales llegan</Link>
           </p>
         </div>
         {!form ? (
@@ -289,23 +289,20 @@ function AddressesContent({ token }: { token: string }) {
               <div className="address-card-body">
                 <div className="address-card-title">
                   <strong>{addressTitle(address)}</strong>
-                  {address.isDefault ? <span className="badge">Predeterminada</span> : null}
+                  {address.isDefault ? <span className="checkout-pill">Principal</span> : null}
                 </div>
-                {address.alias?.trim() ? <p className="muted">{address.street}</p> : null}
-                <p className="muted address-coords">
-                  {toNumber(address.latitude).toFixed(4)}, {toNumber(address.longitude).toFixed(4)}
-                </p>
+                {address.alias?.trim() ? <p className="checkout-choice-meta">{address.street}</p> : null}
               </div>
-              <div className="row address-card-actions">
+              <div className="address-card-actions">
                 {!address.isDefault ? (
-                  <button type="button" className="secondary" onClick={() => void makeDefault(address)}>
-                    Usar como predeterminada
+                  <button type="button" className="text-action" onClick={() => void makeDefault(address)}>
+                    Hacer principal
                   </button>
                 ) : null}
-                <button type="button" className="secondary" onClick={() => startEdit(address)}>
+                <button type="button" className="text-action" onClick={() => startEdit(address)}>
                   Editar
                 </button>
-                <button type="button" className="danger" onClick={() => void remove(address)}>
+                <button type="button" className="text-action text-action--danger" onClick={() => void remove(address)}>
                   Eliminar
                 </button>
               </div>

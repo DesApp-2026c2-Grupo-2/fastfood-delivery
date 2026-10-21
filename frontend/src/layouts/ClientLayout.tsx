@@ -79,6 +79,12 @@ export function ClientLayout() {
                 </Link>
                 <span className="session-name-full">{user?.name}</span>
               </span>
+              <NavLink to="/account/addresses" className="session-link">
+                Direcciones
+              </NavLink>
+              <NavLink to="/orders" className="session-link">
+                Pedidos
+              </NavLink>
               <button type="button" className="link-button session-logout" onClick={logout}>
                 Salir
               </button>

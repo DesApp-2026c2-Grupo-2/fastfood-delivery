@@ -356,32 +356,10 @@ export function ProductDetailPage() {
                 gap: '0.5rem',
               }}
             >
-              <Link
-                to="/products"
-                style={{
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  color: '#475569',
-                  padding: '0.35rem 0.7rem',
-                  borderRadius: '6px',
-                  backgroundColor: '#e2e8f0',
-                  textDecoration: 'none',
-                }}
-              >
+              <Link to="/products" className="cart-added-stay">
                 Seguir comprando
               </Link>
-              <Link
-                to="/cart"
-                style={{
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  color: '#ffffff',
-                  backgroundColor: '#ea580c',
-                  padding: '0.35rem 0.8rem',
-                  borderRadius: '6px',
-                  textDecoration: 'none',
-                }}
-              >
+              <Link to="/cart" className="cart-added-go">
                 Ver carrito →
               </Link>
             </div>

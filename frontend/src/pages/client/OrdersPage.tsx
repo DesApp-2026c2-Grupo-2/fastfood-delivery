@@ -133,7 +133,7 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
       <header className="page-head">
         <div>
           <h1>Mis pedidos</h1>
-          <p className="muted">Acá vas a ver el historial de tus pedidos anteriores.</p>
+          <p className="muted addresses-intro">Seguí lo que ya pediste.</p>
         </div>
       </header>
 
@@ -145,7 +145,7 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
       {loading ? <p className="muted">Cargando…</p> : null}
 
       {!loading && orders.length === 0 ? (
-        <div className="empty">
+        <div className="empty address-empty">
           <p>Todavía no hiciste ningún pedido.</p>
           <Link to="/products">Ver el menú</Link>
         </div>
@@ -155,32 +155,37 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
         <ul className="order-list">
           {orders.map((order) => (
             <li key={order.id} className="card order-card">
-              <div className="order-card-body">
+              <div className="order-card-main">
                 <div className="order-card-title">
                   <strong>{formatDate(order.createdAt)}</strong>
                   <span className={`badge badge--${order.status}`}>{statusLabel(order.status)}</span>
                 </div>
-                <p className="muted">{order.branch.name}</p>
-                <p className="order-card-total">{formatPrice(order.totalAmount)}</p>
+                <p className="checkout-choice-meta">
+                  {order.branch.name}
+                  {' · '}
+                  {order.itemCount === 1 ? '1 producto' : `${order.itemCount} productos`}
+                </p>
+                <div className="order-card-actions">
+                  <Link className="text-action" to={`/orders/${order.id}`}>
+                    Ver detalle
+                  </Link>
+                  <button
+                    type="button"
+                    className="text-action"
+                    disabled={repeatingId === order.id}
+                    onClick={() => void repeatOrder(order)}
+                  >
+                    {repeatingId === order.id
+                      ? count > 0
+                        ? 'Agregando…'
+                        : 'Repitiendo…'
+                      : count > 0
+                        ? 'Agregar al carrito'
+                        : 'Repetir pedido'}
+                  </button>
+                </div>
               </div>
-              <div className="row order-card-actions">
-                <Link className="secondary" to={`/orders/${order.id}`}>
-                  Ver detalle
-                </Link>
-                <button
-                  type="button"
-                  disabled={repeatingId === order.id}
-                  onClick={() => void repeatOrder(order)}
-                >
-                  {repeatingId === order.id
-                    ? count > 0
-                      ? 'Agregando…'
-                      : 'Repitiendo…'
-                    : count > 0
-                      ? 'Agregar al carrito'
-                      : 'Repetir pedido'}
-                </button>
-              </div>
+              <p className="order-card-total">{formatPrice(order.totalAmount)}</p>
             </li>
           ))}
         </ul>

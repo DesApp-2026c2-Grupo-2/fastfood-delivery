@@ -5,6 +5,7 @@ import { isStatusBehind, useOrderStatusEvents, type OrderStatusChangedEvent } fr
 import type { OrderDetail, OrderStatus, Product } from '../../api/types';
 import { getToken, getUserId } from '../../auth/session';
 import { formatDateTime, formatPrice } from '../../lib/money';
+import { mediaUrl } from '../../lib/media';
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente',
@@ -291,27 +292,25 @@ export function OrderDetailPage() {
 
       {/* Bloque 2: Detalle de la compra */}
       <div className="tracking-card">
-        <h2>Detalle de la compra</h2>
+        <h2>Resumen</h2>
 
-        <div className="delivery-info">
-          {order.address ? (
-            <p>
-              <strong>Entrega en:</strong>{' '}
-              {order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}
-              {order.address.street}
-            </p>
-          ) : (
-            <p>
-              <strong>Retiro en sucursal:</strong> {order.branch.address}
-            </p>
-          )}
-
-          <p className="order-date">Fecha de creación: {formatDateTime(order.createdAt)}</p>
-        </div>
+        <dl className="order-confirmed-facts">
+          <div>
+            <dt>{order.address ? 'Entrega' : 'Retiro'}</dt>
+            <dd>
+              {order.address
+                ? `${order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}${order.address.street}`
+                : order.branch.address}
+            </dd>
+          </div>
+          <div>
+            <dt>Fecha</dt>
+            <dd>{formatDateTime(order.createdAt)}</dd>
+          </div>
+        </dl>
 
         <div className="items-list">
-          {order.items.map((item, itemIdx) => {
-            const isLast = itemIdx === order.items.length - 1;
+          {order.items.map((item) => {
             const hasExtras = Array.isArray(item.extras) && item.extras.length > 0;
 
             let userNote = item.notes?.trim() || '';
@@ -323,153 +322,47 @@ export function OrderDetailPage() {
             }
 
             return (
-              <div
-                key={item.id}
-                className="item-entry"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  padding: '0.75rem 0',
-                  borderBottom: isLast ? 'none' : '1px solid #f1f5f9',
-                }}
-              >
-                <div
-                  className="item-row"
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    borderBottom: 'none',
-                  }}
-                >
-                  <div
-                    className="item-main"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
-                  >
-                    {item.product.imageUrl ? (
-                      <img
-                        src={item.product.imageUrl}
-                        alt={item.product.name}
-                        className="item-thumb"
-                        style={{
-                          width: '44px',
-                          height: '44px',
-                          objectFit: 'contain',
-                          background: '#fff7ed',
-                          border: '1px solid #fed7aa',
-                          borderRadius: '10px',
-                          padding: '3px',
-                          flexShrink: 0,
-                        }}
-                      />
-                    ) : null}
-                    <span className="item-name" style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                      {item.product.name}
-                    </span>
-                  </div>
-                  <div className="item-amounts">
-                    <span className="item-qty">{item.quantity}×</span>
-                    <strong className="item-subtotal">{formatPrice(item.subtotal)}</strong>
-                  </div>
-                </div>
+              <div key={item.id} className="order-detail-item">
+                <span className="checkout-line">
+                  {item.product.imageUrl ? (
+                    <img src={mediaUrl(item.product.imageUrl)} alt="" />
+                  ) : (
+                    <span className="checkout-line-photo" aria-hidden="true" />
+                  )}
+                  <span className="checkout-line-name">
+                    <span className="checkout-qty">{item.quantity}</span>
+                    {item.product.name}
+                  </span>
+                  <span className="checkout-line-price">{formatPrice(item.subtotal)}</span>
+                </span>
 
-                {/* DEV-17: Adicionales limpios */}
-                {hasExtras && (
-                  <div
-                    className="item-extras-list"
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.4rem',
-                      marginTop: '0.45rem',
-                      paddingLeft: '3.6rem',
-                    }}
-                  >
+                {hasExtras ? (
+                  <div className="order-detail-extras">
                     {item.extras!.map((extra, idx) => {
                       const matchedProduct = allProducts.find(
                         (p) =>
                           p.id === extra.id ||
-                          p.name.toLowerCase().trim() === extra.name.toLowerCase().trim()
+                          p.name.toLowerCase().trim() === extra.name.toLowerCase().trim(),
                       );
                       const finalImage = extra.imageUrl || matchedProduct?.imageUrl;
                       const extraPrice = extra.price || matchedProduct?.price;
 
                       return (
-                        <div
-                          key={extra.id ?? idx}
-                          className="item-extra-subrow"
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            fontSize: '0.85rem',
-                          }}
-                        >
-                          <span style={{ color: '#fdba74', fontWeight: 700, userSelect: 'none' }}>
-                            └
-                          </span>
+                        <div key={extra.id ?? idx} className="order-detail-extra">
                           {finalImage ? (
-                            <img
-                              src={finalImage}
-                              alt={extra.name}
-                              style={{
-                                width: '26px',
-                                height: '26px',
-                                objectFit: 'contain',
-                                background: '#fff7ed',
-                                border: '1px solid #fed7aa',
-                                borderRadius: '6px',
-                                padding: '2px',
-                                flexShrink: 0,
-                              }}
-                            />
+                            <img src={mediaUrl(finalImage)} alt="" />
                           ) : (
-                            <span
-                              style={{
-                                width: '26px',
-                                height: '26px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                background: '#fff7ed',
-                                border: '1px solid #fed7aa',
-                                borderRadius: '6px',
-                                fontSize: '0.75rem',
-                              }}
-                            >
-                              ✨
-                            </span>
+                            <span className="order-detail-extra-fallback" aria-hidden="true" />
                           )}
-                          <span style={{ fontWeight: 500, color: '#334155' }}>{extra.name}</span>
-                          {extraPrice ? (
-                            <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 400 }}>
-                              (+{formatPrice(extraPrice)})
-                            </span>
-                          ) : null}
+                          <span>{extra.name}</span>
+                          {extraPrice ? <span className="order-detail-extra-price">+{formatPrice(extraPrice)}</span> : null}
                         </div>
                       );
                     })}
                   </div>
-                )}
+                ) : null}
 
-                {/* Nota de cocina */}
-                {userNote && (
-                  <div
-                    className="item-notes-callout"
-                    style={{
-                      marginTop: '0.45rem',
-                      paddingLeft: '3.6rem',
-                      fontSize: '0.82rem',
-                      color: '#64748b',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                    }}
-                  >
-                    <span>✏️</span>
-                    <span style={{ fontStyle: 'italic' }}>Observación: "{userNote}"</span>
-                  </div>
-                )}
+                {userNote ? <p className="order-detail-note">{userNote}</p> : null}
               </div>
             );
           })}
@@ -478,7 +371,7 @@ export function OrderDetailPage() {
         <div className="total-divider" />
 
         <div className="total-line">
-          <span>Importe total</span>
+          <span>Total</span>
           <span className="total-amount">{formatPrice(order.totalAmount)}</span>
         </div>
       </div>
