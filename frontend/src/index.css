@@ -3695,3 +3695,96 @@ h2 {
     font-size: 0.8rem !important;
   }
 }
+
+.branch-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.branch-group {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.branch-group-head h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.branch-group-head p {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.branch-spot-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.branch-spot {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+  padding: 1rem 1.1rem;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 1.4rem;
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+
+.branch-spot.is-near {
+  border-color: var(--accent);
+  background: #fff;
+}
+
+.branch-spot.is-far {
+  background: #fff;
+  box-shadow: 4px 4px 0 #e7e5e4;
+}
+
+.branch-spot-top {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.branch-spot-top strong {
+  font-family: Fredoka, Nunito, sans-serif;
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+
+.branch-spot-address,
+.branch-spot-meta {
+  margin: 0;
+}
+
+.branch-spot-address {
+  font-weight: 800;
+}
+
+.branch-spot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.85rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.branch-spot-meta a {
+  color: var(--accent-dark);
+}
+
+@media (min-width: 800px) {
+  .branch-spot-list {
+    grid-template-columns: 1fr 1fr;
+  }
+}

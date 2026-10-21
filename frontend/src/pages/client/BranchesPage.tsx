@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import type {
   ActiveBranch,
   ActiveBranchesResponse,
   Address,
-  AvailableBranch,
   AvailableBranchesResponse,
 } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
@@ -123,190 +122,162 @@ export function BranchesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer, token]);
 
-  const hasLocation = Boolean(all?.branches.some((branch) => branch.distanceKm !== null));
+  const covering = all?.branches.filter((branch) => branch.withinRadius === true) ?? [];
+  const farther = all?.branches.filter((branch) => branch.withinRadius === false) ?? [];
+  const withoutPlace = all?.branches.filter((branch) => branch.withinRadius == null) ?? [];
+  const usingDevice = Boolean(result) && !addressId;
 
   return (
     <section className="stack branches-page">
       <header className="page-head">
         <div>
           <h1>Sucursales</h1>
-          <p className="muted">
-            {customer
-              ? 'Elegí una de tus direcciones o usá tu ubicación para ver qué sucursales te cubren.'
-              : 'Mirá qué sucursales llegan a tu ubicación.'}
-          </p>
+          <p className="muted">Elegí desde dónde mirar y te mostramos cuáles te llegan.</p>
         </div>
       </header>
 
-      <div className="card branches-search">
-        {addresses.length > 0 ? (
-          <fieldset className="branches-addresses" disabled={loading}>
-            <legend>Tus direcciones</legend>
-            {addresses.map((address) => (
-              <label key={address.id} className="checkbox address-choice">
-                <input
-                  type="radio"
-                  name="branchesAddressId"
-                  checked={addressId === address.id}
-                  onChange={() => searchByAddress(address.id)}
-                />
-                <span>
-                  {address.alias?.trim() ? (
-                    <>
-                      {address.alias.trim()}
-                      <small className="muted"> · {address.street}</small>
-                    </>
-                  ) : (
-                    address.street
-                  )}
-                  {address.isDefault ? <small className="muted"> · principal</small> : null}
-                </span>
-              </label>
-            ))}
-          </fieldset>
-        ) : null}
-        {customer && addressesLoaded && addresses.length === 0 ? (
-          <p className="muted branches-hint">
-            Todavía no tenés direcciones guardadas. <Link to="/account/addresses">Cargá una</Link> o usá tu
-            ubicación.
-          </p>
-        ) : null}
+      <div className="branch-picks">
+        {addresses.map((address) => {
+          const label = address.alias?.trim() || address.street;
+          return (
+            <button
+              key={address.id}
+              type="button"
+              className={addressId === address.id ? 'chip chip-active' : 'chip'}
+              onClick={() => searchByAddress(address.id)}
+              disabled={loading}
+            >
+              {label}
+            </button>
+          );
+        })}
         <button
           type="button"
-          className={addresses.length > 0 ? 'secondary' : undefined}
+          className={usingDevice ? 'chip chip-active' : 'chip'}
           onClick={() => void searchByDevice()}
           disabled={loading}
         >
-          {loading && !addressId ? 'Buscando…' : 'Usar mi ubicación'}
+          {loading && !addressId ? 'Buscando…' : 'Mi ubicación'}
         </button>
       </div>
 
-      <section className="stack branches-section" aria-labelledby="branches-covering-title">
-        <h2 id="branches-covering-title">Las que me cubren</h2>
-
-        {error ? (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        ) : null}
-
-        {loading && addressId ? <p className="muted">Buscando sucursales…</p> : null}
-
-        {!result && !loading && !error ? (
-          <p className="muted branches-hint">
-            {customer
-              ? 'Elegí una dirección o usá tu ubicación para ver cuáles llegan.'
-              : 'Usá tu ubicación para ver cuáles llegan.'}
-          </p>
-        ) : null}
-
-        {result && !loading && result.branches.length === 0 ? (
-          <div className="empty branches-empty">
-            <p>
-              <strong>
-                No hay sucursales a menos de {result.radiusKm.toLocaleString('es-AR')} km
-                {addressId ? ' de esta dirección' : ' de tu ubicación'}.
-              </strong>
-            </p>
-            <p className="muted">
-              Por ahora no podemos hacer envíos ahí. Probá con otra dirección
-              {customer ? (
-                <>
-                  {' '}
-                  o <Link to="/account/addresses">cargá una nueva</Link>
-                </>
-              ) : null}
-              .
-            </p>
-          </div>
-        ) : null}
-
-        {result && !loading && result.branches.length > 0 ? (
-          <>
-            <p className="muted branches-radius">
-              {result.branches.length === 1
-                ? '1 sucursal'
-                : `${result.branches.length} sucursales`}{' '}
-              a menos de {result.radiusKm.toLocaleString('es-AR')} km
-            </p>
-            <ul className="branch-list">
-              {result.branches.map((branch, index) => (
-                <BranchCard key={branch.id} branch={branch} assigned={index === 0} />
-              ))}
-            </ul>
-          </>
-        ) : null}
-      </section>
-
-      <section className="stack branches-section" aria-labelledby="branches-all-title">
-        <h2 id="branches-all-title">Todas las sucursales</h2>
+      {customer && addressesLoaded && addresses.length === 0 ? (
         <p className="muted branches-hint">
-          {hasLocation
-            ? 'Todas las que están abiertas a pedidos, de la más cercana a la más lejana.'
-            : 'Todas las que están abiertas a pedidos. Elegí una ubicación para ver a qué distancia están.'}
+          Todavía no tenés direcciones. <Link to="/account/addresses">Cargá una</Link> o usá tu ubicación.
         </p>
+      ) : null}
 
-        {allError ? (
-          <p className="error" role="alert">
-            {allError}
+      {error ? (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {allError ? (
+        <p className="error" role="alert">
+          {allError}
+        </p>
+      ) : null}
+
+      {allLoading && !all ? <p className="muted">Cargando sucursales…</p> : null}
+      {loading && addressId ? <p className="muted">Buscando sucursales…</p> : null}
+
+      {!result && !loading && !error && withoutPlace.length > 0 ? (
+        <p className="muted branches-hint">Elegí una dirección o tu ubicación para ver la distancia.</p>
+      ) : null}
+
+      {result && !loading && result.branches.length === 0 ? (
+        <div className="empty branches-empty">
+          <p>
+            <strong>Ninguna llega a menos de {result.radiusKm.toLocaleString('es-AR')} km.</strong>
           </p>
-        ) : null}
+          <p className="muted">
+            Por ahora no hacemos envíos ahí.
+            {customer ? (
+              <>
+                {' '}
+                Probá otra dirección o <Link to="/account/addresses">cargá una nueva</Link>.
+              </>
+            ) : (
+              ' Probá desde otro punto.'
+            )}
+          </p>
+        </div>
+      ) : null}
 
-        {allLoading && !all ? <p className="muted">Cargando sucursales…</p> : null}
+      {covering.length > 0 ? (
+        <BranchGroup
+          title="Te cubren"
+          hint={
+            result
+              ? `A menos de ${result.radiusKm.toLocaleString('es-AR')} km`
+              : undefined
+          }
+        >
+          {covering.map((branch, index) => (
+            <BranchSpot key={branch.id} branch={branch} nearest={index === 0} />
+          ))}
+        </BranchGroup>
+      ) : null}
 
-        {all && all.branches.length === 0 ? (
-          <p className="empty">Por ahora no hay sucursales abiertas.</p>
-        ) : null}
+      {farther.length > 0 ? (
+        <BranchGroup title="Más lejos" hint="Abiertas, pero fuera de la zona de envío">
+          {farther.map((branch) => (
+            <BranchSpot key={branch.id} branch={branch} />
+          ))}
+        </BranchGroup>
+      ) : null}
 
-        {all && all.branches.length > 0 ? (
-          <ul className="branch-list" aria-busy={allLoading}>
-            {all.branches.map((branch) => (
-              <ActiveBranchCard
-                key={branch.id}
-                branch={branch}
-                place={addressId ? 'tu dirección' : 'tu ubicación'}
-              />
-            ))}
-          </ul>
-        ) : null}
-      </section>
+      {withoutPlace.length > 0 ? (
+        <BranchGroup title="Abiertas ahora">
+          {withoutPlace.map((branch) => (
+            <BranchSpot key={branch.id} branch={branch} />
+          ))}
+        </BranchGroup>
+      ) : null}
+
+      {all && all.branches.length === 0 ? <p className="empty">Por ahora no hay sucursales abiertas.</p> : null}
     </section>
   );
 }
 
-function BranchCard({ branch, assigned }: { branch: AvailableBranch; assigned: boolean }) {
+function BranchGroup({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: ReactNode;
+}) {
   return (
-    <li className={assigned ? 'card branch-card branch-card--assigned' : 'card branch-card'}>
-      <div className="branch-card-title">
-        <strong>{branch.name}</strong>
-        <span className="branch-distance">{formatDistance(branch.distanceKm)}</span>
-      </div>
-      {assigned ? <span className="badge branch-assigned">La más cercana</span> : null}
-      <p className="branch-line">{branch.address}</p>
-      <p className="branch-line muted">{branch.openingHours}</p>
-      <p className="branch-line">
-        <a href={`tel:${branch.phone.replace(/\s/g, '')}`}>{branch.phone}</a>
-      </p>
-    </li>
+    <section className="branch-group">
+      <header className="branch-group-head">
+        <h2>{title}</h2>
+        {hint ? <p>{hint}</p> : null}
+      </header>
+      <ul className="branch-spot-list">{children}</ul>
+    </section>
   );
 }
 
-function ActiveBranchCard({ branch, place }: { branch: ActiveBranch; place: string }) {
+function BranchSpot({ branch, nearest = false }: { branch: ActiveBranch; nearest?: boolean }) {
+  const far = branch.withinRadius === false;
   return (
-    <li className="card branch-card">
-      <div className="branch-card-title">
+    <li className={nearest ? 'branch-spot is-near' : far ? 'branch-spot is-far' : 'branch-spot'}>
+      <div className="branch-spot-top">
         <strong>{branch.name}</strong>
         {branch.distanceKm !== null ? (
           <span className="branch-distance">{formatDistance(branch.distanceKm)}</span>
         ) : null}
       </div>
-      {branch.withinRadius === true ? <span className="badge">Llega a {place}</span> : null}
-      {branch.withinRadius === false ? <span className="badge badge--off">Fuera de tu zona</span> : null}
-      <p className="branch-line">{branch.address}</p>
-      <p className="branch-line muted">{branch.openingHours}</p>
-      <p className="branch-line">
+      <p className="branch-spot-address">{branch.address}</p>
+      <p className="branch-spot-meta">
+        <span>{branch.openingHours}</span>
         <a href={`tel:${branch.phone.replace(/\s/g, '')}`}>{branch.phone}</a>
       </p>
+      {nearest ? <span className="badge">La más cercana</span> : null}
+      {!nearest && branch.withinRadius === true ? <span className="badge">Te cubre</span> : null}
+      {far ? <span className="badge badge--off">Fuera de tu zona</span> : null}
     </li>
   );
 }
