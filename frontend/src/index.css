@@ -322,15 +322,21 @@ textarea {
   background: #fff7ed;
   border: 2px solid #fdba74;
   box-shadow: 0 4px 0 #fed7aa;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .promo-banner p {
   margin: 0;
+  min-width: 0;
   font-weight: 700;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .promo-banner .brand-logo {
+  flex-shrink: 0;
   width: 3.2rem;
   height: 3.2rem;
 }
@@ -1492,6 +1498,11 @@ h2 {
   gap: 0.1rem;
 }
 
+.cart-item-info > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .cart-item-photo-link {
   display: block;
   line-height: 0;
@@ -1502,6 +1513,7 @@ h2 {
   font-weight: 800;
   line-height: 1.25;
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
 .cart-item-name:hover {
@@ -1644,7 +1656,9 @@ h2 {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
   margin: 0;
   padding: 0;
   background: transparent;
@@ -2262,15 +2276,24 @@ a.order-card-total:hover,
   }
 
   .bottom-nav-item {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.15rem;
     font-size: 0.72rem;
     color: #9a3412;
-    padding: 0.3rem 0;
+    padding: 0.3rem 0.05rem;
     text-decoration: none;
+    text-align: center;
+    line-height: 1.05;
+  }
+
+  .bottom-nav-item > span:last-child {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 
   .bottom-nav-item.active {
@@ -3787,11 +3810,24 @@ a.order-card-total:hover,
   cursor: not-allowed;
 }
 
+.cart-added-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .cart-added-stay,
 .cart-added-go {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border-radius: 999px;
   padding: 0.45rem 0.95rem;
   font-size: 0.88rem;
@@ -4141,6 +4177,15 @@ a.order-card-total:hover,
     white-space: nowrap !important;
     font-size: 0.8rem !important;
   }
+
+  .cart-added-actions {
+    justify-content: stretch;
+  }
+
+  .cart-added-stay,
+  .cart-added-go {
+    flex: 1 1 9.5rem;
+  }
 }
 
 @media (max-width: 420px) {
@@ -4357,8 +4402,9 @@ a.order-card-total:hover,
 
 .checkout-line {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.7rem;
+  min-width: 0;
   font-weight: 700;
 }
 
@@ -4375,6 +4421,7 @@ a.order-card-total:hover,
 .checkout-line-name {
   flex: 1;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .checkout-qty {
@@ -4391,9 +4438,12 @@ a.order-card-total:hover,
 }
 
 .checkout-line-price {
+  flex-shrink: 0;
+  margin-left: auto;
   color: var(--muted);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .checkout .total-row {

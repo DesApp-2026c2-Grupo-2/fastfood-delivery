@@ -413,14 +413,7 @@ export function ProductDetailPage() {
               </span>
             </div>
 
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-                gap: '0.5rem',
-              }}
-            >
+            <div className="cart-added-actions">
               <Link to="/products" className="cart-added-stay">
                 Seguir comprando
               </Link>
