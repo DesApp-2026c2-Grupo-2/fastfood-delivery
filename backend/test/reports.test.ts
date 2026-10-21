@@ -8,6 +8,8 @@ import { PrismaExceptionFilter } from '../src/common/prisma-exception.filter';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 const stamp = Date.now();
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@rapido.local';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin123!';
 
 let app: NestExpressApplication;
 let server: ReturnType<NestExpressApplication['getHttpServer']>;
@@ -98,6 +100,7 @@ beforeAll(async () => {
       status: OrderStatus.pending,
       fulfillment: 'pickup',
       totalAmount: new Prisma.Decimal('3000.00'),
+      subtotal: new Prisma.Decimal('3000.00'),
       estimatedDeliveryAt: new Date(Date.now() + 3600000),
       items: {
         create: [
@@ -119,6 +122,7 @@ beforeAll(async () => {
       status: OrderStatus.cancelled,
       fulfillment: 'pickup',
       totalAmount: new Prisma.Decimal('10000.00'),
+      subtotal: new Prisma.Decimal('10000.00'),
       estimatedDeliveryAt: new Date(Date.now() + 3600000),
       items: {
         create: [
@@ -161,7 +165,14 @@ afterAll(async () => {
 
 describe('GET /api/admin/reports/products', () => {
   it('un pedido pending sí suma a los reportes y un pedido cancelado NO suma', async () => {
-    const response = await request(server).get('/api/admin/reports/products');
+    const login = await request(server)
+      .post('/api/auth/login')
+      .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
+    expect(login.status).toBe(201);
+
+    const response = await request(server)
+      .get('/api/admin/reports/products')
+      .set('Authorization', `Bearer ${login.body.accessToken}`);
 
     expect(response.status).toBe(200);
 

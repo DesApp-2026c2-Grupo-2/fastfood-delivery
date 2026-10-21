@@ -153,6 +153,24 @@ describe('descuento porcentual', () => {
     // 999,99 × 15 % = 149,9985 → 150,00
     expect(discountFor({ type: 'percent', value: 15 }, 999.99)).toBe(150);
     expect(discountFor({ type: 'percent', value: 100 }, 1234.56)).toBe(1234.56);
+    expect(discountFor({ type: 'percent', value: 10, minSubtotal: 20000 }, 19999.99)).toBe(0);
+    expect(discountFor({ type: 'percent', value: 10, minSubtotal: 20000 }, 20000)).toBe(2000);
+  });
+
+  it('el 2x1 regala una unidad cada dos y no descuenta los adicionales', () => {
+    const lines = [
+      { productId: 'burger', quantity: 1, unitPrice: 10000 },
+      { productId: 'burger', quantity: 1, unitPrice: 10000 },
+    ];
+    expect(discountFor({ type: 'two_for_one', value: 0, productId: 'burger' }, 21500, lines)).toBe(10000);
+    expect(discountFor({ type: 'two_for_one', value: 0, productId: 'burger' }, 10000, [lines[0]])).toBe(0);
+    expect(
+      discountFor(
+        { type: 'two_for_one', value: 0, productId: 'burger' },
+        30000,
+        [{ productId: 'burger', quantity: 5, unitPrice: 10000 }],
+      ),
+    ).toBe(20000);
   });
 });
 
@@ -184,6 +202,7 @@ describe('ABM de promociones (HU-20)', () => {
     expect((await post({ name: 'Promo E2E', value: 12.5 })).status).toBe(400);
     expect((await post({ name: '   ', value: 10 })).status).toBe(400);
     expect((await post({ name: 'Promo E2E', value: 10, type: 'two_for_one' })).status).toBe(400);
+    expect((await post({ name: 'Promo E2E', type: 'two_for_one', productId: 'no-existe' })).status).toBe(400);
     const badRange = await post({
       name: 'Promo E2E',
       value: 10,
@@ -333,6 +352,112 @@ describe('promo porcentual automática al confirmar (HU-21)', () => {
   });
 });
 
+describe('promo 2x1 de un producto (HU-20, HU-21)', () => {
+  it('el admin la da de alta con el producto y se ve en el listado', async () => {
+    const created = await createPromotion({
+      name: `Promo E2E 2x1 ${stamp}`,
+      type: 'two_for_one',
+      productId: burger.id,
+    });
+    expect(created).toMatchObject({
+      type: 'two_for_one',
+      value: 0,
+      productId: burger.id,
+      productName: burger.name,
+      active: true,
+    });
+
+    const marked = await request(server).get(`/api/products/${burger.id}`);
+    expect(marked.status).toBe(200);
+    expect(marked.body.twoForOne).toBe(true);
+    const other = await request(server).get(`/api/products/${bacon.id}`);
+    expect(other.body.twoForOne).toBe(false);
+  });
+
+  it('con dos unidades regala una, cobra los adicionales y reserva las dos', async () => {
+    const promo = await createPromotion({
+      name: `Promo E2E 2x1 pedido ${stamp}`,
+      type: 'two_for_one',
+      productId: burger.id,
+    });
+    const before = await prisma.stock.findUniqueOrThrow({
+      where: { branchId_productId: { branchId: branch.id, productId: burger.id } },
+    });
+    // (10000 + 1500) × 2 = 23000. El 2x1 descuenta una hamburguesa, no el bacon.
+    await fillCart([{ productId: burger.id, quantity: 2, extraIds: [bacon.id] }]);
+
+    const response = await placePickup();
+
+    expect(response.status).toBe(201);
+    expect(response.body).toMatchObject({
+      subtotal: 23000,
+      discountAmount: 10000,
+      totalAmount: 13000,
+      promotionName: promo.name,
+    });
+    const after = await prisma.stock.findUniqueOrThrow({
+      where: { branchId_productId: { branchId: branch.id, productId: burger.id } },
+    });
+    expect(after.available).toBe(before.available - 2);
+  });
+
+  it('suma las cantidades de varias líneas y con una sola unidad no descuenta', async () => {
+    await createPromotion({
+      name: `Promo E2E 2x1 lineas ${stamp}`,
+      type: 'two_for_one',
+      productId: burger.id,
+    });
+    await fillCart([
+      { productId: burger.id, quantity: 1, extraIds: [bacon.id] },
+      { productId: burger.id, quantity: 1 },
+    ]);
+    const paired = await placePickup();
+    expect(paired.body).toMatchObject({ subtotal: 21500, discountAmount: 10000, totalAmount: 11500 });
+
+    await fillCart([{ productId: burger.id, quantity: 1 }]);
+    const single = await placePickup();
+    expect(single.body).toMatchObject({ subtotal: 10000, discountAmount: 0, totalAmount: 10000, promotionName: null });
+  });
+
+  it('si un porcentual descuenta más, gana el porcentual', async () => {
+    await createPromotion({
+      name: `Promo E2E 2x1 pierde ${stamp}`,
+      type: 'two_for_one',
+      productId: burger.id,
+    });
+    const percent = await createPromotion({ name: `Promo E2E 90 ${stamp}`, value: 90 });
+    await fillCart([{ productId: burger.id, quantity: 2 }]);
+
+    const response = await placePickup();
+
+    expect(response.body).toMatchObject({
+      subtotal: 20000,
+      discountAmount: 18000,
+      totalAmount: 2000,
+      promotionName: percent.name,
+    });
+  });
+
+  it('la cotización usa la misma regla', async () => {
+    const promo = await createPromotion({
+      name: `Promo E2E 2x1 cotiza ${stamp}`,
+      type: 'two_for_one',
+      productId: burger.id,
+    });
+    await fillCart([{ productId: burger.id, quantity: 2 }]);
+
+    const response = await request(server).post('/api/promotions/quote').set(auth(ana.token)).send({});
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      subtotal: 20000,
+      discountAmount: 10000,
+      totalAmount: 10000,
+      promotion: { id: promo.id, name: promo.name, type: 'two_for_one', value: 0 },
+    });
+  });
+});
+
 describe('POST /api/promotions/quote', () => {
   it('con sesión cotiza el carrito con la misma regla que el pedido', async () => {
     const promo = await createPromotion({ name: `Promo E2E cotiza ${stamp}`, value: 10 });
@@ -345,7 +470,7 @@ describe('POST /api/promotions/quote', () => {
       subtotal: 11500,
       discountAmount: 1150,
       totalAmount: 10350,
-      promotion: { id: promo.id, name: promo.name, type: 'percent' },
+      promotion: { id: promo.id, name: promo.name, type: 'percent', value: 10 },
     });
   });
 
@@ -361,5 +486,40 @@ describe('POST /api/promotions/quote', () => {
   it('sin sesión y sin ítems, o con el carrito vacío, responde 400', async () => {
     expect((await request(server).post('/api/promotions/quote').send({})).status).toBe(400);
     expect((await request(server).post('/api/promotions/quote').set(auth(ana.token)).send({})).status).toBe(400);
+  });
+});
+
+describe('porcentual con monto mínimo', () => {
+  it('no descuenta por debajo del mínimo y el banner publica ese monto', async () => {
+    const promo = await createPromotion({
+      name: `Promo E2E minimo ${stamp}`,
+      value: 10,
+      minSubtotal: 20000,
+      startsAt: new Date(Date.now() - DAY_MS).toISOString(),
+      endsAt: new Date(Date.now() + DAY_MS).toISOString(),
+    });
+
+    const below = await request(server)
+      .post('/api/promotions/quote')
+      .send({ items: [{ productId: burger.id, quantity: 1 }] });
+    expect(below.status).toBe(200);
+    expect(below.body).toMatchObject({ subtotal: 10000, discountAmount: 0, promotion: null });
+
+    const enough = await request(server)
+      .post('/api/promotions/quote')
+      .send({ items: [{ productId: burger.id, quantity: 2 }] });
+    expect(enough.status).toBe(200);
+    expect(enough.body).toMatchObject({
+      subtotal: 20000,
+      discountAmount: 2000,
+      totalAmount: 18000,
+      promotion: { id: promo.id, type: 'percent', value: 10 },
+    });
+
+    const banner = await request(server).get('/api/promotions/banner');
+    expect(banner.status).toBe(200);
+    expect(banner.body.offer).toMatchObject({ id: promo.id, value: 10, minSubtotal: 20000 });
+
+    await request(server).delete(`/api/admin/promotions/${promo.id}`).set(auth(adminToken));
   });
 });

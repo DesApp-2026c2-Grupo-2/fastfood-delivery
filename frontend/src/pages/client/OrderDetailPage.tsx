@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import { isStatusBehind, useOrderStatusEvents, type OrderStatusChangedEvent } from '../../api/order-events';
 import type { OrderDetail, OrderStatus, Product } from '../../api/types';
 import { getToken, getUserId } from '../../auth/session';
+import { discountCaption } from '../../lib/discount-label';
 import { formatDateTime, formatPrice } from '../../lib/money';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { mediaUrl } from '../../lib/media';
@@ -200,6 +201,11 @@ export function OrderDetailPage() {
   }
 
   const isDelayed = currentDelayMinutes > 0;
+  const promoCaption = discountCaption({
+    name: order.promotionName,
+    type: order.promotionType,
+    value: order.promotionValue,
+  });
 
   return (
     <section className="tracking-page">
@@ -375,6 +381,18 @@ export function OrderDetailPage() {
 
         <div className="total-divider" />
 
+        {order.discountAmount > 0 ? (
+          <>
+            <div className="total-line">
+              <span>Subtotal</span>
+              <span>{formatPrice(order.subtotal)}</span>
+            </div>
+            <div className="total-line">
+              <span>Descuento{promoCaption ? ` (${promoCaption})` : ''}</span>
+              <span>−{formatPrice(order.discountAmount)}</span>
+            </div>
+          </>
+        ) : null}
         <div className="total-line">
           <span>Total</span>
           <span className="total-amount">{formatPrice(order.totalAmount)}</span>

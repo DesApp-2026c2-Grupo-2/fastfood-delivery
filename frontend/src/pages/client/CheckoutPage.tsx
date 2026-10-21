@@ -7,6 +7,7 @@ import type {
   CheckoutBranchesResponse,
   Fulfillment,
   Order,
+  PromotionQuote,
   OutOfCoverageError,
   OutOfStockError,
   OutOfStockItem,
@@ -14,6 +15,7 @@ import type {
 import { useCart } from '../../cart/CartContext';
 import { getToken, isCustomer } from '../../auth/session';
 import { clearGuestCart, getGuestCart, hydrateGuestCart } from '../../cart/guestCart';
+import { discountCaption } from '../../lib/discount-label';
 import { formatDateTime, formatPrice } from '../../lib/money';
 import { mediaUrl } from '../../lib/media';
 import { AddressLocationPicker } from '../../components/AddressLocationPicker';
@@ -46,6 +48,7 @@ export function CheckoutPage() {
   const token = getToken() ?? '';
   const { refresh } = useCart();
   const [cart, setCart] = useState<Cart | null>(null);
+  const [quote, setQuote] = useState<PromotionQuote | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressId, setAddressId] = useState('');
   const [name, setName] = useState('');
@@ -98,6 +101,34 @@ export function CheckoutPage() {
       cancelled = true;
     };
   }, [loggedIn, token]);
+
+  // La misma regla que se aplica al confirmar: porcentual del pedido o 2x1 del producto.
+  useEffect(() => {
+    if (loading || !cart || cart.items.length === 0) {
+      setQuote(null);
+      return;
+    }
+    let cancelled = false;
+    const body = loggedIn
+      ? {}
+      : {
+          items: cart.items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            notes: item.notes,
+          })),
+        };
+    api<PromotionQuote>('/promotions/quote', { method: 'POST', token, body: JSON.stringify(body) })
+      .then((next) => {
+        if (!cancelled) setQuote(next);
+      })
+      .catch(() => {
+        if (!cancelled) setQuote(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cart, loading, loggedIn, token]);
 
   // Sucursales para elegir: dependen de retiro/domicilio, de la ubicación y del carrito.
   useEffect(() => {
@@ -157,7 +188,7 @@ export function CheckoutPage() {
     };
   }, [loading, cart, loggedIn, token, fulfillment, addressId, latitude, longitude]);
 
-  // Si hay una sola sucursal, viene elegida. Si la elegida ya no está en la lista, se limpia.
+  // Retiro: la primera sucursal con stock queda elegida. Domicilio: solo si hay una.
   useEffect(() => {
     if (!branchOptions) {
       setBranchId('');
@@ -165,7 +196,11 @@ export function CheckoutPage() {
     }
     setBranchId((current) => {
       if (branchOptions.branches.some((branch) => branch.id === current)) return current;
-      return branchOptions.branches.length === 1 ? branchOptions.branches[0].id : '';
+      if (branchOptions.branches.length === 1) return branchOptions.branches[0].id;
+      if (branchOptions.fulfillment === 'pickup') {
+        return (branchOptions.branches.find((branch) => branch.canFulfill) ?? branchOptions.branches[0])?.id ?? '';
+      }
+      return '';
     });
   }, [branchOptions]);
 
@@ -388,10 +423,14 @@ export function CheckoutPage() {
                 );
               })}
             </ul>
-            <p className="total-row">
-              <span>Total</span>
-              <strong>{formatPrice(order.totalAmount)}</strong>
-            </p>
+            <PriceBreakdown
+              subtotal={order.subtotal}
+              discountAmount={order.discountAmount}
+              totalAmount={order.totalAmount}
+              promotionName={order.promotionName}
+              promotionType={order.promotionType}
+              promotionValue={order.promotionValue}
+            />
             <p className="checkout-back">
               <Link to="/products">Seguir mirando el menú</Link>
             </p>
@@ -525,6 +564,7 @@ export function CheckoutPage() {
           <div className="checkout-block">
           <OrderSummary
             cart={cart}
+            quote={quote}
             saving={saving}
             shortages={stockError?.items ?? []}
             blockedReason={blockedReason}
@@ -637,6 +677,7 @@ export function CheckoutPage() {
           <div className="checkout-block">
             <OrderSummary
               cart={cart}
+              quote={quote}
               saving={saving}
               shortages={stockError?.items ?? []}
               blockedReason={blockedReason}
@@ -745,13 +786,57 @@ function BranchPicker({
   );
 }
 
+function PriceBreakdown({
+  subtotal,
+  discountAmount,
+  totalAmount,
+  promotionName,
+  promotionType,
+  promotionValue,
+}: {
+  subtotal: number;
+  discountAmount: number;
+  totalAmount: number;
+  promotionName?: string | null;
+  promotionType?: 'percent' | 'two_for_one' | null;
+  promotionValue?: number | null;
+}) {
+  const caption = discountCaption({ name: promotionName, type: promotionType, value: promotionValue });
+  if (!discountAmount) {
+    return (
+      <p className="total-row">
+        <span>Total</span>
+        <strong>{formatPrice(totalAmount)}</strong>
+      </p>
+    );
+  }
+  return (
+    <>
+      <p className="total-row total-row--detail">
+        <span>Subtotal</span>
+        <strong>{formatPrice(subtotal)}</strong>
+      </p>
+      <p className="total-row total-row--detail">
+        <span>Descuento{caption ? ` (${caption})` : ''}</span>
+        <strong>−{formatPrice(discountAmount)}</strong>
+      </p>
+      <p className="total-row">
+        <span>Total</span>
+        <strong>{formatPrice(totalAmount)}</strong>
+      </p>
+    </>
+  );
+}
+
 function OrderSummary({
   cart,
+  quote,
   saving,
   shortages,
   blockedReason,
 }: {
   cart: Cart;
+  quote: PromotionQuote | null;
   saving: boolean;
   shortages: OutOfStockItem[];
   blockedReason: string;
@@ -788,10 +873,14 @@ function OrderSummary({
           );
         })}
       </ul>
-      <p className="total-row">
-        <span>Total</span>
-        <strong>{formatPrice(cart.total)}</strong>
-      </p>
+      <PriceBreakdown
+        subtotal={quote?.subtotal ?? cart.total}
+        discountAmount={quote?.discountAmount ?? 0}
+        totalAmount={quote?.totalAmount ?? cart.total}
+        promotionName={quote?.promotion?.name}
+        promotionType={quote?.promotion?.type}
+        promotionValue={quote?.promotion?.value}
+      />
       <button type="submit" disabled={saving || Boolean(blockedReason)}>
         {saving ? 'Confirmando…' : 'Confirmar pedido'}
       </button>

@@ -103,6 +103,11 @@ export type OrderStatusChangedEvent = {
 };
 
 export type AdminOrderDetail = AdminOrderListItem & {
+  subtotal: number;
+  discountAmount: number;
+  promotionName: string | null;
+  promotionType: 'percent' | 'two_for_one' | null;
+  promotionValue: number | null;
   user: { id: string; name: string; email: string } | null;
   guestName: string | null;
   guestEmail: string | null;
@@ -168,11 +173,14 @@ export type AdminAccount = {
 export type Promotion = {
   id: string;
   name: string;
-  type: 'percent';
+  type: 'percent' | 'two_for_one';
   value: number;
+  productId: string | null;
+  productName: string | null;
   active: boolean;
   startsAt: string | null;
   endsAt: string | null;
+  minSubtotal: number | null;
   createdAt: string;
   updatedAt: string;
 };

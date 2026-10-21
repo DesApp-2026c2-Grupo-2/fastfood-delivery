@@ -312,6 +312,29 @@ textarea {
   padding: 1.2rem 1rem 3.5rem;
 }
 
+.promo-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1.25rem;
+  background: #fff7ed;
+  border: 2px solid #fdba74;
+  box-shadow: 0 4px 0 #fed7aa;
+}
+
+.promo-banner p {
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.promo-banner .brand-logo {
+  width: 3.2rem;
+  height: 3.2rem;
+}
+
 .app-shell--admin .main {
   width: min(1100px, 100%);
 }
@@ -450,6 +473,45 @@ button:disabled {
 .product-card:hover {
   transform: translate(-2px, -2px);
   box-shadow: 6px 6px 0 var(--shadow);
+}
+
+.product-card-media {
+  position: relative;
+  display: block;
+  height: 100%;
+  min-height: 112px;
+}
+
+.promo-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  background: #ea580c;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1.3;
+  box-shadow: 0 2px 0 #c2410c;
+}
+
+.product-card-media .promo-badge,
+.detail-photo .promo-badge {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.4rem;
+}
+
+.detail-photo {
+  position: relative;
+}
+
+.promo-note {
+  margin: 0.2rem 0 0.35rem;
+  color: #c2410c;
+  font-weight: 800;
+  font-size: 0.92rem;
 }
 
 .product-card img,
@@ -1960,9 +2022,47 @@ h2 {
   }
 
   .bottom-nav--account .bottom-nav-item {
-    font-size: 0.64rem;
+    font-size: 0.62rem;
     gap: 0.08rem;
-    padding: 0.25rem 0;
+    padding: 0.2rem 0.05rem;
+  }
+
+  .bottom-nav-shop {
+    display: contents;
+  }
+
+  .bottom-nav--account .bottom-nav-shop,
+  .bottom-nav-account {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .bottom-nav--account {
+    gap: 0.35rem;
+    align-items: stretch;
+  }
+
+  .bottom-nav-account {
+    background: #fff7ed;
+    border: 1.5px solid #fed7aa;
+    border-radius: 1.05rem;
+    padding: 0.12rem;
+  }
+
+  .bottom-nav-account .bottom-nav-item {
+    border-radius: 0.8rem;
+  }
+
+  .bottom-nav-account .bottom-nav-item.active {
+    background: #fff;
+    box-shadow: 0 1px 0 #fdba74;
+  }
+
+  @media (max-width: 380px) {
+    .bottom-nav--account .bottom-nav-item {
+      font-size: 0.56rem;
+    }
   }
 
   .session-greeting {
@@ -3413,6 +3513,21 @@ h2 {
 /* ==========================================
    Barra de acción equilibrada y liviana
    ========================================== */
+.product-line-discount {
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+  margin: 0.85rem 0 0;
+}
+
+.product-line-discount p {
+  display: flex;
+  gap: 1rem;
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
 .product-action-footer {
   display: flex;
   align-items: center;
@@ -4078,6 +4193,20 @@ h2 {
   font-size: 1.45rem;
   font-weight: 700;
   color: var(--accent);
+}
+
+.checkout .total-row--detail,
+.total-card .total-row--detail {
+  border-top: 0;
+  padding-top: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.checkout .total-row--detail strong,
+.total-card .total-row--detail strong {
+  font-size: 1rem;
+  color: var(--ink);
 }
 
 .checkout-back {

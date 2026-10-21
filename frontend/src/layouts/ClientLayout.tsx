@@ -5,6 +5,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { clearSession } from '../auth/session';
 import { BrandLogo } from '../components/BrandLogo';
 import { BottomNav } from '../components/BottomNav';
+import { PromoBanner } from '../components/PromoBanner';
 
 export function ClientLayout() {
   const navigate = useNavigate();
@@ -97,6 +98,7 @@ export function ClientLayout() {
         </nav>
       </header>
       <main className="main">
+        <PromoBanner />
         <Outlet />
       </main>
       <BottomNav count={count} customer={customer} userName={user?.name} />

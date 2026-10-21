@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { api } from '../../api/client';
+import { getToken } from '../../auth/session';
 
 interface ReportItem {
   id: string;
@@ -22,21 +24,22 @@ export function AdminReportsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/admin/reports/products')
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error('Error al cargar reportes');
-        }
-        return res.json();
-      })
-      .then((result: ProductReportsData) => {
+    const token = getToken() ?? '';
+    let cancelled = false;
+    api<ProductReportsData>('/admin/reports/products', { token })
+      .then((result) => {
+        if (cancelled) return;
         setData(result);
         setLoading(false);
       })
-      .catch((err) => {
-        setError(err.message || 'Error desconocido');
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : 'Error desconocido');
         setLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) {

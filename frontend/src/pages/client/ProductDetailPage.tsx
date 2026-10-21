@@ -2,11 +2,12 @@ import { useCart } from '../../cart/CartContext';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
-import type { Cart, Product } from '../../api/types';
+import type { Cart, Product, PromotionQuote } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
 import { addGuestItem } from '../../cart/guestCart';
-import { ProductTags } from '../../components/ProductTags';
+import { ProductTags, PromoBadge } from '../../components/ProductTags';
 import { mediaUrl } from '../../lib/media';
+import { discountCaption } from '../../lib/discount-label';
 import { formatPrice } from '../../lib/money';
 
 export function ProductDetailPage() {
@@ -22,6 +23,10 @@ export function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
   const [notesOpen, setNotesOpen] = useState(false);
+  const [lineQuote, setLineQuote] = useState<{
+    key: string;
+    quote: PromotionQuote;
+  } | null>(null);
 
   // Referencia para hacer scroll al mensaje de confirmación
   const successRef = useRef<HTMLDivElement | null>(null);
@@ -75,6 +80,37 @@ export function ProductDetailPage() {
     };
   }, [id]);
 
+  // La misma promo que el pedido: 2x1 de este producto o el porcentaje del total.
+  useEffect(() => {
+    if (!product) {
+      setLineQuote(null);
+      return;
+    }
+    const key = `${product.id}:${quantity}:${selectedExtraIds.join(',')}`;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      api<PromotionQuote>('/promotions/quote', {
+        method: 'POST',
+        token: getToken() ?? '',
+        body: JSON.stringify({
+          items: [{ productId: product.id, quantity, extraIds: selectedExtraIds }],
+        }),
+      })
+        .then((next) => {
+          if (!cancelled) setLineQuote({ key, quote: next });
+        })
+        .catch(() => {
+          if (!cancelled) setLineQuote(null);
+        });
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // selectedExtraIds se resume en extraKey para no disparar el efecto en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product, quantity, selectedExtraIds.join(',')]);
+
   function handleToggleExtra(extraId: string) {
     setSelectedExtraIds((prev) =>
       prev.includes(extraId) ? prev.filter((item) => item !== extraId) : [...prev, extraId],
@@ -87,6 +123,16 @@ export function ProductDetailPage() {
     .reduce((sum, extra) => sum + Number(extra.price || 0), 0);
 
   const unitPriceWithExtras = (product ? Number(product.price) : 0) + extrasTotalPerUnit;
+  const listTotal = unitPriceWithExtras * quantity;
+  const quoteKey = product ? `${product.id}:${quantity}:${selectedExtraIds.join(',')}` : '';
+  const matchedQuote = lineQuote?.key === quoteKey ? lineQuote.quote : null;
+  const lineDiscount = matchedQuote?.discountAmount ?? 0;
+  const payable = lineDiscount > 0 ? matchedQuote!.totalAmount : listTotal;
+  const promoCaption = discountCaption({
+    name: matchedQuote?.promotion?.name,
+    type: matchedQuote?.promotion?.type,
+    value: matchedQuote?.promotion?.value,
+  });
 
   async function addToCart(event: FormEvent) {
     event.preventDefault();
@@ -158,22 +204,30 @@ export function ProductDetailPage() {
       </div>
 
       {images.length ? (
-        <div className={images.length > 1 ? 'detail-gallery' : undefined}>
-          {images.map((image) => (
-            <img
-              key={image.id}
-              src={mediaUrl(image.url)}
-              alt={product.name}
-              onError={(event) => {
-                event.currentTarget.src =
-                  'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240"><rect width="100%" height="100%" fill="%23FFEDD5"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23EA580C" font-family="Nunito,sans-serif" font-size="22">sin fotito</text></svg>';
-              }}
-            />
-          ))}
+        <div className="detail-photo">
+          <div className={images.length > 1 ? 'detail-gallery' : undefined}>
+            {images.map((image) => (
+              <img
+                key={image.id}
+                src={mediaUrl(image.url)}
+                alt={product.name}
+                onError={(event) => {
+                  event.currentTarget.src =
+                    'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240"><rect width="100%" height="100%" fill="%23FFEDD5"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23EA580C" font-family="Nunito,sans-serif" font-size="22">sin fotito</text></svg>';
+                }}
+              />
+            ))}
+          </div>
+          {product.twoForOne ? <PromoBadge /> : null}
         </div>
+      ) : product.twoForOne ? (
+        <PromoBadge />
       ) : null}
 
       <h1>{product.name}</h1>
+      {product.twoForOne ? (
+        <p className="promo-note">Llevá dos y una sale gratis. Los adicionales se cobran.</p>
+      ) : null}
       <ProductTags product={product} />
 
       <p className="price">
@@ -269,6 +323,19 @@ export function ProductDetailPage() {
           </p>
         ) : null}
 
+        {lineDiscount > 0 ? (
+          <div className="product-line-discount">
+            <p>
+              <span>Subtotal</span>
+              <strong>{formatPrice(listTotal)}</strong>
+            </p>
+            <p>
+              <span>Descuento{promoCaption ? ` (${promoCaption})` : ''}</span>
+              <strong>−{formatPrice(lineDiscount)}</strong>
+            </p>
+          </div>
+        ) : null}
+
         {/* Fila principal integrada: Selector + Botón de acción con subtotal */}
         <div className="product-action-footer">
           <div className="qty" aria-label="Cantidad">
@@ -304,9 +371,7 @@ export function ProductDetailPage() {
 
           <button type="submit" className="add-to-cart-submit" disabled={saving}>
             <span>{saving ? 'Agregando…' : 'Agregar al carrito'}</span>
-            <span className="add-to-cart-price">
-              {formatPrice(unitPriceWithExtras * quantity)}
-            </span>
+            <span className="add-to-cart-price">{formatPrice(payable)}</span>
           </button>
         </div>
 

@@ -13,6 +13,12 @@ function formatPrice(price: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(price);
 }
 
+function discountCaption(name: string | null, type: 'percent' | 'two_for_one' | null, value: number | null) {
+  const kind = type === 'two_for_one' ? '2x1' : type === 'percent' && value ? `${value}%` : '';
+  if (kind && name) return `${kind} · ${name}`;
+  return kind || name || '';
+}
+
 function formatWhen(iso: string) {
   return new Intl.DateTimeFormat('es-AR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso));
 }
@@ -100,6 +106,7 @@ export function AdminOrderDetailPage() {
   const forward = nextForward(order.nextStatuses);
   const canCancel = order.nextStatuses.includes('cancelled');
   const timing = orderTimingText(order);
+  const promoCaption = discountCaption(order.promotionName, order.promotionType, order.promotionValue);
 
   return (
     <section className="stack">
@@ -172,6 +179,17 @@ export function AdminOrderDetailPage() {
           <p>
             Faltan <strong>{order.etaMinutes} min</strong>
           </p>
+        ) : null}
+        {order.discountAmount > 0 ? (
+          <>
+            <p>
+              Subtotal: <strong>{formatPrice(order.subtotal)}</strong>
+            </p>
+            <p>
+              Descuento{promoCaption ? ` (${promoCaption})` : ''}:{' '}
+              <strong>−{formatPrice(order.discountAmount)}</strong>
+            </p>
+          </>
         ) : null}
         <p className="price">{formatPrice(order.totalAmount)}</p>
       </article>

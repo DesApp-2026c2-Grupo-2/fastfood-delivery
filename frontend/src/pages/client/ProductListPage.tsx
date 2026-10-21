@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Category, Product } from '../../api/types';
-import { ProductTags } from '../../components/ProductTags';
+import { ProductTags, PromoBadge } from '../../components/ProductTags';
 import { mediaUrl } from '../../lib/media';
 import { formatPrice } from '../../lib/money';
 
@@ -96,7 +96,10 @@ export function ProductListPage() {
         {products.map((product) => (
           <li key={product.id}>
             <Link className="product-card" to={`/products/${product.id}`}>
-              <img src={mediaUrl(product.images?.[0]?.url || product.imageUrl)} alt="" onError={onImageError} />
+              <span className="product-card-media">
+                <img src={mediaUrl(product.images?.[0]?.url || product.imageUrl)} alt="" onError={onImageError} />
+                {product.twoForOne ? <PromoBadge /> : null}
+              </span>
               <div>
                 <h2>{product.name}</h2>
                 <ProductTags product={product} />

@@ -9,40 +9,40 @@ type BottomNavProps = {
 export function BottomNav({ count, customer, userName }: BottomNavProps) {
   return (
     <nav className={customer ? 'bottom-nav bottom-nav--account' : 'bottom-nav'} aria-label="Navegación principal">
-      <NavLink to="/products" className="bottom-nav-item" end>
-        <MenuIcon />
-        <span>Catálogo</span>
-      </NavLink>
-      <NavLink to="/cart" className="bottom-nav-item">
-        <span className="bottom-nav-icon-wrap">
-          <CartIcon />
-          {count > 0 ? <span className="cart-badge bottom-nav-badge">{count}</span> : null}
-        </span>
-        <span>Carrito</span>
-      </NavLink>
-      <NavLink to="/branches" className="bottom-nav-item">
-        <StoreIcon />
-        <span>Sucursales</span>
-      </NavLink>
-      {customer ? (
-        <NavLink to="/account/addresses" className="bottom-nav-item">
-          <PinIcon />
-          <span>Direcciones</span>
+      <div className="bottom-nav-shop">
+        <NavLink to="/products" className="bottom-nav-item" end>
+          <MenuIcon />
+          <span>Catálogo</span>
         </NavLink>
-      ) : null}
-      {customer ? (
-        <NavLink to="/orders" className="bottom-nav-item">
-          <OrdersIcon />
-          <span>Pedidos</span>
-        </NavLink>
-      ) : null}
-      {customer ? (
-        <NavLink to="/account" className="bottom-nav-item">
-          <span className="session-avatar bottom-nav-avatar" aria-hidden="true">
-            {userName?.charAt(0).toUpperCase()}
+        <NavLink to="/cart" className="bottom-nav-item">
+          <span className="bottom-nav-icon-wrap">
+            <CartIcon />
+            {count > 0 ? <span className="cart-badge bottom-nav-badge">{count}</span> : null}
           </span>
-          <span>Mi cuenta</span>
+          <span>Carrito</span>
         </NavLink>
+        <NavLink to="/branches" className="bottom-nav-item">
+          <StoreIcon />
+          <span>Sucursales</span>
+        </NavLink>
+      </div>
+      {customer ? (
+        <div className="bottom-nav-account">
+          <NavLink to="/account/addresses" className="bottom-nav-item">
+            <PinIcon />
+            <span>Direcciones</span>
+          </NavLink>
+          <NavLink to="/orders" className="bottom-nav-item">
+            <OrdersIcon />
+            <span>Pedidos</span>
+          </NavLink>
+          <NavLink to="/account" className="bottom-nav-item" end>
+            <span className="session-avatar bottom-nav-avatar" aria-hidden="true">
+              {userName?.charAt(0).toUpperCase()}
+            </span>
+            <span>Mi cuenta</span>
+          </NavLink>
+        </div>
       ) : (
         <NavLink to="/login" className="bottom-nav-item">
           <AccountIcon />

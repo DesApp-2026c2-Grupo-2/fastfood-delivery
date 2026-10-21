@@ -1,9 +1,10 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
+import { AdminGuard } from '../auth/admin.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ReportsService } from './reports.service';
 
-// Si en tu backend tienen un Guard de autenticación de admin (ej: AdminAuthGuard o JwtAuthGuard),
-// se coloca acá. Si no sabés cuál es todavía, podemos dejarlo libre mientras testeamos.
 @Controller('admin/reports')
+@UseGuards(JwtAuthGuard, AdminGuard)
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 

@@ -4,6 +4,7 @@ import { slugify } from '../categories/slug';
 import { CategoriesService } from '../categories/categories.service';
 import { ExtrasService } from '../extras/extras.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PromotionsService } from '../promotions/promotions.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
@@ -34,7 +35,7 @@ function normalizeImageUrl(url: string) {
   }
 }
 
-function serialize(product: ProductWithRelations) {
+function serialize(product: ProductWithRelations, twoForOne = false) {
   const firstCategory = product.categories[0];
   return {
     ...product,
@@ -42,6 +43,7 @@ function serialize(product: ProductWithRelations) {
     imageUrl: product.images[0]?.url ?? '',
     categoryId: firstCategory?.id,
     category: firstCategory,
+    twoForOne,
   };
 }
 
@@ -51,18 +53,22 @@ export class ProductsService {
     private readonly prisma: PrismaService,
     private readonly categoriesService: CategoriesService,
     private readonly extrasService: ExtrasService,
+    private readonly promotionsService: PromotionsService,
   ) {}
 
   async findPublic(categoryId?: string) {
-    const products = await this.prisma.product.findMany({
-      where: {
-        available: true,
-        ...(categoryId ? { categories: { some: { id: categoryId } } } : {}),
-      },
-      include: withRelations,
-      orderBy: { name: 'asc' },
-    });
-    return products.map(serialize);
+    const [products, twoForOne] = await Promise.all([
+      this.prisma.product.findMany({
+        where: {
+          available: true,
+          ...(categoryId ? { categories: { some: { id: categoryId } } } : {}),
+        },
+        include: withRelations,
+        orderBy: { name: 'asc' },
+      }),
+      this.promotionsService.activeTwoForOneProductIds(),
+    ]);
+    return products.map((product) => serialize(product, twoForOne.has(product.id)));
   }
 
   async findPublicById(id: string) {
@@ -73,7 +79,11 @@ export class ProductsService {
     if (!product) {
       throw new NotFoundException('Producto no encontrado');
     }
-    return { ...serialize(product), extras: await this.extrasService.listFor(product.id) };
+    const twoForOne = await this.promotionsService.activeTwoForOneProductIds();
+    return {
+      ...serialize(product, twoForOne.has(product.id)),
+      extras: await this.extrasService.listFor(product.id),
+    };
   }
 
   async findAllAdmin(categoryId?: string) {
@@ -82,7 +92,7 @@ export class ProductsService {
       include: withRelations,
       orderBy: { name: 'asc' },
     });
-    return products.map(serialize);
+    return products.map((product) => serialize(product));
   }
 
   async findOneAdmin(id: string) {

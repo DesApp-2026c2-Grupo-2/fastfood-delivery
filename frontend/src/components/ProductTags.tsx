@@ -5,6 +5,10 @@ export function productCategories(product: Product): Category[] {
   return product.category ? [product.category] : [];
 }
 
+export function PromoBadge() {
+  return <span className="promo-badge">2x1</span>;
+}
+
 export function ProductTags({ product }: { product: Product }) {
   const tags = productCategories(product);
   if (tags.length === 0) return null;

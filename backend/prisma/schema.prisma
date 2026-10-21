@@ -29,9 +29,10 @@ enum Fulfillment {
   pickup
 }
 
-// Tipo de promoción (HU-20, HU-21). En el Sprint 4 solo entra el porcentual automático; fixed y 2x1 quedan para después.
+// Tipo de promoción (HU-20, HU-21). El porcentual descuenta el pedido; el 2x1, un producto.
 enum PromotionType {
   percent
+  two_for_one
 }
 
 model User {
@@ -86,6 +87,7 @@ model Product {
   cartItemExtras  CartItemExtra[]
   orderItemExtras OrderItemExtra[]
   stock           Stock[]
+  promotions      Promotion[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -243,16 +245,22 @@ model Promotion {
   id        String        @id @default(cuid())
   name      String
   type      PromotionType @default(percent)
-  // percent: entero de 1 a 100.
+  // percent: entero de 1 a 100. two_for_one: se guarda 0; el descuento sale de las unidades del producto.
   value     Int
+  // Obligatorio en el 2x1. En el porcentual queda vacío: el descuento es de todo el pedido.
+  productId String?
+  product   Product?      @relation(fields: [productId], references: [id], onDelete: Restrict)
   active    Boolean       @default(true)
   startsAt  DateTime?
   endsAt    DateTime?
+  // Solo en el porcentual. Si está vacío, el descuento no pide un monto mínimo.
+  minSubtotal Decimal?      @db.Decimal(10, 2)
   orders    Order[]
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
   @@index([active])
+  @@index([productId])
 }
 
 model OrderItem {

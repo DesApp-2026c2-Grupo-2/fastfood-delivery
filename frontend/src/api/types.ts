@@ -29,6 +29,7 @@ export type Product = {
   description: string;
   price: number;
   available: boolean;
+  twoForOne?: boolean;
   images: ProductImage[];
   categories: Category[];
   imageUrl: string;
@@ -105,10 +106,22 @@ export type OrderItem = {
   extras?: OrderItemExtra[];
 };
 
+export type PromotionQuote = {
+  subtotal: number;
+  discountAmount: number;
+  totalAmount: number;
+  promotion: { id: string; name: string; type: 'percent' | 'two_for_one'; value: number } | null;
+};
+
 export type Order = {
   id: string;
   status: string;
   fulfillment?: Fulfillment;
+  subtotal: number;
+  discountAmount: number;
+  promotionName: string | null;
+  promotionType?: 'percent' | 'two_for_one' | null;
+  promotionValue?: number | null;
   totalAmount: number;
   createdAt: string;
   guestName?: string | null;

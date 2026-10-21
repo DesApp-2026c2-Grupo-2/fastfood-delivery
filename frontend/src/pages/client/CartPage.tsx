@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useCart } from '../../cart/CartContext';
 import { Link, useLocation } from 'react-router-dom';
 import { api } from '../../api/client';
-import type { Cart, CartItem, Product } from '../../api/types';
+import type { Cart, CartItem, Product, PromotionQuote } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
 import { hydrateGuestCart, removeGuestItem, updateGuestItem } from '../../cart/guestCart';
 import { mediaUrl } from '../../lib/media';
+import { discountCaption } from '../../lib/discount-label';
 import { formatPrice } from '../../lib/money';
 import { useAutoClear } from '../../lib/useAutoClear';
 
@@ -42,6 +43,7 @@ export function CartPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState('');
+  const [quote, setQuote] = useState<PromotionQuote | null>(null);
   const loggedIn = isCustomer();
 
   async function load() {
@@ -67,6 +69,37 @@ export function CartPage() {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loggedIn]);
+
+  useEffect(() => {
+    if (!cart || cart.items.length === 0) {
+      setQuote(null);
+      return;
+    }
+    let cancelled = false;
+    const body = loggedIn
+      ? {}
+      : {
+          items: cart.items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            notes: item.notes,
+          })),
+        };
+    api<PromotionQuote>('/promotions/quote', {
+      method: 'POST',
+      token: getToken() ?? '',
+      body: JSON.stringify(body),
+    })
+      .then((next) => {
+        if (!cancelled) setQuote(next);
+      })
+      .catch(() => {
+        if (!cancelled) setQuote(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cart, loggedIn]);
 
   async function saveItem(item: CartItem, quantity: number, notes: string) {
     setUpdatingId(item.id);
@@ -130,7 +163,7 @@ export function CartPage() {
           <h1>Tu carrito</h1>
           <p className="muted">
             {loggedIn
-              ? 'El total es precio × cantidad. El carrito queda guardado en tu cuenta.'
+              ? 'El total ya descuenta la promo vigente. El carrito queda guardado en tu cuenta.'
               : 'Podés armar el pedido sin cuenta. El carrito queda en este dispositivo.'}
           </p>
         </div>
@@ -170,9 +203,27 @@ export function CartPage() {
             ))}
           </ul>
           <div className="card total-card">
+            {quote && quote.discountAmount > 0 ? (
+              <>
+                <p className="total-row total-row--detail">
+                  <span>Subtotal</span>
+                  <strong>{formatPrice(quote.subtotal)}</strong>
+                </p>
+                <p className="total-row total-row--detail">
+                  <span>
+                    {`Descuento (${discountCaption({
+                      name: quote.promotion?.name,
+                      type: quote.promotion?.type,
+                      value: quote.promotion?.value,
+                    })})`}
+                  </span>
+                  <strong>−{formatPrice(quote.discountAmount)}</strong>
+                </p>
+              </>
+            ) : null}
             <p className="total-row">
               <span>Total</span>
-              <strong>{formatPrice(cart?.total ?? 0)}</strong>
+              <strong>{formatPrice(quote?.totalAmount ?? cart?.total ?? 0)}</strong>
             </p>
             <Link className="checkout-button" to="/checkout">
               Ir a confirmar el pedido

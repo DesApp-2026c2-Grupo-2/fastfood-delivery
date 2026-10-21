@@ -9,7 +9,7 @@ import { AdminOrderDetailPage } from './pages/admin/AdminOrderDetailPage';
 import { AdminOrdersPage } from './pages/admin/AdminOrdersPage';
 import { AdminParametersPage } from './pages/admin/AdminParametersPage';
 import { AdminProductsPage } from './pages/admin/AdminProductsPage';
-import { AdminPromotionsPage } from './pages/admin/AdminPromotionsPage';
+import { AdminPromotionFormPage, AdminPromotionsPage } from './pages/admin/AdminPromotionsPage';
 import { AdminReportsPage } from './pages/admin/AdminReportsPage';
 import { AdminStockPage } from './pages/admin/AdminStockPage';
 
@@ -30,6 +30,8 @@ export default function App() {
         <Route path="branches" element={<AdminBranchesPage />} />
         <Route path="reports" element={<AdminReportsPage />} />
         <Route path="promotions" element={<AdminPromotionsPage />} />
+        <Route path="promotions/nueva" element={<AdminPromotionFormPage />} />
+        <Route path="promotions/:id" element={<AdminPromotionFormPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>

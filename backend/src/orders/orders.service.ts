@@ -7,7 +7,7 @@ import { CartService } from '../cart/cart.service';
 import { byName, ExtrasService } from '../extras/extras.service';
 import { ParametersService } from '../parameters/parameters.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { PromotionsService } from '../promotions/promotions.service';
+import { PromotionLine, PromotionsService } from '../promotions/promotions.service';
 import { stockLines } from '../stock/stock-lines';
 import { StockService } from '../stock/stock.service';
 import { CheckoutBranchesDto } from './dto/checkout-branches.dto';
@@ -21,6 +21,7 @@ import { canTransition, nextStatuses } from './order-status';
 const withRelations = {
   branch: true,
   address: true,
+  promotion: { select: { type: true, value: true } },
   items: {
     include: {
       product: {
@@ -38,10 +39,18 @@ function sumPrices(prices: Array<Prisma.Decimal | number>) {
 }
 
 type PricedLine = {
-  product: { price: Prisma.Decimal };
+  product: { id: string; price: Prisma.Decimal };
   quantity: number;
   extras: { price: Prisma.Decimal | number }[];
 };
+
+function promotionLines(lines: PricedLine[]): PromotionLine[] {
+  return lines.map((line) => ({
+    productId: line.product.id,
+    quantity: line.quantity,
+    unitPrice: Number(line.product.price),
+  }));
+}
 
 // Subtotal de lista: Σ (precio del producto + Σ adicionales) × cantidad. La promo se descuenta sobre esto.
 function linesSubtotal(lines: PricedLine[]) {
@@ -73,17 +82,21 @@ function pricing(order: {
   discountAmount: Prisma.Decimal;
   totalAmount: Prisma.Decimal;
   promotionName: string | null;
+  promotion: { type: 'percent' | 'two_for_one'; value: number } | null;
 }) {
   return {
     subtotal: Number(order.subtotal),
     discountAmount: Number(order.discountAmount),
     totalAmount: Number(order.totalAmount),
     promotionName: order.promotionName,
+    promotionType: order.promotion?.type ?? null,
+    promotionValue: order.promotion?.value ?? null,
   };
 }
 
 const adminDetailInclude = {
   user: { select: { id: true, name: true, email: true } },
+  promotion: { select: { type: true, value: true } },
   branch: true,
   address: true,
   items: {
@@ -315,7 +328,7 @@ export class OrdersService {
     const lines = cartLines(cart);
     const createdAt = new Date();
     // La promo vigente se aplica al confirmar (HU-21); no depende de la sucursal ni del tipo de entrega.
-    const price = await this.promotionsService.apply(linesSubtotal(lines), createdAt);
+    const price = await this.promotionsService.apply(linesSubtotal(lines), promotionLines(lines), createdAt);
     const estimatedDeliveryAt = estimateDeliveryAt(
       createdAt,
       cart.items.reduce((sum, item) => sum + item.quantity, 0),
@@ -379,7 +392,7 @@ export class OrdersService {
       delivery ? { latitude: dto.latitude as number, longitude: dto.longitude as number } : null,
     );
     const createdAt = new Date();
-    const price = await this.promotionsService.apply(linesSubtotal(lines), createdAt);
+    const price = await this.promotionsService.apply(linesSubtotal(lines), promotionLines(lines), createdAt);
     const estimatedDeliveryAt = estimateDeliveryAt(
       createdAt,
       lines.reduce((sum, line) => sum + line.quantity, 0),
@@ -502,7 +515,7 @@ export class OrdersService {
    */
   async quote(dto: QuotePromotionDto, user?: JwtPayload) {
     const lines = await this.checkoutLines(dto, user);
-    return this.promotionsService.apply(linesSubtotal(lines));
+    return this.promotionsService.apply(linesSubtotal(lines), promotionLines(lines));
   }
 
   async findAllAdmin(query: {
@@ -531,6 +544,7 @@ export class OrdersService {
         take: ADMIN_ORDER_PAGE_SIZE,
         include: {
           user: { select: { name: true, email: true } },
+          promotion: { select: { type: true, value: true } },
           branch: { select: { id: true, name: true } },
           items: true,
           statusHistory: deliveredEvent,
@@ -580,6 +594,7 @@ export class OrdersService {
       where: { userId },
       orderBy: { createdAt: 'desc' },
       include: {
+        promotion: { select: { type: true, value: true } },
         branch: { select: { id: true, name: true } },
         items: { select: { quantity: true } },
         statusHistory: deliveredEvent,
