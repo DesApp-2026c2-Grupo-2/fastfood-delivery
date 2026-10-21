@@ -1,9 +1,10 @@
 import { type FormEvent, useEffect, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { useSession } from '../../auth/SessionContext';
 import type { UpdateMeRequest, User } from '../../api/types';
 import { clearSession, getToken, isCustomer, updateStoredUser } from '../../auth/session';
+import { PasswordField } from '../../components/PasswordField';
 import { useAutoClear } from '../../lib/useAutoClear';
 
 export function AccountPage() {
@@ -24,6 +25,8 @@ function AccountContent({ token }: { token: string }) {
   const [name, setName] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   useAutoClear(ok, () => setOk(''));
@@ -133,6 +136,17 @@ function AccountContent({ token }: { token: string }) {
         </p>
       ) : null}
 
+      <div className="account-shortcuts">
+        <Link className="card-link" to="/account/addresses">
+          <span>Mis direcciones</span>
+          <small>Dónde te llevamos el pedido</small>
+        </Link>
+        <Link className="card-link" to="/orders">
+          <span>Mis pedidos</span>
+          <small>Seguí lo que ya pediste</small>
+        </Link>
+      </div>
+
       <form className="card form" onSubmit={onSubmit}>
         <h2>Datos personales</h2>
         <label>
@@ -153,18 +167,22 @@ function AccountContent({ token }: { token: string }) {
         <p className="field-hint">Dejá estos campos vacíos si no querés cambiarla.</p>
         <label>
           Contraseña actual
-          <input
-            type="password"
+          <PasswordField
             value={currentPassword}
-            onChange={(event) => setCurrentPassword(event.target.value)}
+            onChange={setCurrentPassword}
+            autoComplete="current-password"
+            visible={showCurrentPassword}
+            onToggle={() => setShowCurrentPassword((current) => !current)}
           />
         </label>
         <label>
           Contraseña nueva
-          <input
-            type="password"
+          <PasswordField
             value={newPassword}
-            onChange={(event) => setNewPassword(event.target.value)}
+            onChange={setNewPassword}
+            autoComplete="new-password"
+            visible={showNewPassword}
+            onToggle={() => setShowNewPassword((current) => !current)}
           />
         </label>
 

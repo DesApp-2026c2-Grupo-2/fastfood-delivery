@@ -20,16 +20,10 @@ export function BottomNav({ count, customer, userName }: BottomNavProps) {
         </span>
         <span>Carrito</span>
       </NavLink>
-      <NavLink to={customer ? '/account/addresses' : '/login'} className="bottom-nav-item">
-        <AccountIcon />
-        <span>{customer ? 'Direcciones' : 'Entrar'}</span>
+      <NavLink to="/branches" className="bottom-nav-item">
+        <StoreIcon />
+        <span>Sucursales</span>
       </NavLink>
-      {customer ? (
-        <NavLink to="/orders" className="bottom-nav-item">
-          <OrdersIcon />
-          <span>Pedidos</span>
-        </NavLink>
-      ) : null}
       {customer ? (
         <NavLink to="/account" className="bottom-nav-item">
           <span className="session-avatar bottom-nav-avatar" aria-hidden="true">
@@ -37,16 +31,20 @@ export function BottomNav({ count, customer, userName }: BottomNavProps) {
           </span>
           <span>Mi cuenta</span>
         </NavLink>
-      ) : null}
+      ) : (
+        <NavLink to="/login" className="bottom-nav-item">
+          <AccountIcon />
+          <span>Entrar</span>
+        </NavLink>
+      )}
     </nav>
   );
 }
 
-function OrdersIcon() {
+function StoreIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="4" y="4" width="16" height="16" rx="2" />
-      <path d="M8 9h8M8 13h5" strokeLinecap="round" />
+      <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" strokeLinejoin="round" />
     </svg>
   );
 }

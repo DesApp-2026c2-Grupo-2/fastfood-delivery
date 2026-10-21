@@ -72,16 +72,6 @@ export function ClientLayout() {
             Sucursales
           </NavLink>
           {customer ? (
-            <NavLink to="/account/addresses" className="nav-primary">
-              Mis direcciones
-            </NavLink>
-          ) : null}
-            {customer ? (
-            <NavLink to="/orders" className="nav-primary">
-              Mis pedidos
-            </NavLink>
-          ) : null}
-          {customer ? (
             <span className="session-info">
               <span className="session-greeting">
                 <Link to="/account" className="session-avatar" data-name={user?.name} aria-label={`Ir a mi cuenta${user?.name ? ` — ${user.name}` : ''}`}>

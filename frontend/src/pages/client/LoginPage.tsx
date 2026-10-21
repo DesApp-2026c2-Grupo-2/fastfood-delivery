@@ -6,38 +6,7 @@ import { useSession } from '../../auth/SessionContext';
 import { isCustomer, saveSession } from '../../auth/session';
 import { mergeGuestCartIntoAccount } from '../../cart/guestCart';
 import { BrandLogo } from '../../components/BrandLogo';
-
-const eyeIcon = (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path
-      d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.8" />
-  </svg>
-);
-
-const eyeOffIcon = (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M3 3 21 21" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    <path
-      d="M9.9 5.6C10.6 5.4 11.3 5.5 12 5.5c6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-3.3 3.6M6.6 7.2A16.4 16.4 0 0 0 2.5 12S6 18.5 12 18.5c1.5 0 2.9-.4 4.1-1"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M9.9 9.9A3.2 3.2 0 0 0 12 15.2c.6 0 1.1-.2 1.6-.5"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-    />
-  </svg>
-);
+import { PasswordField } from '../../components/PasswordField';
 
 type LocationState = { from?: string; message?: string };
 
@@ -162,26 +131,16 @@ export function LoginPage() {
                 ¿Olvidaste tu contraseña?
               </Link>
             </div>
-            <span className="password-field">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                  if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
-                }}
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                className="icon-button"
-                onClick={() => setShowPassword((current) => !current)}
-                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                aria-pressed={showPassword}
-              >
-                {showPassword ? eyeOffIcon : eyeIcon}
-              </button>
-            </span>
+            <PasswordField
+              value={password}
+              onChange={(value) => {
+                setPassword(value);
+                if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+              }}
+              autoComplete="current-password"
+              visible={showPassword}
+              onToggle={() => setShowPassword((current) => !current)}
+            />
             {errors.password ? (
               <small className="error" role="alert">
                 {errors.password}
