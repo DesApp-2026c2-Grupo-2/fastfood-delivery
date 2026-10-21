@@ -327,14 +327,6 @@ function CartLine({
           </Link>
           <p className="muted">{formatPrice(item.unitPrice)} c/u</p>
 
-          <LineExtras
-            extras={resolvedExtras}
-            busy={busy}
-            onRemove={(extra) => {
-              if (extra.id) onRemoveExtra(extra.id);
-            }}
-          />
-
           {/* Aclaración exclusiva para cocina */}
           {kitchenNote && !open ? (
             <button
@@ -412,6 +404,15 @@ function CartLine({
           </button>
         </div>
       </div>
+
+      <LineExtras
+        className="cart-line-extras"
+        extras={resolvedExtras}
+        busy={busy}
+        onRemove={(extra) => {
+          if (extra.id) onRemoveExtra(extra.id);
+        }}
+      />
 
       {open ? (
         <div style={{ marginTop: '0.5rem' }}>
