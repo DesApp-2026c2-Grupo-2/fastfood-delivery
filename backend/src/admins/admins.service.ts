@@ -61,8 +61,11 @@ export class AdminsService {
     return this.serialize(updated);
   }
 
-  async remove(id: string) {
+  async remove(id: string, actorId: string) {
     const admin = await this.findAdmin(id);
+    if (admin.id === actorId) {
+      throw new ConflictException('No podés borrar tu propio usuario');
+    }
     initialAdminPolicy.assertCanDelete(admin.email);
     try {
       await this.prisma.user.delete({ where: { id } });

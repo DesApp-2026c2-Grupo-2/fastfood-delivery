@@ -7,6 +7,7 @@ import { getToken, isCustomer } from '../../auth/session';
 import { hydrateGuestCart, removeGuestItem, updateGuestItem } from '../../cart/guestCart';
 import { mediaUrl } from '../../lib/media';
 import { formatPrice } from '../../lib/money';
+import { useAutoClear } from '../../lib/useAutoClear';
 
 function parseNotesAndExtras(notesRaw?: string | null) {
   if (!notesRaw) return { extrasNames: [], kitchenNote: '' };
@@ -33,8 +34,10 @@ function parseNotesAndExtras(notesRaw?: string | null) {
 export function CartPage() {
   const { refresh } = useCart();
   const location = useLocation();
-  const notice = (location.state as { notice?: string } | null)?.notice;
-  const [cart, setCart] = useState<Cart | null>(null);
+ const [notice, setNotice] = useState(
+    (location.state as { notice?: string } | null)?.notice ?? '',
+  );
+  useAutoClear(notice, () => setNotice(''));  const [cart, setCart] = useState<Cart | null>(null);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);

@@ -14,6 +14,7 @@ import receipt from './receipt.svg?raw';
 import boxes from './boxes.svg?raw';
 import users from './users.svg?raw';
 import sliders from './sliders.svg?raw';
+import percent from './percent.svg?raw';
 
 const icons = {
   eye,
@@ -26,6 +27,7 @@ const icons = {
   boxes,
   users,
   sliders,
+  percent,
   logout,
   'chevron-left': chevronLeft,
   'chevron-right': chevronRight,
