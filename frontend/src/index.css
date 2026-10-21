@@ -4033,9 +4033,23 @@ a.order-card-total:hover,
     padding-right: 12px !important;
     box-sizing: border-box !important;
     width: 100% !important;
+    max-width: 100%;
+    /* La columna no puede crecer con el tamaño real de las fotos */
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  article.detail form > * {
+    min-width: 0;
+    max-width: 100%;
   }
 
   /* 2. Adicionales: dos columnas iguales, el nombre largo entra en la tarjeta */
+  .extras-wrapper,
+  .extras-grid {
+    min-width: 0 !important;
+    max-width: 100%;
+  }
+
   .extras-grid {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4065,11 +4079,22 @@ a.order-card-total:hover,
 
   .extra-thumb-box {
     width: 100% !important;
+    min-width: 0;
     height: 64px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     margin-bottom: 0.4rem !important;
+    overflow: hidden;
+  }
+
+  .extra-thumb-box img,
+  .detail img.extra-thumb {
+    width: auto !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    min-width: 0 !important;
   }
 
   .extra-item-name {
@@ -4115,6 +4140,18 @@ a.order-card-total:hover,
     flex-shrink: 0 !important;
     white-space: nowrap !important;
     font-size: 0.8rem !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .product-action-footer {
+    flex-wrap: wrap !important;
+  }
+
+  .add-to-cart-submit {
+    flex: 1 1 100% !important;
+    white-space: normal !important;
+    justify-content: space-between !important;
   }
 }
 
