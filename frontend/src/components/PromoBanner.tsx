@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { BrandLogo } from './BrandLogo';
 import { formatPrice } from '../lib/money';
@@ -10,7 +11,18 @@ type PercentOffer = {
   minSubtotal: number;
 };
 
+function hidesBanner(pathname: string) {
+  return (
+    pathname === '/branches' ||
+    pathname === '/account' ||
+    pathname.startsWith('/account/') ||
+    pathname === '/orders' ||
+    pathname.startsWith('/orders/')
+  );
+}
+
 export function PromoBanner() {
+  const { pathname } = useLocation();
   const [offer, setOffer] = useState<PercentOffer | null>(null);
 
   useEffect(() => {
@@ -27,7 +39,7 @@ export function PromoBanner() {
     };
   }, []);
 
-  if (!offer) return null;
+  if (!offer || hidesBanner(pathname)) return null;
 
   return (
     <aside className="promo-banner">
