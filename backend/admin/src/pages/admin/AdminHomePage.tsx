@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
-import type { Category, Product, Branch } from '../../api/types';
+import type { Branch, Category, Product, Promotion } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { mediaUrl } from '../../lib/media';
 
@@ -27,25 +27,29 @@ export function AdminHomePage() {
   const [categories, setCategories] = useState<Category[] | null>(null);
   const [products, setProducts] = useState<Product[] | null>(null);
   const [branches, setBranches] = useState<Branch[] | null>(null);
+  const [promotions, setPromotions] = useState<Promotion[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const [categoryList, productList, branchList] = await Promise.all([
+        const [categoryList, productList, branchList, promotionList] = await Promise.all([
           api<Category[]>('/admin/categories', { token }),
           api<Product[]>('/admin/products', { token }),
           api<Branch[]>('/admin/branches', { token }),
+          api<Promotion[]>('/admin/promotions', { token }),
         ]);
         if (cancelled) return;
         setCategories(categoryList);
         setProducts(productList);
         setBranches(branchList);
+        setPromotions(promotionList);
       } catch {
         if (!cancelled) {
           setCategories([]);
           setProducts([]);
           setBranches([]);
+          setPromotions([]);
         }
       }
     }
@@ -162,6 +166,17 @@ export function AdminHomePage() {
           ) : (
             <p className="home-latest-empty">{products === null ? 'Cargando…' : 'Todavía no hay productos.'}</p>
           )}
+        </article>
+
+        <article className="home-panel">
+          <Link className="card-link" to="/admin/promotions">
+            <span>Promociones</span>
+            <small>
+              {promotions === null
+                ? '…'
+                : `${promotions.length} cargadas · ${promotions.filter((promotion) => promotion.active).length} activas`}
+            </small>
+          </Link>
         </article>
 
         <article className="home-panel">

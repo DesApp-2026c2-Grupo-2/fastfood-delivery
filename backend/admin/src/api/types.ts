@@ -165,6 +165,18 @@ export type AdminAccount = {
   deletable: boolean;
 };
 
+export type Promotion = {
+  id: string;
+  name: string;
+  type: 'percent';
+  value: number;
+  active: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Branch = {
   id: string;
   name: string;
