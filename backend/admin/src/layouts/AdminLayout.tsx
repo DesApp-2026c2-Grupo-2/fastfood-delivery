@@ -4,6 +4,14 @@ import { BrandLogo } from '../components/BrandLogo';
 import { clearSession, getUser, isAdmin, SESSION_EXPIRED_EVENT } from '../auth/session';
 import { SvgIcon } from '../icons/SvgIcon';
 
+type NavLinkItem = {
+  to: string;
+  label: string;
+  short: string;
+  icon: 'home' | 'receipt' | 'boxes' | 'bag' | 'tag' | 'percent' | 'store' | 'sliders' | 'users';
+  end?: boolean;
+};
+
 const SIDEBAR_KEY = 'mordi-admin-sidebar';
 
 function readCollapsed() {
@@ -14,7 +22,7 @@ function readCollapsed() {
   }
 }
 
-const groups = [
+const groups: { label: string; links: NavLinkItem[] }[] = [
   {
     label: '',
     links: [{ to: '/admin', label: 'Inicio', short: 'Inicio', icon: 'home' as const, end: true }],
@@ -52,7 +60,7 @@ const links = groups.flatMap((group) => group.links);
 const primaryTos = ['/admin', '/admin/orders', '/admin/products', '/admin/branches'];
 const primaryLinks = primaryTos
   .map((to) => links.find((link) => link.to === to))
-  .filter((link): link is (typeof links)[number] => Boolean(link));
+  .filter((link): link is NavLinkItem => link != null);
 const moreGroups = groups
   .map((group) => ({
     ...group,
@@ -136,7 +144,7 @@ export function AdminLayout() {
                 <NavLink
                   key={link.to}
                   to={link.to}
-                  end={'end' in link ? link.end : undefined}
+                  end={link.end}
                   className="admin-sidebar-link"
                   data-label={link.label}
                   title={collapsed ? link.label : undefined}
@@ -214,7 +222,7 @@ export function AdminLayout() {
             <NavLink
               key={link.to}
               to={link.to}
-              end={'end' in link ? link.end : undefined}
+              end={link.end}
               className="admin-bottom-link"
             >
               <SvgIcon name={link.icon} className="admin-bottom-icon" />
