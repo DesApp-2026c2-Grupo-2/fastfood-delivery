@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
 import type { Category } from '../../api/types';
 import { getToken } from '../../auth/session';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import { slugify } from '../../lib/slug';
 import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
 
@@ -23,6 +24,8 @@ export function AdminCategoriesPage() {
   const [ok, setOk] = useSuccessNotice();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -142,21 +145,18 @@ export function AdminCategoriesPage() {
   }
 
   async function remove(category: Category) {
-    const count = category._count?.products ?? 0;
-    if (count > 0) {
-      setError('No se puede borrar una categoría que tiene productos.');
-      setOk('');
-      return;
-    }
-    if (!confirm(`¿Borrar la categoría “${category.name}”?`)) return;
+    setDeleting(true);
     setError('');
     setOk('');
     try {
       await api(`/admin/categories/${category.id}`, { method: 'DELETE', token });
       setOk(`Se borró “${category.name}”.`);
+      setPendingDelete(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo borrar');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -303,7 +303,14 @@ export function AdminCategoriesPage() {
                         <button
                           type="button"
                           className="danger"
-                          onClick={() => void remove(category)}
+                          onClick={() => {
+                            if (count > 0) {
+                              setError('No se puede borrar una categoría que tiene productos.');
+                              setOk('');
+                              return;
+                            }
+                            setPendingDelete(category);
+                          }}
                           disabled={count > 0}
                           title={count > 0 ? 'Pasá los productos a otra categoría antes de borrar' : 'Borrar'}
                         >
@@ -341,6 +348,21 @@ export function AdminCategoriesPage() {
             Siguiente
           </button>
         </nav>
+      ) : null}
+
+      {pendingDelete ? (
+        <ConfirmModal
+          title="Borrar categoría"
+          message={`¿Borrar “${pendingDelete.name}”? No se puede deshacer.`}
+          confirmLabel="Borrar"
+          busyLabel="Borrando…"
+          busy={deleting}
+          error={error}
+          onConfirm={() => void remove(pendingDelete)}
+          onClose={() => {
+            if (!deleting) setPendingDelete(null);
+          }}
+        />
       ) : null}
     </section>
   );

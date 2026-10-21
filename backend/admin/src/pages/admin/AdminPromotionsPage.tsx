@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
 import type { Promotion } from '../../api/types';
 import { getToken } from '../../auth/session';
+import { ConfirmModal } from '../../components/ConfirmModal';
 
 type FormState = { id?: string; name: string; value: string; active: boolean };
 type Screen = 'list' | 'form';
@@ -29,6 +30,8 @@ export function AdminPromotionsPage() {
   const [ok, setOk] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Promotion | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -144,15 +147,18 @@ export function AdminPromotionsPage() {
   }
 
   async function remove(promotion: Promotion) {
-    if (!confirm(`¿Borrar la promoción “${promotion.name}”?`)) return;
+    setDeleting(true);
     setError('');
     setOk('');
     try {
       await api(`/admin/promotions/${promotion.id}`, { method: 'DELETE', token });
       setOk(`Se borró “${promotion.name}”.`);
+      setPendingDelete(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo borrar');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -291,7 +297,7 @@ export function AdminPromotionsPage() {
                       <button type="button" className="secondary" onClick={() => startEdit(promotion)}>
                         Editar
                       </button>
-                      <button type="button" className="danger" onClick={() => void remove(promotion)}>
+                      <button type="button" className="danger" onClick={() => setPendingDelete(promotion)}>
                         Borrar
                       </button>
                     </div>
@@ -325,6 +331,21 @@ export function AdminPromotionsPage() {
             Siguiente
           </button>
         </nav>
+      ) : null}
+
+      {pendingDelete ? (
+        <ConfirmModal
+          title="Borrar promoción"
+          message={`¿Borrar “${pendingDelete.name}”? No se puede deshacer.`}
+          confirmLabel="Borrar"
+          busyLabel="Borrando…"
+          busy={deleting}
+          error={error}
+          onConfirm={() => void remove(pendingDelete)}
+          onClose={() => {
+            if (!deleting) setPendingDelete(null);
+          }}
+        />
       ) : null}
     </section>
   );

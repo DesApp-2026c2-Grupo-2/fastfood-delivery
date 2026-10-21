@@ -36,6 +36,7 @@ export default function App() {
             <Route element={<RequireCustomer />}>
               <Route path="/account" element={<AccountPage />} />
               <Route path="/account/addresses" element={<AddressesPage />} />
+              <Route path="/account/addresses/:id" element={<AddressesPage />} />
               <Route path="/orders" element={<OrdersPage />} />
               <Route path="/orders/:id" element={<OrderDetailPage />} />
             </Route>

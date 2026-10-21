@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
 import type { Branch } from '../../api/types';
 import { getToken } from '../../auth/session';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import { BranchPinMap } from '../../components/BranchPinMap';
 import { formatCoordinate, requestDevicePosition } from '../../lib/geolocation';
 import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
@@ -89,6 +90,8 @@ export function AdminBranchesPage() {
   const [ok, setOk] = useSuccessNotice();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Branch | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locationHint, setLocationHint] = useState('');
@@ -315,15 +318,18 @@ export function AdminBranchesPage() {
   }
 
   async function remove(branch: Branch) {
-    if (!confirm(`¿Borrar la sucursal “${branch.name}”?`)) return;
+    setDeleting(true);
     setError('');
     setOk('');
     try {
       await api(`/admin/branches/${branch.id}`, { method: 'DELETE', token });
       setOk(`Se borró “${branch.name}”.`);
+      setPendingDelete(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo borrar');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -571,7 +577,7 @@ export function AdminBranchesPage() {
                       <button type="button" className="secondary" onClick={() => startEdit(branch)}>
                         Editar
                       </button>
-                      <button type="button" className="danger" onClick={() => void remove(branch)}>
+                      <button type="button" className="danger" onClick={() => setPendingDelete(branch)}>
                         Borrar
                       </button>
                     </div>
@@ -605,6 +611,21 @@ export function AdminBranchesPage() {
             Siguiente
           </button>
         </nav>
+      ) : null}
+
+      {pendingDelete ? (
+        <ConfirmModal
+          title="Borrar sucursal"
+          message={`¿Borrar “${pendingDelete.name}”? No se puede deshacer.`}
+          confirmLabel="Borrar"
+          busyLabel="Borrando…"
+          busy={deleting}
+          error={error}
+          onConfirm={() => void remove(pendingDelete)}
+          onClose={() => {
+            if (!deleting) setPendingDelete(null);
+          }}
+        />
       ) : null}
     </section>
   );

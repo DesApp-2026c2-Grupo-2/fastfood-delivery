@@ -1,9 +1,10 @@
-import { type FormEvent, useEffect, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Address } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
 import { AddressLocationPicker } from '../../components/AddressLocationPicker';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import { useAutoClear } from '../../lib/useAutoClear';
 
 type FormState = {
@@ -36,22 +37,30 @@ function toNumber(value: number | string): number {
 
 export function AddressesPage() {
   const token = getToken();
+  const location = useLocation();
 
   if (!isCustomer() || !token) {
-    return <Navigate to="/login" replace state={{ from: '/account/addresses' }} />;
+    return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />;
   }
 
   return <AddressesContent token={token} />;
 }
 
 function AddressesContent({ token }: { token: string }) {
+  const { id: addressId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const filledFor = useRef('');
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [form, setForm] = useState<FormState | null>(null);
+  const [missing, setMissing] = useState(false);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   useAutoClear(ok, () => setOk(''));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Address | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -70,13 +79,24 @@ function AddressesContent({ token }: { token: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function startCreate() {
-    setForm(emptyForm);
-    setError('');
-    setOk('');
-  }
+  useEffect(() => {
+    const message = (location.state as { ok?: string } | null)?.ok;
+    if (!message || addressId) return;
+    setOk(message);
+    navigate('/account/addresses', { replace: true, state: null });
+  }, [addressId, location.state, navigate]);
 
-  function startEdit(address: Address) {
+  useEffect(() => {
+    if (!addressId || loading) return;
+    const address = addresses.find((item) => item.id === addressId);
+    if (!address) {
+      setMissing(true);
+      setForm(null);
+      return;
+    }
+    setMissing(false);
+    if (filledFor.current === addressId) return;
+    filledFor.current = addressId;
     setForm({
       id: address.id,
       alias: address.alias ?? '',
@@ -85,13 +105,34 @@ function AddressesContent({ token }: { token: string }) {
       longitude: String(toNumber(address.longitude)),
       isDefault: address.isDefault,
     });
+  }, [addressId, addresses, loading]);
+
+  useEffect(() => {
+    if (addressId) return;
+    filledFor.current = '';
+    setMissing(false);
+    setForm((current) => (current?.id ? null : current));
+  }, [addressId]);
+
+  function startCreate() {
+    setForm(emptyForm);
     setError('');
     setOk('');
   }
 
-  function cancelForm() {
-    setForm(null);
+  function startEdit(address: Address) {
     setError('');
+    setOk('');
+    navigate(`/account/addresses/${address.id}`);
+  }
+
+  function cancelForm() {
+    setError('');
+    if (addressId) {
+      navigate('/account/addresses');
+      return;
+    }
+    setForm(null);
   }
 
   async function onSubmit(event: FormEvent) {
@@ -140,7 +181,8 @@ function AddressesContent({ token }: { token: string }) {
           token,
           body: JSON.stringify(payload),
         });
-        setOk('Dirección actualizada.');
+        navigate('/account/addresses', { state: { ok: 'Dirección actualizada.' } });
+        return;
       } else {
         await api('/me/addresses', {
           method: 'POST',
@@ -159,15 +201,18 @@ function AddressesContent({ token }: { token: string }) {
   }
 
   async function remove(address: Address) {
-    if (!confirm(`¿Borrar la dirección “${addressTitle(address)}”?`)) return;
+    setDeleting(true);
     setError('');
     setOk('');
     try {
       await api(`/me/addresses/${address.id}`, { method: 'DELETE', token });
       setOk('Dirección eliminada.');
+      setPendingDelete(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo borrar');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -189,20 +234,30 @@ function AddressesContent({ token }: { token: string }) {
 
   return (
     <section className="stack addresses-page">
-      <header className="page-head">
-        <div>
-          <h1>Mis direcciones</h1>
-          <p className="muted addresses-intro">
-            Dónde te llevamos el pedido.{' '}
-            <Link to="/branches">Ver qué sucursales llegan</Link>
-          </p>
-        </div>
-        {!form ? (
-          <button type="button" onClick={startCreate}>
-            Nueva dirección
-          </button>
+      <div className={addressId ? 'detail-heading' : undefined}>
+        {addressId ? (
+          <div className="detail-back-action">
+            <Link to="/account/addresses" className="back-link">
+              ← Mis direcciones
+            </Link>
+          </div>
         ) : null}
-      </header>
+        <header className="page-head">
+          <div>
+            <h1>{addressId ? 'Editar dirección' : 'Mis direcciones'}</h1>
+            {addressId ? null : (
+              <p className="muted addresses-intro">
+                Dónde te llevamos el pedido. <Link to="/branches">Ver qué sucursales llegan</Link>
+              </p>
+            )}
+          </div>
+          {!addressId && !form ? (
+            <button type="button" onClick={startCreate}>
+              Nueva dirección
+            </button>
+          ) : null}
+        </header>
+      </div>
 
       {error ? (
         <p className="error" role="alert">
@@ -212,6 +267,13 @@ function AddressesContent({ token }: { token: string }) {
       {ok ? (
         <p className="success" role="status">
           {ok}
+        </p>
+      ) : null}
+
+      {addressId && loading ? <p className="muted">Cargando…</p> : null}
+      {addressId && !loading && missing ? (
+        <p className="error" role="alert">
+          No encontramos esa dirección. <Link to="/account/addresses">Volver al listado</Link>
         </p>
       ) : null}
 
@@ -271,9 +333,9 @@ function AddressesContent({ token }: { token: string }) {
         </form>
       ) : null}
 
-      {loading ? <p className="muted">Cargando…</p> : null}
+      {loading && !addressId ? <p className="muted">Cargando…</p> : null}
 
-      {!loading && addresses.length === 0 && !form ? (
+      {!addressId && !loading && addresses.length === 0 && !form ? (
         <div className="empty address-empty">
           <p>Todavía no tenés direcciones guardadas.</p>
           <button type="button" onClick={startCreate}>
@@ -282,7 +344,7 @@ function AddressesContent({ token }: { token: string }) {
         </div>
       ) : null}
 
-      {!loading && addresses.length > 0 ? (
+      {!addressId && !loading && addresses.length > 0 ? (
         <ul className="address-list">
           {addresses.map((address) => (
             <li key={address.id} className="card address-card">
@@ -302,13 +364,35 @@ function AddressesContent({ token }: { token: string }) {
                 <button type="button" className="text-action" onClick={() => startEdit(address)}>
                   Editar
                 </button>
-                <button type="button" className="text-action text-action--danger" onClick={() => void remove(address)}>
+                <button
+                  type="button"
+                  className="text-action text-action--danger"
+                  onClick={() => {
+                    setError('');
+                    setPendingDelete(address);
+                  }}
+                >
                   Eliminar
                 </button>
               </div>
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {pendingDelete ? (
+        <ConfirmModal
+          title="Borrar dirección"
+          message={`¿Borrar “${addressTitle(pendingDelete)}”? No se puede deshacer.`}
+          confirmLabel="Borrar"
+          busyLabel="Borrando…"
+          busy={deleting}
+          error={error}
+          onConfirm={() => void remove(pendingDelete)}
+          onClose={() => {
+            if (!deleting) setPendingDelete(null);
+          }}
+        />
       ) : null}
     </section>
   );

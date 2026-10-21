@@ -5,6 +5,7 @@ import type { Branch, StockLine } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { mediaUrl } from '../../lib/media';
 import { SUCCESS_NOTICE_MS, useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import { MAX_AVAILABLE, parseAvailable, stockAdjustments, type StockAdjustment } from '../../lib/stock-adjustment';
 
 export function AdminStockPage() {
@@ -25,6 +26,7 @@ export function AdminStockPage() {
   const [loadingStock, setLoadingStock] = useState(false);
   const [savingId, setSavingId] = useState('');
   const [bulkSaving, setBulkSaving] = useState<StockAdjustment | null>(null);
+  const [pendingBulk, setPendingBulk] = useState<StockAdjustment | null>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -229,10 +231,15 @@ export function AdminStockPage() {
         return;
       }
       quantity = parsed;
-    } else if (adjustment.confirm && !confirm(adjustment.confirm(targets.length))) {
+    } else if (adjustment.confirm) {
+      setPendingBulk(adjustment);
       return;
     }
 
+    await executeBulk(adjustment, quantity, targets);
+  }
+
+  async function executeBulk(adjustment: StockAdjustment, quantity: number, targets: StockLine[]) {
     const updates = targets
       .map((line) => ({ line, available: adjustment.apply(line.available, quantity) }))
       .filter((item) => item.available !== item.line.available);
@@ -453,6 +460,26 @@ export function AdminStockPage() {
             })}
           </ul>
         </div>
+      ) : null}
+
+      {pendingBulk?.confirm ? (
+        <ConfirmModal
+          title="Poner en 0"
+          message={pendingBulk.confirm(lines.filter((line) => selected.has(line.productId)).length)}
+          confirmLabel="Poner en 0"
+          busyLabel="Guardando…"
+          busy={bulkSaving !== null}
+          error={error}
+          onConfirm={() => {
+            const adjustment = pendingBulk;
+            const targets = lines.filter((line) => selected.has(line.productId));
+            setPendingBulk(null);
+            void executeBulk(adjustment, 0, targets);
+          }}
+          onClose={() => {
+            if (!bulkSaving) setPendingBulk(null);
+          }}
+        />
       ) : null}
     </section>
   );

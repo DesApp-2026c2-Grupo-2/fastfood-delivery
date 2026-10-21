@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, uploadImages } from '../../api/client';
 import type { Category, Product } from '../../api/types';
 import { getToken } from '../../auth/session';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import { ProductTags, productCategories } from '../../components/ProductTags';
 import { SvgIcon } from '../../icons/SvgIcon';
 import { mediaUrl } from '../../lib/media';
@@ -67,6 +68,8 @@ export function AdminProductsPage() {
   const [ok, setOk] = useSuccessNotice();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -275,15 +278,18 @@ export function AdminProductsPage() {
   }
 
   async function remove(product: Product) {
-    if (!confirm(`¿Borrar el producto “${product.name}”?`)) return;
+    setDeleting(true);
     setError('');
     setOk('');
     try {
       await api(`/admin/products/${product.id}`, { method: 'DELETE', token });
       setOk(`Se borró “${product.name}”.`);
+      setPendingDelete(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo borrar');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -578,7 +584,7 @@ export function AdminProductsPage() {
                       <button type="button" className="secondary" onClick={() => startEdit(product)}>
                         Editar
                       </button>
-                      <button type="button" className="danger" onClick={() => void remove(product)}>
+                      <button type="button" className="danger" onClick={() => setPendingDelete(product)}>
                         Borrar
                       </button>
                     </div>
@@ -612,6 +618,21 @@ export function AdminProductsPage() {
             Siguiente
           </button>
         </nav>
+      ) : null}
+
+      {pendingDelete ? (
+        <ConfirmModal
+          title="Borrar producto"
+          message={`¿Borrar “${pendingDelete.name}”? No se puede deshacer.`}
+          confirmLabel="Borrar"
+          busyLabel="Borrando…"
+          busy={deleting}
+          error={error}
+          onConfirm={() => void remove(pendingDelete)}
+          onClose={() => {
+            if (!deleting) setPendingDelete(null);
+          }}
+        />
       ) : null}
     </section>
   );

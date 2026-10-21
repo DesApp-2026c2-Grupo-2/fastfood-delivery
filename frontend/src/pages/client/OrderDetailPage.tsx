@@ -5,6 +5,7 @@ import { isStatusBehind, useOrderStatusEvents, type OrderStatusChangedEvent } fr
 import type { OrderDetail, OrderStatus, Product } from '../../api/types';
 import { getToken, getUserId } from '../../auth/session';
 import { formatDateTime, formatPrice } from '../../lib/money';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import { mediaUrl } from '../../lib/media';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -47,6 +48,7 @@ export function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelError, setCancelError] = useState('');
   const [now, setNow] = useState(() => Date.now());
 
@@ -134,6 +136,7 @@ export function OrderDetailPage() {
         token,
       });
       setOrder(updated);
+      setConfirmCancel(false);
     } catch (err) {
       setCancelError(err instanceof Error ? err.message : 'No se pudo cancelar el pedido');
     } finally {
@@ -200,23 +203,25 @@ export function OrderDetailPage() {
 
   return (
     <section className="tracking-page">
-      <div className="detail-back-action">
-        <Link to="/orders" className="back-link">
-          ← Mis pedidos
-        </Link>
-      </div>
-
-      <header className="tracking-header">
-        <div>
-          <h1>Seguimiento de pedido</h1>
-          <p className="tracking-code">
-            Código: <code>{order.id}</code>
-          </p>
+      <div className="detail-heading">
+        <div className="detail-back-action">
+          <Link to="/orders" className="back-link">
+            ← Mis pedidos
+          </Link>
         </div>
-        <span className={`tracking-badge tracking-badge--${order.status}`}>
-          {STATUS_LABELS[order.status] ?? order.status}
-        </span>
-      </header>
+
+        <header className="tracking-header">
+          <div>
+            <h1>Seguimiento de pedido</h1>
+            <p className="tracking-code">
+              Código: <code>{order.id}</code>
+            </p>
+          </div>
+          <span className={`tracking-badge tracking-badge--${order.status}`}>
+            {STATUS_LABELS[order.status] ?? order.status}
+          </span>
+        </header>
+      </div>
 
       {/* Bloque 1: Estado, ETA, Demora, Sucursal y Timeline */}
       <div className="tracking-card">
@@ -383,17 +388,30 @@ export function OrderDetailPage() {
             type="button"
             className="btn-cancel-action"
             disabled={cancelling}
-            onClick={() => void handleCancel()}
+            onClick={() => {
+              setCancelError('');
+              setConfirmCancel(true);
+            }}
           >
-            {cancelling ? 'Cancelando pedido…' : 'Cancelar pedido'}
+            Cancelar pedido
           </button>
-          {cancelError && (
-            <p className="error" role="alert">
-              {cancelError}
-            </p>
-          )}
         </div>
       )}
+      {confirmCancel ? (
+        <ConfirmModal
+          title="Cancelar pedido"
+          message="¿Cancelar este pedido? No se puede deshacer."
+          confirmLabel="Sí, cancelar"
+          dismissLabel="Volver"
+          busyLabel="Cancelando…"
+          busy={cancelling}
+          error={cancelError}
+          onConfirm={() => void handleCancel()}
+          onClose={() => {
+            if (!cancelling) setConfirmCancel(false);
+          }}
+        />
+      ) : null}
     </section>
   );
 }
