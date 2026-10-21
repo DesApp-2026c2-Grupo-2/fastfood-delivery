@@ -94,14 +94,9 @@ export function ClientLayout() {
               </button>
             </span>
           ) : (
-            <>
-               <NavLink to="/login" className="nav-guest">
-                 Entrar
-               </NavLink>
-               <NavLink to="/register" className="nav-guest">
-                 Registrarse
-              </NavLink>
-            </>
+            <NavLink to="/login" className="nav-guest">
+              Entrar
+            </NavLink>
           )}
         </nav>
       </header>
