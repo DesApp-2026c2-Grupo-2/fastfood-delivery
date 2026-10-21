@@ -8,10 +8,6 @@ export type GeocodeResult = {
   latitude: number;
   longitude: number;
   displayName: string;
-  name: string;
-  houseNumber: string;
-  postcode: string;
-  locality: string;
 };
 
 export class GeocodeNotFoundError extends Error {
@@ -41,47 +37,22 @@ export function buildNominatimUrl(address: string): string {
   url.searchParams.set('format', 'jsonv2');
   url.searchParams.set('limit', String(MAX_CANDIDATES));
   url.searchParams.set('countrycodes', 'ar');
-  url.searchParams.set('addressdetails', '1');
   return url.toString();
-}
-
-function text(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
 }
 
 function parseCandidate(entry: unknown): GeocodeResult | null {
   if (!entry || typeof entry !== 'object') return null;
 
-  const record = entry as {
-    lat?: unknown;
-    lon?: unknown;
-    display_name?: unknown;
-    name?: unknown;
-    address?: unknown;
-  };
+  const record = entry as { lat?: unknown; lon?: unknown; display_name?: unknown };
   const latitude = roundCoordinate(Number(record.lat));
   const longitude = roundCoordinate(Number(record.lon));
   if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) return null;
   if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) return null;
 
-  const address =
-    record.address && typeof record.address === 'object'
-      ? (record.address as Record<string, unknown>)
-      : {};
-  const road = text(address.road) || text(address.pedestrian);
-
   return {
     latitude,
     longitude,
-    displayName: text(record.display_name),
-    name: text(record.name) || road,
-    houseNumber: text(address.house_number),
-    postcode: text(address.postcode),
-    locality:
-      text(address.neighbourhood) ||
-      text(address.suburb) ||
-      text(address.quarter) ||
-      text(address.city_district),
+    displayName: typeof record.display_name === 'string' ? record.display_name : '',
   };
 }
 

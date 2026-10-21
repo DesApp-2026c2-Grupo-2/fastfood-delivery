@@ -12,7 +12,6 @@ import {
 import { getToken } from '../../auth/session';
 import { OrderCode } from '../../components/OrderCode';
 import { orderTimingText } from '../../lib/order-timing';
-import { useTimedNotice } from '../../lib/success-notice';
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(price);
@@ -39,7 +38,7 @@ export function AdminOrdersPage() {
   const [orders, setOrders] = useState<AdminOrderListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [pageSize, setPageSize] = useState(20);
-  const [error, setError] = useTimedNotice();
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -162,7 +161,7 @@ export function AdminOrdersPage() {
         </div>
       </header>
 
-      <form className="admin-toolbar orders-toolbar" onSubmit={submitSearch} noValidate>
+      <form className="admin-toolbar orders-toolbar" onSubmit={submitSearch}>
         <label className="search-label">
           Código
           <input

@@ -336,63 +336,6 @@ describe('GET /api/branches/available (HU-19)', () => {
   });
 });
 
-describe('GET /api/branches (DEV-22)', () => {
-  const testBranchIds = () => [center.id, north.id, closed.id];
-  const ours = (body: { branches: { id: string }[] }) =>
-    body.branches.filter((branch) => testBranchIds().includes(branch.id));
-
-  function all(query: Record<string, string | number> = {}, token?: string) {
-    const call = request(server).get('/api/branches').query(query);
-    return token ? call.set(auth(token)) : call;
-  }
-
-  it('sin ubicación lista todas las activas, sin distancia; la inactiva no aparece', async () => {
-    const response = await all();
-
-    expect(response.status).toBe(200);
-    expect(response.body.radiusKm).toBe(5);
-    const listed = ours(response.body);
-    expect(listed.map((branch) => branch.id).sort()).toEqual([center.id, north.id].sort());
-    expect(listed.find((branch) => branch.id === center.id)).toEqual({
-      id: center.id,
-      name: `Sucursal E2E Radio Centro ${stamp}`,
-      address: 'Av. Colón 100, Córdoba',
-      phone: '+54 351 400-0000',
-      openingHours: 'Lun-Dom 11:00-23:30',
-      latitude: CENTER.latitude,
-      longitude: CENTER.longitude,
-      distanceKm: null,
-      withinRadius: null,
-    });
-  });
-
-  it('con lat/lng también lista las que quedan fuera del radio, de la más cercana a la más lejana', async () => {
-    await patchParameters({ coverage_radius_km: 1 });
-
-    const response = await all({ lat: CENTER.latitude, lng: CENTER.longitude });
-
-    expect(response.status).toBe(200);
-    const listed = ours(response.body) as { id: string; distanceKm: number; withinRadius: boolean }[];
-    expect(listed.map((branch) => branch.id)).toEqual([center.id, north.id]);
-    expect(listed[0]).toMatchObject({ distanceKm: 0, withinRadius: true });
-    expect(listed[1].distanceKm).toBeCloseTo(3.01, 1);
-    expect(listed[1].withinRadius).toBe(false);
-  });
-
-  it('con addressId usa la dirección guardada; sin sesión responde 401', async () => {
-    const response = await all({ addressId: beto.addressId }, beto.token);
-
-    expect(response.status).toBe(200);
-    expect(ours(response.body).map((branch) => branch.id)).toEqual([north.id, center.id]);
-    expect((await all({ addressId: beto.addressId })).status).toBe(401);
-  });
-
-  it('una ubicación a medias o inválida responde 400', async () => {
-    expect((await all({ lat: CENTER.latitude })).status).toBe(400);
-    expect((await all({ lat: 100, lng: 0 })).status).toBe(400);
-  });
-});
-
 describe('Sucursal elegida dentro del radio al confirmar (HU-19, HU-23)', () => {
   it('guarda la sucursal que eligió el cliente, aunque haya otra más cercana', async () => {
     // ana vive encima de center y beto encima de north; cada uno elige la otra, que está a ~3 km.

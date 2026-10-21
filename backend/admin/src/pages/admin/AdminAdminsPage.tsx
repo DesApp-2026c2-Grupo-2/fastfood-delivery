@@ -1,9 +1,8 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
 import type { AdminAccount } from '../../api/types';
-import { getToken, getUser } from '../../auth/session';
+import { getToken } from '../../auth/session';
 import { SvgIcon } from '../../icons/SvgIcon';
-import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
 
 type FormState = { id?: string; name: string; email: string; password: string; deletable: boolean };
 type Screen = 'list' | 'form';
@@ -36,13 +35,10 @@ export function AdminAdminsPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [error, setError] = useTimedNotice();
-  const [ok, setOk] = useSuccessNotice();
+  const [error, setError] = useState('');
+  const [ok, setOk] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<AdminAccount | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const currentUserId = getUser()?.id ?? '';
 
   async function load() {
     setLoading(true);
@@ -64,15 +60,6 @@ export function AdminAdminsPage() {
   useEffect(() => {
     setPage(1);
   }, [query]);
-
-  useEffect(() => {
-    if (!pendingDelete) return;
-    function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !deleting) setPendingDelete(null);
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [pendingDelete, deleting]);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -180,33 +167,17 @@ export function AdminAdminsPage() {
     }
   }
 
-  function deleteBlockReason(admin: AdminAccount) {
-    if (isInitialAdmin(admin)) return 'El administrador inicial no se puede borrar';
-    if (admin.id === currentUserId) return 'No podés borrar tu propio usuario';
-    return '';
-  }
-
-  function askRemove(admin: AdminAccount) {
-    if (deleteBlockReason(admin)) return;
-    setError('');
-    setPendingDelete(admin);
-  }
-
-  async function confirmRemove() {
-    if (!pendingDelete || deleting) return;
-    const admin = pendingDelete;
-    setDeleting(true);
+  async function remove(admin: AdminAccount) {
+    if (isInitialAdmin(admin)) return;
+    if (!confirm(`¿Borrar el administrador “${admin.name}”? No va a poder volver a entrar.`)) return;
     setError('');
     setOk('');
     try {
       await api(`/admin/admins/${admin.id}`, { method: 'DELETE', token });
-      setPendingDelete(null);
       setOk(`Se borró “${admin.name}”.`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo borrar');
-    } finally {
-      setDeleting(false);
     }
   }
 
@@ -230,7 +201,7 @@ export function AdminAdminsPage() {
           </p>
         ) : null}
 
-        <form className="card form product-form" onSubmit={onSubmit} noValidate>
+        <form className="card form product-form" onSubmit={onSubmit}>
           <label>
             Nombre
             <input
@@ -238,16 +209,17 @@ export function AdminAdminsPage() {
               onChange={(event) => setForm({ ...form, name: event.target.value })}
               maxLength={NAME_MAX}
               autoComplete="name"
+              required
             />
           </label>
           <label>
             Email
             <input
-              type="text"
-              inputMode="email"
+              type="email"
               value={form.email}
               onChange={(event) => setForm({ ...form, email: event.target.value })}
               autoComplete="off"
+              required
               disabled={editingInitial}
             />
           </label>
@@ -262,7 +234,9 @@ export function AdminAdminsPage() {
                 value={form.password}
                 onChange={(event) => setForm({ ...form, password: event.target.value })}
                 autoComplete="new-password"
+                minLength={form.id ? undefined : PASSWORD_MIN}
                 maxLength={PASSWORD_MAX}
+                required={!form.id}
               />
               <button
                 type="button"
@@ -308,7 +282,7 @@ export function AdminAdminsPage() {
         </button>
       </header>
 
-      {error && !pendingDelete ? (
+      {error ? (
         <p className="error" role="alert">
           {error}
         </p>
@@ -352,16 +326,13 @@ export function AdminAdminsPage() {
             <tbody>
               {pageItems.map((admin) => {
                 const initial = isInitialAdmin(admin);
-                const blocked = deleteBlockReason(admin);
-                const self = admin.id === currentUserId;
                 return (
                   <tr key={admin.id}>
                     <td>
                       <strong>{admin.name}</strong>
-                      {initial || self ? (
-                        <p className="table-slug admin-marks">
-                          {initial ? <span className="badge">Inicial</span> : null}
-                          {self ? <span className="badge">Vos</span> : null}
+                      {initial ? (
+                        <p className="table-slug">
+                          <span className="badge">Inicial</span>
                         </p>
                       ) : null}
                     </td>
@@ -375,9 +346,9 @@ export function AdminAdminsPage() {
                         <button
                           type="button"
                           className="danger"
-                          onClick={() => askRemove(admin)}
-                          disabled={Boolean(blocked)}
-                          title={blocked || 'Borrar'}
+                          onClick={() => void remove(admin)}
+                          disabled={initial}
+                          title={initial ? 'El administrador inicial no se puede borrar' : 'Borrar'}
                         >
                           Borrar
                         </button>
@@ -413,42 +384,6 @@ export function AdminAdminsPage() {
             Siguiente
           </button>
         </nav>
-      ) : null}
-
-      {pendingDelete ? (
-        <div
-          className="modal-backdrop"
-          onClick={() => {
-            if (!deleting) setPendingDelete(null);
-          }}
-        >
-          <div
-            className="card modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-admin-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h2 id="delete-admin-title">Borrar administrador</h2>
-            <p>
-              ¿Estás seguro de borrar al administrador {pendingDelete.name} ({pendingDelete.email})? Esta acción no se
-              puede deshacer.
-            </p>
-            {error ? (
-              <p className="error" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <div className="row modal-actions">
-              <button type="button" className="danger" disabled={deleting} onClick={() => void confirmRemove()}>
-                {deleting ? 'Borrando…' : 'Borrar'}
-              </button>
-              <button type="button" className="secondary" disabled={deleting} autoFocus onClick={() => setPendingDelete(null)}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
       ) : null}
     </section>
   );

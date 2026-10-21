@@ -9,7 +9,6 @@ import { AdminOrderDetailPage } from './pages/admin/AdminOrderDetailPage';
 import { AdminOrdersPage } from './pages/admin/AdminOrdersPage';
 import { AdminParametersPage } from './pages/admin/AdminParametersPage';
 import { AdminProductsPage } from './pages/admin/AdminProductsPage';
-import { AdminReportsPage } from './pages/admin/AdminReportsPage';
 import { AdminStockPage } from './pages/admin/AdminStockPage';
 
 export default function App() {
@@ -27,7 +26,6 @@ export default function App() {
         <Route path="categories" element={<AdminCategoriesPage />} />
         <Route path="products" element={<AdminProductsPage />} />
         <Route path="branches" element={<AdminBranchesPage />} />
-        <Route path="reports" element={<AdminReportsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>

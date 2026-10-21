@@ -11,11 +11,11 @@ import { OrdersModule } from './orders/orders.module';
 import { ParametersModule } from './parameters/parameters.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
+import { PromotionsModule } from './promotions/promotions.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { StockModule } from './stock/stock.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { HealthController } from './health.controller';
-import { ReportsModule } from './reports/reports.module';
 
 @Module({
   controllers: [HealthController],
@@ -32,8 +32,8 @@ import { ReportsModule } from './reports/reports.module';
     OrdersModule,
     ParametersModule,
     ProductsModule,
+    PromotionsModule,
     RealtimeModule,
-    ReportsModule,
     StockModule,
     UploadsModule,
   ],

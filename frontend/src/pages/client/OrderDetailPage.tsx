@@ -294,18 +294,11 @@ export function OrderDetailPage() {
         <h2>Detalle de la compra</h2>
 
         <div className="delivery-info">
-          {order.address ? (
-            <p>
-              <strong>Entrega en:</strong>{' '}
-              {order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}
-              {order.address.street}
-            </p>
-          ) : (
-            <p>
-              <strong>Retiro en sucursal:</strong> {order.branch.address}
-            </p>
-          )}
-
+          <p>
+            <strong>Entrega en:</strong>{' '}
+            {order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}
+            {order.address.street}
+          </p>
           <p className="order-date">Fecha de creación: {formatDateTime(order.createdAt)}</p>
         </div>
 

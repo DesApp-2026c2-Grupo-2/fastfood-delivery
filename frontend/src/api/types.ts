@@ -108,7 +108,6 @@ export type OrderItem = {
 export type Order = {
   id: string;
   status: string;
-  fulfillment?: Fulfillment;
   totalAmount: number;
   createdAt: string;
   guestName?: string | null;
@@ -122,7 +121,7 @@ export type Order = {
     id: string;
     alias?: string;
     street: string;
-  } | null;
+  };
   items: OrderItem[];
 };
 
@@ -191,17 +190,6 @@ export type AvailableBranchesResponse = {
   branches: AvailableBranch[];
 };
 
-// GET /api/branches (DEV-22): todas las activas. Sin ubicación, distanceKm y withinRadius vienen null.
-export type ActiveBranch = Omit<AvailableBranch, 'distanceKm'> & {
-  distanceKm: number | null;
-  withinRadius: boolean | null;
-};
-
-export type ActiveBranchesResponse = {
-  radiusKm: number;
-  branches: ActiveBranch[];
-};
-
 // Errores del checkout (HU-18 / HU-19): POST /orders y /orders/guest
 export type OutOfCoverageError = {
   code: 'OUT_OF_COVERAGE';
@@ -221,34 +209,4 @@ export type OutOfStockError = {
   message: string;
   branch: { id: string; name: string };
   items: OutOfStockItem[];
-};
-
-// Retiro o domicilio y sucursal elegida (HU-23): POST /branches/checkout
-export type Fulfillment = 'delivery' | 'pickup';
-
-export type CheckoutBranchMissing = {
-  productId: string;
-  name: string;
-  requested: number;
-  available: number;
-};
-
-export type CheckoutBranch = {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  openingHours: string;
-  latitude: number;
-  longitude: number;
-  distanceKm: number | null;
-  withinRadius: boolean | null;
-  canFulfill: boolean;
-  missing: CheckoutBranchMissing[];
-};
-
-export type CheckoutBranchesResponse = {
-  fulfillment: Fulfillment;
-  radiusKm: number;
-  branches: CheckoutBranch[];
 };

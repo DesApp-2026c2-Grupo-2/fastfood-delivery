@@ -5,6 +5,7 @@ import { BranchesModule } from '../branches/branches.module';
 import { CartModule } from '../cart/cart.module';
 import { ExtrasModule } from '../extras/extras.module';
 import { ParametersModule } from '../parameters/parameters.module';
+import { PromotionsModule } from '../promotions/promotions.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { StockModule } from '../stock/stock.module';
 import { AdminOrderStatusesController } from './admin-order-statuses.controller';
@@ -13,6 +14,7 @@ import { CheckoutBranchesController } from './checkout-branches.controller';
 import { OrderEvents } from './order-events';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
+import { PromotionQuoteController } from './promotion-quote.controller';
 
 @Module({
   imports: [
@@ -22,10 +24,17 @@ import { OrdersService } from './orders.service';
     CartModule,
     ExtrasModule,
     ParametersModule,
+    PromotionsModule,
     RealtimeModule,
     StockModule,
   ],
-  controllers: [CheckoutBranchesController, OrdersController, AdminOrdersController, AdminOrderStatusesController],
+  controllers: [
+    CheckoutBranchesController,
+    PromotionQuoteController,
+    OrdersController,
+    AdminOrdersController,
+    AdminOrderStatusesController,
+  ],
   providers: [OrdersService, OrderEvents],
 })
 export class OrdersModule {}

@@ -23,7 +23,6 @@ const links = [
   { to: '/admin/products', label: 'Productos', short: 'Productos', icon: 'bag' as const },
   { to: '/admin/categories', label: 'Categorías', short: 'Categorías', icon: 'tag' as const },
   { to: '/admin/branches', label: 'Sucursales', short: 'Sucursales', icon: 'store' as const },
-  { to: '/admin/reports', label: 'Reportes', short: 'Reportes', icon: 'receipt' as const },
 ];
 
 export function AdminLayout() {

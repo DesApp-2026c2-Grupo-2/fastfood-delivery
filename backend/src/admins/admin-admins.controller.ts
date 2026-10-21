@@ -1,13 +1,9 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { Request } from 'express';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
-import { JwtPayload } from '../auth/jwt-payload';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminsService } from './admins.service';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
-
-type AuthedRequest = Request & { user: JwtPayload };
 
 // Alta, edición y baja de administradores (HU-16).
 @Controller('admin/admins')
@@ -31,7 +27,7 @@ export class AdminAdminsController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() req: AuthedRequest) {
-    return this.adminsService.remove(id, req.user.sub);
+  remove(@Param('id') id: string) {
+    return this.adminsService.remove(id);
   }
 }

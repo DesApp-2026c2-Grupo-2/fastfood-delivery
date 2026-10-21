@@ -1,24 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Branch, StockLine } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { mediaUrl } from '../../lib/media';
-import { SUCCESS_NOTICE_MS, useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
 import { MAX_AVAILABLE, parseAvailable, stockAdjustments, type StockAdjustment } from '../../lib/stock-adjustment';
 
 export function AdminStockPage() {
   const token = getToken() ?? '';
-  const [searchParams, setSearchParams] = useSearchParams();
-  const branchId = searchParams.get('branch') ?? '';
-  const query = searchParams.get('q') ?? '';
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchId, setBranchId] = useState('');
   const [lines, setLines] = useState<StockLine[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [bulkQty, setBulkQty] = useState('');
-  const [error, setError] = useTimedNotice();
-  const [note, setNote] = useSuccessNotice();
+  const [query, setQuery] = useState('');
+  const [error, setError] = useState('');
+  const [note, setNote] = useState('');
   const [rowError, setRowError] = useState<Record<string, string>>({});
   const [savedId, setSavedId] = useState('');
   const [loadingBranches, setLoadingBranches] = useState(true);
@@ -36,18 +33,7 @@ export function AdminStockPage() {
         const list = await api<Branch[]>('/admin/branches', { token });
         if (cancelled) return;
         setBranches(list);
-        setSearchParams(
-          (current) => {
-            const requested = current.get('branch') ?? '';
-            const chosen = list.some((branch) => branch.id === requested) ? requested : (list[0]?.id ?? '');
-            if (chosen === requested) return current;
-            const next = new URLSearchParams(current);
-            if (chosen) next.set('branch', chosen);
-            else next.delete('branch');
-            return next;
-          },
-          { replace: true },
-        );
+        setBranchId((current) => current || list[0]?.id || '');
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'No se pudieron cargar las sucursales');
       } finally {
@@ -58,7 +44,7 @@ export function AdminStockPage() {
     return () => {
       cancelled = true;
     };
-  }, [token, setSearchParams]);
+  }, [token]);
 
   useEffect(() => {
     if (!branchId) {
@@ -97,15 +83,11 @@ export function AdminStockPage() {
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const filtered = needle
-      ? lines.filter(
-          (line) =>
-            line.productName.toLowerCase().includes(needle) ||
-            line.categories.some((category) => category.name.toLowerCase().includes(needle)),
-        )
-      : lines;
-    return [...filtered].sort(
-      (left, right) => Number(right.available === 0) - Number(left.available === 0),
+    if (!needle) return lines;
+    return lines.filter(
+      (line) =>
+        line.productName.toLowerCase().includes(needle) ||
+        line.categories.some((category) => category.name.toLowerCase().includes(needle)),
     );
   }, [lines, query]);
 
@@ -117,40 +99,6 @@ export function AdminStockPage() {
       selectAllRef.current.indeterminate = selectedVisible > 0 && !allVisibleSelected;
     }
   }, [selectedVisible, allVisibleSelected]);
-
-  useEffect(() => {
-    if (!savedId) return;
-    const timer = window.setTimeout(() => setSavedId(''), SUCCESS_NOTICE_MS);
-    return () => window.clearTimeout(timer);
-  }, [savedId]);
-
-  useEffect(() => {
-    const active = Object.entries(rowError).filter(([, message]) => message);
-    if (active.length === 0) return;
-    const timer = window.setTimeout(() => {
-      setRowError((current) => {
-        const next = { ...current };
-        let changed = false;
-        for (const [id, message] of active) {
-          if (current[id] === message) {
-            next[id] = '';
-            changed = true;
-          }
-        }
-        return changed ? next : current;
-      });
-    }, SUCCESS_NOTICE_MS);
-    return () => window.clearTimeout(timer);
-  }, [rowError]);
-
-  function patchParams(updates: Record<string, string>) {
-    const next = new URLSearchParams(searchParams);
-    for (const [key, value] of Object.entries(updates)) {
-      if (!value) next.delete(key);
-      else next.set(key, value);
-    }
-    setSearchParams(next, { replace: true });
-  }
 
   function toggle(productId: string) {
     setSelected((current) => {
@@ -300,7 +248,7 @@ export function AdminStockPage() {
           Sucursal
           <select
             value={branchId}
-            onChange={(event) => patchParams({ branch: event.target.value })}
+            onChange={(event) => setBranchId(event.target.value)}
             disabled={loadingBranches || branches.length === 0}
           >
             {branches.length === 0 ? <option value="">Sin sucursales</option> : null}
@@ -316,7 +264,7 @@ export function AdminStockPage() {
           Producto
           <input
             value={query}
-            onChange={(event) => patchParams({ q: event.target.value })}
+            onChange={(event) => setQuery(event.target.value)}
             placeholder="Nombre o categoría"
             type="search"
             autoComplete="off"
@@ -383,18 +331,16 @@ export function AdminStockPage() {
               const draft = drafts[line.productId] ?? String(line.available);
               const dirty = parseAvailable(draft) !== line.available;
               const message = rowError[line.productId];
-              const outOfStock = line.available === 0;
               const meta = [
                 line.categories.map((category) => category.name).join(' · ') || 'Sin categoría',
                 `reservado ${line.reserved}`,
-                outOfStock ? 'sin stock' : '',
                 line.productAvailable ? '' : 'oculto',
                 line.updatedAt == null ? 'sin fila' : '',
               ]
                 .filter(Boolean)
                 .join(' · ');
               return (
-                <li key={line.productId} className={outOfStock ? 'stock-line stock-line--empty' : 'stock-line'}>
+                <li key={line.productId} className="stock-line">
                   <input
                     type="checkbox"
                     checked={selected.has(line.productId)}
@@ -443,11 +389,7 @@ export function AdminStockPage() {
                       {message}
                     </p>
                   ) : null}
-                  {savedId === line.productId ? (
-                    <p className="success stock-line-note" role="status">
-                      Listo.
-                    </p>
-                  ) : null}
+                  {savedId === line.productId ? <p className="success stock-line-note">Listo.</p> : null}
                 </li>
               );
             })}

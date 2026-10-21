@@ -1,8 +1,8 @@
 # Diseño de APIs
 
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
-**Versión:** 1.1  
-**Actualizado:** 15/10/2026  
+**Versión:** 1.0  
+**Actualizado:** 07/10/2026  
 **Fuente:** controladores de `backend/src/`  
 **Estado:** contrato en uso al cierre del Sprint 3. Promociones y reportes no tienen rutas todavía.
 
@@ -40,7 +40,6 @@ El JWT viaja en `Authorization: Bearer <token>`.
 | GET | `/api/products` | No | Solo `available = true`. Filtro opcional `categoryId` |
 | GET | `/api/products/:id` | No | Detalle. 404 si no está disponible. Incluye `extras` |
 | GET | `/api/branches/available` | Opcional | Sucursales activas dentro del radio |
-| GET | `/api/branches` | Opcional | Todas las sucursales activas. Ubicación opcional para la distancia |
 | GET | `/api/me` | JWT | Perfil |
 | PATCH | `/api/me` | JWT | Nombre y/o contraseña. El email no se acepta |
 | GET, POST | `/api/me/addresses` | Cliente | Direcciones propias |
@@ -64,12 +63,6 @@ El JWT viaja en `Authorization: Bearer <token>`.
 `GET /api/branches/available?lat=&lng=` no exige sesión.
 
 Responde `{ radiusKm, branches }`. Cada sucursal trae nombre, dirección, teléfono, horario, coordenadas y `distanceKm`. Solo activas dentro del radio, de la más cercana a la más lejana. Lista vacía: esa ubicación no tiene cobertura.
-
-### Todas las sucursales (DEV-22)
-
-`GET /api/branches` lista todas las activas, también las que no llegan a la ubicación. Las inactivas no aparecen. Acepta los mismos `addressId` o `lat` + `lng` que `/available`, pero son opcionales.
-
-Responde `{ radiusKm, branches }` con los campos de `/available` más `withinRadius`. Con ubicación, de la más cercana a la más lejana. Sin ubicación, por nombre, y `distanceKm` y `withinRadius` vienen `null`. Una ubicación a medias (`lat` sin `lng`) responde 400; `addressId` sin sesión, 401.
 
 ### Recuperar contraseña
 
@@ -197,5 +190,4 @@ Los reportes extra del Sprint 5 no tienen ruta definida todavía.
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
-| 1.1 | 15/10/2026 | Alta de `GET /api/branches`: todas las sucursales activas (DEV-22) |
 | 1.0 | 07/10/2026 | Mapa de la API al cierre del Sprint 3 |

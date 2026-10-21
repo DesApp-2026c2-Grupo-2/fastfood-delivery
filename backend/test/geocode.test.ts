@@ -6,24 +6,6 @@ import {
   parseNominatimResults,
 } from '../src/branches/geocode';
 
-function located(candidate: {
-  latitude: number;
-  longitude: number;
-  displayName: string;
-  name?: string;
-  houseNumber?: string;
-  postcode?: string;
-  locality?: string;
-}) {
-  return {
-    name: '',
-    houseNumber: '',
-    postcode: '',
-    locality: '',
-    ...candidate,
-  };
-}
-
 describe('Geocodificación de direcciones (Nominatim)', () => {
   it('arma la consulta limitada a Argentina', () => {
     const url = new URL(buildNominatimUrl('Av. Colón 100, Córdoba'));
@@ -31,7 +13,6 @@ describe('Geocodificación de direcciones (Nominatim)', () => {
     expect(url.searchParams.get('q')).toBe('Av. Colón 100, Córdoba');
     expect(url.searchParams.get('countrycodes')).toBe('ar');
     expect(url.searchParams.get('limit')).toBe('5');
-    expect(url.searchParams.get('addressdetails')).toBe('1');
   });
 
   it('lee latitud, longitud y el nombre devuelto', () => {
@@ -40,11 +21,11 @@ describe('Geocodificación de direcciones (Nominatim)', () => {
         { lat: '-31.4135000', lon: '-64.1810500', display_name: 'Av. Colón, Córdoba' },
       ]),
     ).toEqual([
-      located({
+      {
         latitude: -31.4135,
         longitude: -64.18105,
         displayName: 'Av. Colón, Córdoba',
-      }),
+      },
     ]);
   });
 
@@ -72,36 +53,7 @@ describe('Geocodificación de direcciones (Nominatim)', () => {
         { lat: 'norte', lon: '-64.18', display_name: 'Roto' },
         { lat: '-31.42', lon: '-64.18', display_name: 'Bueno' },
       ]),
-    ).toEqual([located({ latitude: -31.42, longitude: -64.18, displayName: 'Bueno' })]);
-  });
-
-  it('guarda número, barrio y código postal para distinguir puntos de la misma calle', () => {
-    expect(
-      parseNominatimResults([
-        {
-          lat: '-34.60396',
-          lon: '-58.384217',
-          name: 'Avenida Corrientes',
-          display_name: 'Avenida Corrientes, Balvanera, Buenos Aires, Argentina',
-          address: {
-            house_number: '1234',
-            road: 'Avenida Corrientes',
-            suburb: 'Balvanera',
-            postcode: 'C1043',
-          },
-        },
-      ]),
-    ).toEqual([
-      located({
-        latitude: -34.60396,
-        longitude: -58.384217,
-        displayName: 'Avenida Corrientes, Balvanera, Buenos Aires, Argentina',
-        name: 'Avenida Corrientes',
-        houseNumber: '1234',
-        postcode: 'C1043',
-        locality: 'Balvanera',
-      }),
-    ]);
+    ).toEqual([{ latitude: -31.42, longitude: -64.18, displayName: 'Bueno' }]);
   });
 
   it('descarta una respuesta vacía o con coordenadas inválidas', () => {
@@ -119,8 +71,8 @@ describe('Geocodificación de direcciones (Nominatim)', () => {
     );
 
     await expect(geocodeAddress('  Centro, Córdoba  ', fetchImpl)).resolves.toEqual([
-      located({ latitude: -31.4201, longitude: -64.1888, displayName: 'Centro, Córdoba' }),
-      located({ latitude: -31.4101, longitude: -64.1788, displayName: 'Centro, Villa Allende' }),
+      { latitude: -31.4201, longitude: -64.1888, displayName: 'Centro, Córdoba' },
+      { latitude: -31.4101, longitude: -64.1788, displayName: 'Centro, Villa Allende' },
     ]);
 
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];

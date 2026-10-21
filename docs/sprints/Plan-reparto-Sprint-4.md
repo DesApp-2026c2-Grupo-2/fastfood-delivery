@@ -1,8 +1,8 @@
 # Plan de reparto — Sprint 4
 
 **Proyecto:** Mordi (pedidos en casas de comidas rápidas)  
-**Versión:** 1.2  
-**Actualizado:** 15/10/2026  
+**Versión:** 1.1  
+**Actualizado:** 12/10/2026  
 **Equipo:** Carla, Nicolas, Lucas, Celeste, Rafael. Cristian lleva la carpeta.  
 **Sprint:** 4 de 5  
 **Medio término:** 22/10/2026 (presencial)  
@@ -64,10 +64,9 @@ No toca `/frontend`.
 Rama: `feat/rafael-sucursales-mapa`  
 No toca `/checkout` ni el admin.
 
-- [x] **DEV-22** — `/branches`: “Las que me cubren” y **todas** las activas. Las inactivas no aparecen.
-- [x] **DEV-23** — Mismo mapa en el alta y la edición de dirección. Se guarda el pin.
-- [ ] **DEV-23, invitado** — El componente `AddressLocationPicker` queda listo; lo enchufa Lucas en `/checkout` (él es el único que toca esa pantalla).
-- [x] Si no hay candidatos de dirección, el mensaje es claro y el pin se puede mover igual.
+- [ ] **DEV-22** — `/branches`: “Las que me cubren” y **todas** las activas. Las inactivas no aparecen.
+- [ ] **DEV-23** — Mismo mapa en el alta y la edición de dirección, y en la dirección del invitado. Se guarda el pin.
+- [ ] Si no hay candidatos de dirección, el mensaje es claro y el pin se puede mover igual.
 
 ### Lucas — sáb 17 y dom 18
 
@@ -79,7 +78,6 @@ Es el único que toca `/checkout` y `ClientLayout`.
 - [ ] Primero las que tienen stock de todo el carrito. El cliente elige. Si hay una sola, viene marcada.
 - [ ] **DEV-24** — Si elige domicilio y no hay ninguna en rango, “Confirmar pedido” queda deshabilitado y se lee por qué.
 - [ ] **DEV-18** — Carteles de éxito del cliente se van a los 4 segundos.
-- [ ] **DEV-23, invitado** — Reemplazar latitud y longitud del invitado por `AddressLocationPicker` (`frontend/src/components/AddressLocationPicker.tsx`, de Rafael).
 - [ ] Merge el **domingo 18 a la noche**.
 
 **No toca:** el cupón ni el desglose de promo. Eso es el lunes 19 y el martes 20, y solo si el API ya descuenta.
@@ -167,6 +165,5 @@ git checkout -b feat/<nombre>-<frente>
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
-| 1.2 | 15/10/2026 | Rafael cerró DEV-22 y DEV-23 en direcciones. El mapa del invitado pasa a Lucas, con el componente de Rafael |
 | 1.1 | 12/10/2026 | Todo el reparto termina el martes 20. El sábado 17 y el domingo 18 cuentan: ahí van el checkout y los reportes. La promo es el lunes 19 y el martes 20 |
 | 1.0 | 12/10/2026 | Reparto del Sprint 4: dos días por persona, Nicolas primero, promo porcentual el 27 y 28 |

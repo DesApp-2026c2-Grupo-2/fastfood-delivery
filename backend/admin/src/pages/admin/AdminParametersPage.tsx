@@ -2,7 +2,6 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { ORDER_STATUS_LABEL, type OrderStatus, type OrderStatusInfo, type SystemParameter } from '../../api/types';
 import { getToken } from '../../auth/session';
-import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 4 }).format(value);
@@ -22,8 +21,8 @@ export function AdminParametersPage() {
   const [parameters, setParameters] = useState<SystemParameter[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [statuses, setStatuses] = useState<OrderStatusInfo[]>([]);
-  const [error, setError] = useTimedNotice();
-  const [ok, setOk] = useSuccessNotice();
+  const [error, setError] = useState('');
+  const [ok, setOk] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -107,7 +106,7 @@ export function AdminParametersPage() {
       {loading ? <p className="muted">Cargando parámetros…</p> : null}
 
       {!loading && parameters.length > 0 ? (
-        <form className="form" onSubmit={onSubmit} noValidate>
+        <form className="form" onSubmit={onSubmit}>
           {parameters.map((parameter) => (
             <label key={parameter.key}>
               {parameter.label}

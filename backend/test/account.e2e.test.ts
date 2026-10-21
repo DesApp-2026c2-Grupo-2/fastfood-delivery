@@ -405,22 +405,6 @@ describe('Administradores (HU-16)', () => {
     expect((await login(email, 'Admin456!')).status).toBe(401);
   });
 
-  it('un admin no puede borrarse a sí mismo', async () => {
-    const email = uniqueEmail('propio');
-    const created = await createAdmin({ name: 'Yo mismo', email, password: 'Admin456!' });
-    const session = await login(email, 'Admin456!');
-    expect(session.status).toBe(201);
-
-    const self = await request(server)
-      .delete(`/api/admin/admins/${created.body.id}`)
-      .set(auth(session.body.accessToken));
-    expect(self.status).toBe(409);
-    expect(await prisma.user.findUnique({ where: { email } })).not.toBeNull();
-
-    const removed = await request(server).delete(`/api/admin/admins/${created.body.id}`).set(auth(adminToken));
-    expect(removed.status).toBe(200);
-  });
-
   it('un cliente no edita ni borra admins', async () => {
     const customer = await registerCustomer();
     const email = uniqueEmail('protegido');
