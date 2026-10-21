@@ -15,6 +15,8 @@ import type {
 import { useCart } from '../../cart/CartContext';
 import { getToken, isCustomer } from '../../auth/session';
 import { clearGuestCart, getGuestCart, hydrateGuestCart } from '../../cart/guestCart';
+import { LineExtras } from '../../components/LineExtras';
+import { parseNotesAndExtras } from '../../lib/cart-notes';
 import { discountCaption } from '../../lib/discount-label';
 import { formatDateTime, formatPrice } from '../../lib/money';
 import { mediaUrl } from '../../lib/media';
@@ -66,6 +68,8 @@ export function CheckoutPage() {
   const [coverageError, setCoverageError] = useState<OutOfCoverageError | null>(null);
   const [stockError, setStockError] = useState<OutOfStockError | null>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
+  const pinnedBranch = useRef<{ scope: string; id: string } | null>(null);
+  const fulfillmentPinned = useRef<Fulfillment | null>(null);
   const [guestErrors, setGuestErrors] = useState<GuestFormErrors>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -170,7 +174,15 @@ export function CheckoutPage() {
         body: JSON.stringify(body),
       })
         .then((result) => {
-          if (!cancelled) setBranchOptions(result);
+          if (cancelled) return;
+          setBranchOptions(result);
+          if (
+            result.fulfillment === 'delivery' &&
+            result.branches.length === 0 &&
+            fulfillmentPinned.current !== 'delivery'
+          ) {
+            setFulfillment('pickup');
+          }
         })
         .catch((err) => {
           if (cancelled) return;
@@ -188,21 +200,36 @@ export function CheckoutPage() {
     };
   }, [loading, cart, loggedIn, token, fulfillment, addressId, latitude, longitude]);
 
-  // Retiro: la primera sucursal con stock queda elegida. Domicilio: solo si hay una.
+  function branchScope() {
+    if (fulfillment === 'pickup') return 'pickup';
+    return loggedIn ? `delivery:${addressId}` : `delivery:${latitude}:${longitude}`;
+  }
+
+  function selectBranch(id: string) {
+    pinnedBranch.current = { scope: branchScope(), id };
+    setBranchId(id);
+    clearConfirmErrors();
+  }
+
+  // La lista ya viene con stock completo primero y, dentro de ese grupo, de la más cercana a la más lejana.
   useEffect(() => {
     if (!branchOptions) {
       setBranchId('');
       return;
     }
-    setBranchId((current) => {
-      if (branchOptions.branches.some((branch) => branch.id === current)) return current;
-      if (branchOptions.branches.length === 1) return branchOptions.branches[0].id;
-      if (branchOptions.fulfillment === 'pickup') {
-        return (branchOptions.branches.find((branch) => branch.canFulfill) ?? branchOptions.branches[0])?.id ?? '';
-      }
-      return '';
-    });
-  }, [branchOptions]);
+    const scope = fulfillment === 'pickup' ? 'pickup' : loggedIn ? `delivery:${addressId}` : `delivery:${latitude}:${longitude}`;
+    const pinned = pinnedBranch.current;
+    if (pinned && pinned.scope === scope && branchOptions.branches.some((branch) => branch.id === pinned.id)) {
+      setBranchId(pinned.id);
+      return;
+    }
+    const nearestWithStock = branchOptions.branches.find((branch) => branch.canFulfill);
+    if (nearestWithStock) {
+      setBranchId(nearestWithStock.id);
+      return;
+    }
+    setBranchId(fulfillment === 'pickup' ? (branchOptions.branches[0]?.id ?? '') : '');
+  }, [branchOptions, fulfillment, addressId, latitude, longitude, loggedIn]);
 
   useEffect(() => {
     if (coverageError || stockError) {
@@ -217,9 +244,17 @@ export function CheckoutPage() {
   }
 
   function changeFulfillment(next: Fulfillment) {
+    fulfillmentPinned.current = next;
     setFulfillment(next);
     clearConfirmErrors();
   }
+
+  // Otra dirección se vuelve a evaluar: domicilio si alguna sucursal llega, retiro si ninguna.
+  useEffect(() => {
+    if (fulfillmentPinned.current === 'pickup') return;
+    fulfillmentPinned.current = null;
+    setFulfillment('delivery');
+  }, [addressId, latitude, longitude]);
 
   function showConfirmError(err: unknown) {
     if (err instanceof ApiError && err.code === 'OUT_OF_COVERAGE') {
@@ -553,10 +588,7 @@ export function CheckoutPage() {
               loading={branchesLoading}
               error={branchesError}
               branchId={branchId}
-              onChange={(id) => {
-                setBranchId(id);
-                clearConfirmErrors();
-              }}
+              onChange={selectBranch}
               hint=""
               blockedReason={blockedReason}
             />
@@ -662,10 +694,7 @@ export function CheckoutPage() {
               loading={branchesLoading}
               error={branchesError}
               branchId={branchId}
-              onChange={(id) => {
-                setBranchId(id);
-                clearConfirmErrors();
-              }}
+              onChange={selectBranch}
               hint={
                 fulfillment === 'delivery'
                   ? 'Completá latitud y longitud para ver qué sucursales llegan a tu dirección.'
@@ -817,7 +846,10 @@ function PriceBreakdown({
         <strong>{formatPrice(subtotal)}</strong>
       </p>
       <p className="total-row total-row--detail">
-        <span>Descuento{caption ? ` (${caption})` : ''}</span>
+        <span className="total-discount">
+          <span>Descuento</span>
+          {caption ? <small>{caption}</small> : null}
+        </span>
         <strong>−{formatPrice(discountAmount)}</strong>
       </p>
       <p className="total-row">
@@ -847,6 +879,7 @@ function OrderSummary({
       <ul className="order-items">
         {cart.items.map((item) => {
           const shortage = shortages.find((entry) => entry.productId === item.productId);
+          const note = parseNotesAndExtras(item.notes).kitchenNote;
           return (
             <li key={item.id} className={shortage ? 'order-item--short' : undefined}>
               <span className="checkout-line">
@@ -861,7 +894,8 @@ function OrderSummary({
                 </span>
                 <span className="checkout-line-price">{formatPrice(item.subtotal)}</span>
               </span>
-              {item.notes ? <small className="muted">{item.notes}</small> : null}
+              <LineExtras className="checkout-line-extras" extras={item.extras ?? []} />
+              {note ? <small className="muted checkout-line-note">{note}</small> : null}
               {shortage ? (
                 <small className="order-item-shortage">
                   {shortage.available > 0

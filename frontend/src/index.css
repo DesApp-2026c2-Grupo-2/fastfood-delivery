@@ -1492,8 +1492,110 @@ h2 {
   gap: 0.1rem;
 }
 
-.cart-item-info strong {
+.cart-item-photo-link {
+  display: block;
+  line-height: 0;
+}
+
+.cart-item-name {
+  color: inherit;
+  font-weight: 800;
   line-height: 1.25;
+  text-decoration: none;
+}
+
+.cart-item-name:hover {
+  color: var(--accent);
+}
+
+.line-extras {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.35rem 0;
+}
+
+.line-extra {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #334155;
+}
+
+.line-extra-mark {
+  color: #fdba74;
+  font-weight: 700;
+  user-select: none;
+}
+
+.line-extra img,
+.line-extra-fallback {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  object-fit: contain;
+  box-sizing: border-box;
+  padding: 2px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+}
+
+.line-extra-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+}
+
+.line-extra-name {
+  min-width: 0;
+}
+
+.line-extra-price {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.line-extra-remove {
+  margin-left: auto;
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.1rem 0.15rem;
+  cursor: pointer;
+}
+
+.line-extra-remove:hover:not(:disabled) {
+  color: var(--danger);
+}
+
+.line-extra-remove:active {
+  transform: none;
+  box-shadow: none;
+}
+
+.line-extra-remove:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.checkout-line-extras {
+  margin: 0.35rem 0 0 3.2rem;
+}
+
+.checkout-line-note {
+  display: block;
+  margin: 0.25rem 0 0 3.2rem;
 }
 
 .cart-item-info .muted {
@@ -1721,11 +1823,33 @@ h2 {
 .total-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
+  align-items: flex-start;
+  gap: 0.75rem;
   margin: 0;
   font-size: 1.15rem;
   font-weight: 800;
+}
+
+.total-discount {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.total-discount small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.total-row > strong {
+  flex-shrink: 0;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .checkout-button {
@@ -1858,11 +1982,33 @@ h2 {
   gap: 0.45rem;
 }
 
+.order-card-date,
+.order-card-detail {
+  color: inherit;
+  text-decoration: none;
+}
+
+a.order-card-total {
+  text-decoration: none;
+}
+
+.order-card-date:hover,
+.order-card-detail:hover,
+a.order-card-total:hover,
+.order-card-actions .text-action:hover {
+  text-decoration: underline;
+}
+
 .order-card-title strong {
   font-family: Fredoka, Nunito, sans-serif;
   font-size: 1.15rem;
   font-weight: 700;
   line-height: 1.2;
+}
+
+.order-card-detail {
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .order-card-title .badge {
@@ -3864,46 +4010,55 @@ h2 {
     width: 100% !important;
   }
 
-  /* 2. Grilla de adicionales: centrada con 3 arriba y 2 abajo */
+  /* 2. Adicionales: dos columnas iguales, el nombre largo entra en la tarjeta */
   .extras-grid {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: 8px !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch !important;
+    align-items: stretch !important;
+    gap: 0.65rem !important;
     width: 100% !important;
     box-sizing: border-box !important;
     padding: 0 !important;
-    margin: 0.5rem auto !important;
+    margin: 0.35rem 0 0 !important;
   }
 
   .extra-card {
-    flex: 0 1 calc(33.333% - 8px) !important;
-    width: calc(33.333% - 8px) !important;
-    max-width: 96px !important;
-    min-width: 78px !important;
+    flex: none !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    height: 100%;
     box-sizing: border-box !important;
-    padding: 8px 4px 6px !important;
+    padding: 0.7rem 0.55rem 0.6rem !important;
     margin: 0 !important;
+  }
+
+  .extra-card:hover {
+    transform: none;
   }
 
   .extra-thumb-box {
     width: 100% !important;
-    height: 52px !important;
+    height: 64px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    margin-bottom: 0.35rem !important;
+    margin-bottom: 0.4rem !important;
   }
 
   .extra-item-name {
-    font-size: 0.72rem !important;
-    line-height: 1.15 !important;
+    width: 100%;
+    font-size: 0.84rem !important;
+    line-height: 1.2 !important;
+    min-height: 2.4em;
     text-align: center !important;
+    overflow-wrap: anywhere;
   }
 
   .extra-item-price {
-    font-size: 0.7rem !important;
+    font-size: 0.78rem !important;
+    white-space: nowrap;
   }
 
   /* 3. Barra de compra: contenida y con respiro a la derecha */

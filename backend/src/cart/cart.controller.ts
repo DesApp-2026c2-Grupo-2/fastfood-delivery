@@ -33,4 +33,9 @@ export class CartController {
   removeItem(@Req() req: AuthedRequest, @Param('id') id: string) {
     return this.cartService.removeItem(req.user.sub, id);
   }
+
+  @Delete('items/:id/extras/:extraId')
+  removeExtra(@Req() req: AuthedRequest, @Param('id') id: string, @Param('extraId') extraId: string) {
+    return this.cartService.removeExtra(req.user.sub, id, extraId);
+  }
 }

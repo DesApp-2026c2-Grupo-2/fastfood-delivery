@@ -292,6 +292,35 @@ describe('POST /api/cart/items con adicionales', () => {
     expect(item.subtotal).toBe((20000 + 2000) * 4);
   });
 
+  it('quitar un adicional recalcula el subtotal y, si queda la misma combinación, une las líneas', async () => {
+    const withBoth = await addToCart({ productId: burger.id, quantity: 1, extraIds: [bacon.id, cheddar.id] });
+    const bothId = withBoth.body.items[0].id as string;
+    await addToCart({ productId: burger.id, quantity: 2, extraIds: [bacon.id], notes: 'sin sal' });
+
+    const removed = await request(server).delete(`/api/cart/items/${bothId}/extras/${cheddar.id}`).set(bearer());
+
+    expect(removed.status).toBe(200);
+    expect(removed.body.items).toHaveLength(1);
+    const [item] = removed.body.items;
+    expect(item.quantity).toBe(3);
+    expect(item.notes).toBe('sin sal');
+    expect(item.extras.map((extra: { id: string }) => extra.id)).toEqual([bacon.id]);
+    expect(item.subtotal).toBe((20000 + 2000) * 3);
+
+    const alone = await addToCart({ productId: burger.id, quantity: 1, extraIds: [cheddar.id] });
+    const aloneId = alone.body.items.find((line: { extras: { id: string }[] }) =>
+      line.extras.some((extra) => extra.id === cheddar.id) && line.extras.length === 1,
+    ).id as string;
+
+    const last = await request(server).delete(`/api/cart/items/${aloneId}/extras/${cheddar.id}`).set(bearer());
+    const plain = last.body.items.find((line: { extras: unknown[] }) => line.extras.length === 0);
+    expect(plain.extras).toEqual([]);
+    expect(plain.subtotal).toBe(20000);
+
+    const missing = await request(server).delete(`/api/cart/items/${plain.id}/extras/${bacon.id}`).set(bearer());
+    expect(missing.status).toBe(404);
+  });
+
   it('quitar la línea también quita sus adicionales', async () => {
     const added = await addToCart({ productId: burger.id, quantity: 1, extraIds: [bacon.id, cheddar.id] });
     const itemId = added.body.items[0].id as string;

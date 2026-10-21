@@ -5,32 +5,12 @@ import { api } from '../../api/client';
 import type { Cart, CartItem, Product, PromotionQuote } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
 import { hydrateGuestCart, removeGuestItem, updateGuestItem } from '../../cart/guestCart';
+import { LineExtras } from '../../components/LineExtras';
+import { parseNotesAndExtras } from '../../lib/cart-notes';
 import { mediaUrl } from '../../lib/media';
 import { discountCaption } from '../../lib/discount-label';
 import { formatPrice } from '../../lib/money';
 import { useAutoClear } from '../../lib/useAutoClear';
-
-function parseNotesAndExtras(notesRaw?: string | null) {
-  if (!notesRaw) return { extrasNames: [], kitchenNote: '' };
-
-  const text = notesRaw.trim();
-  
-  // Soporta tanto "Extras: A, B | nota" como "nota | Extras: A, B"
-  let extrasNames: string[] = [];
-  let kitchenNote = text;
-
-  const extrasMatch = text.match(/(?:^|[|;\n])\s*(?:extras?:?|con:?)\s*([^|;\n]+)/i);
-  if (extrasMatch) {
-    extrasNames = extrasMatch[1]
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    kitchenNote = text.replace(extrasMatch[0], '').replace(/^[|;\s]+|[|;\s]+$/g, '').trim();
-  }
-
-  return { extrasNames, kitchenNote };
-}
 
 export function CartPage() {
   const { refresh } = useCart();
@@ -132,6 +112,23 @@ export function CartPage() {
     await saveItem(item, quantity, item.notes);
   }
 
+  async function removeExtra(item: CartItem, extraId: string) {
+    setUpdatingId(item.id);
+    setError('');
+    try {
+      const next = await api<Cart>(`/cart/items/${item.id}/extras/${extraId}`, {
+        method: 'DELETE',
+        token: getToken() ?? '',
+      });
+      setCart(next);
+      void refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo quitar el adicional');
+    } finally {
+      setUpdatingId('');
+    }
+  }
+
   async function removeItem(item: CartItem) {
     setUpdatingId(item.id);
     setError('');
@@ -155,6 +152,11 @@ export function CartPage() {
   }
 
   const items = cart?.items ?? [];
+  const discountLabel = discountCaption({
+    name: quote?.promotion?.name,
+    type: quote?.promotion?.type,
+    value: quote?.promotion?.value,
+  });
 
   return (
     <section className="stack">
@@ -199,6 +201,7 @@ export function CartPage() {
                 onQuantity={(quantity) => void changeQuantity(item, quantity)}
                 onNotes={(notes) => void saveItem(item, item.quantity, notes)}
                 onRemove={() => void removeItem(item)}
+                onRemoveExtra={(extraId) => void removeExtra(item, extraId)}
               />
             ))}
           </ul>
@@ -210,12 +213,9 @@ export function CartPage() {
                   <strong>{formatPrice(quote.subtotal)}</strong>
                 </p>
                 <p className="total-row total-row--detail">
-                  <span>
-                    {`Descuento (${discountCaption({
-                      name: quote.promotion?.name,
-                      type: quote.promotion?.type,
-                      value: quote.promotion?.value,
-                    })})`}
+                  <span className="total-discount">
+                    <span>Descuento</span>
+                    {discountLabel ? <small>{discountLabel}</small> : null}
                   </span>
                   <strong>−{formatPrice(quote.discountAmount)}</strong>
                 </p>
@@ -242,13 +242,15 @@ function CartLine({
   onQuantity,
   onNotes,
   onRemove,
+  onRemoveExtra,
 }: {
-  item: CartItem & { extras?: Array<{ id: string; name: string; price: number; imageUrl?: string | null }> };
+  item: CartItem;
   allProducts: Product[];
   busy: boolean;
   onQuantity: (quantity: number) => void;
   onNotes: (notes: string) => void;
   onRemove: () => void;
+  onRemoveExtra: (extraId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const skipSave = useRef(false);
@@ -265,6 +267,7 @@ function CartLine({
         );
         const img = e.imageUrl || matched?.imageUrl || matched?.images?.[0]?.url;
         return {
+          id: e.id,
           name: e.name,
           price: e.price,
           imageUrl: img,
@@ -310,87 +313,27 @@ function CartLine({
   return (
     <li className="card cart-item">
       <div className="cart-item-row">
-        {item.product.imageUrl ? (
-          <img src={mediaUrl(item.product.imageUrl)} alt={item.product.name} />
-        ) : (
-          <div className="cart-item-photo" />
-        )}
+        <Link to={`/products/${item.product.id}`} className="cart-item-photo-link">
+          {item.product.imageUrl ? (
+            <img src={mediaUrl(item.product.imageUrl)} alt="" />
+          ) : (
+            <div className="cart-item-photo" />
+          )}
+        </Link>
 
         <div className="cart-item-info">
-          <strong>{item.product.name}</strong>
+          <Link to={`/products/${item.product.id}`} className="cart-item-name">
+            {item.product.name}
+          </Link>
           <p className="muted">{formatPrice(item.unitPrice)} c/u</p>
 
-          {/* Adicionales con miniaturas y precios */}
-          {resolvedExtras.length > 0 && (
-            <div
-              className="cart-item-extras"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.35rem',
-                margin: '0.35rem 0',
-              }}
-            >
-              {resolvedExtras.map((extra, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontSize: '0.85rem',
-                  }}
-                >
-                  <span style={{ color: '#fdba74', fontWeight: 700, userSelect: 'none' }}>
-                    └
-                  </span>
-                  {extra.imageUrl ? (
-                    <img
-                      src={mediaUrl(extra.imageUrl)}
-                      alt={extra.name}
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        objectFit: 'contain',
-                        background: '#fff7ed',
-                        border: '1px solid #fed7aa',
-                        borderRadius: '6px',
-                        padding: '2px',
-                        flexShrink: 0,
-                      }}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <span
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: '#fff7ed',
-                        border: '1px solid #fed7aa',
-                        borderRadius: '6px',
-                        fontSize: '0.75rem',
-                      }}
-                    >
-                      ✨
-                    </span>
-                  )}
-                  <span style={{ fontWeight: 500, color: '#334155' }}>
-                    {extra.name}
-                  </span>
-                  {extra.price ? (
-                    <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 400 }}>
-                      (+{formatPrice(extra.price)})
-                    </span>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          )}
+          <LineExtras
+            extras={resolvedExtras}
+            busy={busy}
+            onRemove={(extra) => {
+              if (extra.id) onRemoveExtra(extra.id);
+            }}
+          />
 
           {/* Aclaración exclusiva para cocina */}
           {kitchenNote && !open ? (

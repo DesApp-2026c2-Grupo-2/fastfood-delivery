@@ -11,7 +11,11 @@ const withRelations = {
       product: {
         include: { images: { orderBy: { sortOrder: 'asc' as const }, take: 1 } },
       },
-      extras: { include: { extra: true } },
+      extras: {
+        include: {
+          extra: { include: { images: { orderBy: { sortOrder: 'asc' as const }, take: 1 } } },
+        },
+      },
     },
     orderBy: { createdAt: 'asc' as const },
   },
@@ -27,6 +31,7 @@ function serialize(cart: CartWithRelations) {
         id: extra.id,
         name: extra.name,
         price: Number(extra.price),
+        imageUrl: extra.images[0]?.url ?? null,
         available: extra.available,
       }))
       .sort(byName);
@@ -123,6 +128,60 @@ export class CartService {
 
     await this.prisma.cartItem.delete({
       where: { id: itemId },
+    });
+
+    return this.getCart(userId);
+  }
+
+  async removeExtra(userId: string, itemId: string, extraId: string) {
+    const item = await this.prisma.cartItem.findUnique({
+      where: { id: itemId },
+      include: { cart: true, extras: true },
+    });
+    if (!item || item.cart.userId !== userId) {
+      throw new NotFoundException('El ítem no está en el carrito');
+    }
+    if (!item.extras.some((extra) => extra.extraId === extraId)) {
+      throw new NotFoundException('Ese adicional no está en el ítem');
+    }
+
+    const extrasKey = item.extras
+      .map((extra) => extra.extraId)
+      .filter((id) => id !== extraId)
+      .sort()
+      .join(',');
+
+    await this.prisma.$transaction(async (tx) => {
+      const sibling = await tx.cartItem.findUnique({
+        where: {
+          cartId_productId_extrasKey: {
+            cartId: item.cartId,
+            productId: item.productId,
+            extrasKey,
+          },
+        },
+      });
+
+      // Misma hamburguesa con los adicionales que quedan: se suman en una sola línea.
+      if (sibling && sibling.id !== item.id) {
+        await tx.cartItem.update({
+          where: { id: sibling.id },
+          data: {
+            quantity: { increment: item.quantity },
+            ...(sibling.notes.trim() === '' && item.notes.trim() !== '' ? { notes: item.notes } : {}),
+          },
+        });
+        await tx.cartItem.delete({ where: { id: item.id } });
+        return;
+      }
+
+      await tx.cartItemExtra.delete({
+        where: { cartItemId_extraId: { cartItemId: item.id, extraId } },
+      });
+      await tx.cartItem.update({
+        where: { id: item.id },
+        data: { extrasKey },
+      });
     });
 
     return this.getCart(userId);

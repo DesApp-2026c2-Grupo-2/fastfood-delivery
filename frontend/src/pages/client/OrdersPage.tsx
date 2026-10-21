@@ -157,14 +157,16 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
             <li key={order.id} className="card order-card">
               <div className="order-card-main">
                 <div className="order-card-title">
-                  <strong>{formatDate(order.createdAt)}</strong>
+                  <Link className="order-card-date" to={`/orders/${order.id}`}>
+                    <strong>{formatDate(order.createdAt)}</strong>
+                  </Link>
                   <span className={`badge badge--${order.status}`}>{statusLabel(order.status)}</span>
                 </div>
-                <p className="checkout-choice-meta">
+                <Link className="order-card-detail" to={`/orders/${order.id}`}>
                   {order.branch.name}
                   {' · '}
                   {order.itemCount === 1 ? '1 producto' : `${order.itemCount} productos`}
-                </p>
+                </Link>
                 <div className="order-card-actions">
                   <Link className="text-action" to={`/orders/${order.id}`}>
                     Ver detalle
@@ -185,7 +187,9 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
                   </button>
                 </div>
               </div>
-              <p className="order-card-total">{formatPrice(order.totalAmount)}</p>
+              <Link className="order-card-total" to={`/orders/${order.id}`}>
+                {formatPrice(order.totalAmount)}
+              </Link>
             </li>
           ))}
         </ul>

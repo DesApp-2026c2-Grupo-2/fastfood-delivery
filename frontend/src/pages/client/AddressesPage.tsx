@@ -62,15 +62,15 @@ function AddressesContent({ token }: { token: string }) {
   const [pendingDelete, setPendingDelete] = useState<Address | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  async function load() {
-    setLoading(true);
+  async function load(options?: { silent?: boolean }) {
+    if (!options?.silent) setLoading(true);
     setError('');
     try {
-      setAddresses(await api<Address[]>('/me/addresses', { token }));
+      setAddresses(await api<Address[]>('/me/addresses', { token, cache: 'no-store' }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar las direcciones');
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
   }
 
@@ -181,6 +181,7 @@ function AddressesContent({ token }: { token: string }) {
           token,
           body: JSON.stringify(payload),
         });
+        await load({ silent: true });
         navigate('/account/addresses', { state: { ok: 'Dirección actualizada.' } });
         return;
       } else {

@@ -74,6 +74,7 @@ export type CartItem = {
     available: boolean;
     imageUrl: string;
   };
+  extras?: OrderItemExtra[];
 };
 
 export type Cart = {
