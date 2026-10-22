@@ -6,6 +6,25 @@ import { ProductTags, PromoBadge } from '../../components/ProductTags';
 import { mediaUrl } from '../../lib/media';
 import { formatPrice } from '../../lib/money';
 
+const MENU_CATEGORY_ORDER = ['hamburguesas', 'guarnicion', 'bebidas', 'aderezos'];
+
+function categoryKey(category: Category) {
+  return (category.slug || category.name)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function menuCategories(categoryList: Category[]) {
+  const hasCounts = categoryList.some((category) => typeof category._count?.products === 'number');
+  return MENU_CATEGORY_ORDER.flatMap((slug) => {
+    const category = categoryList.find((item) => categoryKey(item) === slug);
+    if (!category) return [];
+    if (hasCounts && (category._count?.products ?? 0) === 0) return [];
+    return [category];
+  });
+}
+
 export function ProductListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryId = searchParams.get('categoryId') ?? '';
@@ -25,11 +44,7 @@ export function ProductListPage() {
           api<Product[]>(categoryId ? `/products?categoryId=${encodeURIComponent(categoryId)}` : '/products'),
         ]);
         if (!cancelled) {
-          // Excluir la categoría 'adicional' de los chips de navegación
-          const visibleCategories = categoryList.filter(
-            (c) => c.slug !== 'adicional' && c.name?.toLowerCase() !== 'adicional'
-          );
-          setCategories(visibleCategories);
+          setCategories(menuCategories(categoryList));
 
           // Excluir productos que pertenezcan a 'adicional' para que no se compren sueltos
           const visibleProducts = productList.filter((p) => {
