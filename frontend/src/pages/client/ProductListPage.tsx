@@ -76,7 +76,7 @@ export function ProductListPage() {
 
   return (
     <section>
-      <h1>El menú de Mordi ⋆</h1>
+      <h1>Productos</h1>
       <p className="muted">
         Cositas ricas{selectedName ? ` · ${selectedName}` : ' para pedir'}.
       </p>
