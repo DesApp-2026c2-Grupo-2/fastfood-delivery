@@ -1629,6 +1629,26 @@ h2 {
   margin: 0.25rem 0 0 3.2rem;
 }
 
+.site-footer {
+  width: min(960px, 100%);
+  margin: 0 auto;
+  padding: 1rem 1rem 2rem;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  font-size: 0.9rem;
+}
+
+.site-footer a {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.site-footer a:hover {
+  color: var(--accent);
+}
+
 .cart-item-info .muted {
   margin: 0;
   font-size: 0.82rem;
@@ -1651,6 +1671,8 @@ h2 {
   min-width: 0;
   max-width: 100%;
 }
+
+
 
 .cart-notes-line {
   display: flex;
@@ -2160,6 +2182,11 @@ a.order-card-total:hover,
 }
 
 @media (max-width: 719px) { /* MOBILE */
+  
+  .site-footer {
+    padding-bottom: 5.5rem;
+  }
+
   .admin-sidebar:not(.admin-sidebar--collapsed) {
     position: fixed;
     left: 0;
