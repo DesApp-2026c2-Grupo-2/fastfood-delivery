@@ -3,6 +3,7 @@ import { RequireCustomer } from './auth/RequireCustomer';
 import { SessionProvider } from './auth/SessionContext';
 import { CartProvider } from './cart/CartContext';
 import { ClientLayout } from './layouts/ClientLayout';
+import { TermsPage } from './pages/client/TermsPage';
 import { AccountPage } from './pages/client/AccountPage';
 import { AddressesPage } from './pages/client/AddressesPage';
 import { BranchesPage } from './pages/client/BranchesPage';
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="/" element={<Navigate to="/products" replace />} />
             <Route path="/products" element={<ProductListPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
+            <Route path="/terminos" element={<TermsPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/branches" element={<BranchesPage />} />
