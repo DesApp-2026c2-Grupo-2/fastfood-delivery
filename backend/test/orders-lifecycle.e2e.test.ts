@@ -218,6 +218,8 @@ describe('GET /api/orders', () => {
       deliveryFee: 0,
       totalAmount: 1500,
       promotionName: null,
+      promotionType: null,
+      promotionValue: null,
       createdAt: expect.any(String),
       branch: { id: expect.any(String), name: expect.any(String) },
       itemCount: 1,
