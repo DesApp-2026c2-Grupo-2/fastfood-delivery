@@ -31,8 +31,8 @@ export class AdminAdminsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateAdminDto) {
-    return this.adminsService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateAdminDto, @Req() req: AuthedRequest) {
+    return this.adminsService.update(id, dto, req.user.sub);
   }
 
   @Delete(':id')

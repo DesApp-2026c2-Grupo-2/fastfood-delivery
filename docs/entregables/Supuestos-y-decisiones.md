@@ -109,6 +109,8 @@ El Sprint 4 las va a implementar así. Hoy el importe del pedido es solo el subt
 | D56 | “Compró” | Tiene al menos un pedido no cancelado. Cantidad de compras y total gastado cuentan solo esos. Los invitados no son clientes. |
 | D57 | Costo de envío | Por tramos de distancia sucursal–dirección, editables por el admin. Cada tramo va del tope anterior a su tope, inclusive. Más lejos que el último, se cobra el último. Sin tramos cargados, envío gratis. Retiro no paga. |
 | D58 | Envío y promo | La promo descuenta solo los productos. Total = subtotal − descuento + envío. El envío se congela al confirmar, como la promo. |
+| D59 | Roles de admin | `super_admin`: todo el backoffice. `orders_viewer`: solo consulta pedidos (listado, detalle y estados), sin cambiar estados ni cancelar. Toda ruta de admin nueva es solo de super admin salvo que se abra a propósito. Los admins existentes pasaron a super admin y un alta sin rol también lo es. |
+| D60 | Cambios de rol | Los hace un super admin y rigen enseguida, sin volver a iniciar sesión. Nadie cambia su propio rol y el admin inicial no deja de ser super admin, así siempre queda uno. |
 
 ## 8. Qué se propuso al principio y no se hizo
 
@@ -129,6 +131,6 @@ En el análisis del 20/08 había variantes que el grupo descartó. Quedan escrit
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
-| 1.2 | 27/10/2026 | ABM de clientes con baja lógica y costo de envío por tramos de distancia (D54 a D58) |
+| 1.2 | 27/10/2026 | ABM de clientes con baja lógica, costo de envío por tramos de distancia y roles de admin (D54 a D60) |
 | 1.1 | 12/10/2026 | Feedback del profesor: el cliente elige sucursal (retiro o domicilio, stock primero), mapa de pin, hasta 5 candidatos de dirección. La promo con condición no entra |
 | 1.0 | 07/10/2026 | Primera versión de carpeta, con las reglas en uso al cierre del Sprint 3 y las de promociones ya cerradas para el Sprint 4 |

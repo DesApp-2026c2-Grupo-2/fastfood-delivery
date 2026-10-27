@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import { Role } from '@prisma/client';
+import { AdminRole, Role } from '@prisma/client';
 
 // bcrypt solo mira los primeros 72 bytes: más largo no suma seguridad y confunde.
 export const PASSWORD_MIN_LENGTH = 6;
@@ -13,9 +13,11 @@ export function passwordMatches(password: string, passwordHash: string) {
   return bcrypt.compare(password, passwordHash);
 }
 
-export type PublicUser = { id: string; email: string; name: string; role: Role };
+export type PublicUser = { id: string; email: string; name: string; role: Role; adminRole?: AdminRole | null };
 
-// Lo único del usuario que sale por el API (nunca el hash).
+// Lo único del usuario que sale por el API (nunca el hash). adminRole solo va en los admins: el front
+// lo usa para saber qué secciones del backoffice mostrar.
 export function toPublicUser(user: PublicUser): PublicUser {
-  return { id: user.id, email: user.email, name: user.name, role: user.role };
+  const base = { id: user.id, email: user.email, name: user.name, role: user.role };
+  return user.role === Role.admin ? { ...base, adminRole: user.adminRole ?? null } : base;
 }

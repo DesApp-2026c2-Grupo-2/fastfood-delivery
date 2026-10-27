@@ -13,6 +13,12 @@ enum Role {
   admin
 }
 
+// Qué puede hacer un admin. super_admin: todo el backoffice. orders_viewer: solo consultar pedidos.
+enum AdminRole {
+  super_admin
+  orders_viewer
+}
+
 enum OrderStatus {
   pending
   confirmed
@@ -43,6 +49,8 @@ model User {
   name         String
   // Baja lógica de clientes desde el admin. Deshabilitado no inicia sesión ni usa su token; sus pedidos quedan.
   active       Boolean   @default(true)
+  // Solo para role = admin; en los clientes queda vacío.
+  adminRole    AdminRole?
   addresses    Address[]
   cart         Cart?
   orders       Order[]

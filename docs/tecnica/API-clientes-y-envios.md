@@ -3,14 +3,14 @@
 **Proyecto:** Pedidos en casas de comidas rápidas (Mordi)  
 **Versión:** 1.0  
 **Actualizado:** 27/10/2026  
-**Fuente:** `backend/src/` (`customers/`, `delivery-fees/`, `orders/`, `auth/`)  
-**Decisiones:** D54 a D58 de `docs/entregables/Supuestos-y-decisiones.md`
+**Fuente:** `backend/src/` (`customers/`, `delivery-fees/`, `orders/`, `auth/`, `admins/`)  
+**Decisiones:** D54 a D60 de `docs/entregables/Supuestos-y-decisiones.md`
 
 Contrato del backend para las pantallas que faltan. El backend ya está hecho y testeado; falta la UI.
 
 | Quién | Qué usa de acá |
 |---|---|
-| **Admin** (`backend/admin`) | Clientes (§2), tramos de envío (§3), envío en el detalle de pedidos (§4) |
+| **Admin** (`backend/admin`) | Clientes (§2), tramos de envío (§3), envío en el detalle de pedidos (§4), roles (§6) |
 | **App de clientes** (`frontend`) | Envío por sucursal en el checkout y en el pedido (§4), cuenta deshabilitada (§5) |
 
 Autenticación: `Authorization: Bearer <token>`. Sin token: **401**. Con rol cliente en rutas de admin: **403**.
@@ -197,3 +197,39 @@ mostrar es `quote.totalAmount + deliveryFee` de la sucursal elegida en el checko
 | `POST /api/auth/forgot-password` | La respuesta genérica, sin token: se trata como no registrado |
 
 En el login conviene mostrar el `message` del 403 tal cual.
+
+---
+
+## 6. Roles de administrador
+
+Migración `20261027150000_admin_roles`: los admins que ya existían quedan como `super_admin`.
+
+| Rol | Puede |
+|---|---|
+| `super_admin` | Todo el backoffice, como hasta ahora |
+| `orders_viewer` | `GET /api/admin/orders`, `GET /api/admin/orders/:id`, `GET /api/admin/order-statuses`, el canal en tiempo real de pedidos y su perfil (`/api/me`). **No** cambia estados ni cancela |
+
+Cualquier otra ruta de admin con `orders_viewer` responde **403** `Tu rol solo permite consultar pedidos`.
+
+### Saber qué mostrar
+
+`POST /api/auth/login`, `GET /api/auth/me` y `GET /api/me` traen `adminRole` en los admins (en los clientes no viene):
+
+```json
+{ "id": "…", "email": "pedidos@mordi.com", "name": "Lucía", "role": "admin", "adminRole": "orders_viewer" }
+```
+
+Con `orders_viewer` el admin debería mostrar solo la sección de pedidos, sin los botones de cambiar estado ni de
+cancelar. Un cambio de rol rige en la próxima llamada, sin volver a iniciar sesión: conviene releer `/api/auth/me`
+al entrar y, ante un 403, volver a la sección de pedidos.
+
+### ABM de admins — campo nuevo `adminRole`
+
+`GET /api/admin/admins` devuelve `adminRole` en cada fila. En el alta (`POST`) y la edición (`PATCH`) se puede mandar
+`"adminRole": "super_admin" | "orders_viewer"`. Sin rol en el alta se crea `super_admin`.
+
+| Caso | Respuesta |
+|---|---|
+| Rol inexistente | 400 `El rol debe ser super_admin u orders_viewer` |
+| Cambiar el propio rol | 409 `No podés cambiar tu propio rol` |
+| Bajar de rol al admin inicial | 409 `El administrador inicial tiene que seguir siendo super admin` |

@@ -37,7 +37,7 @@ export class JwtAuthGuard implements CanActivate {
     // y un claim viejo de admin sigue dando acceso. La fuente de verdad es la base.
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, email: true, role: true, active: true },
+      select: { id: true, email: true, role: true, adminRole: true, active: true },
     });
     if (!user) {
       throw new UnauthorizedException('Token inválido');
@@ -47,7 +47,7 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Tu cuenta está deshabilitada');
     }
 
-    request.user = { sub: user.id, email: user.email, role: user.role };
+    request.user = { sub: user.id, email: user.email, role: user.role, adminRole: user.adminRole };
     return true;
   }
 
