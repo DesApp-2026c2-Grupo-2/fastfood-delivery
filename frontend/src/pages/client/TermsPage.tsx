@@ -8,7 +8,7 @@ export function TermsPage() {
         </div>
       </header>
 
-      <div className="card form">
+      <div className="card legal-card">
         <h2>1. Sobre Mordi</h2>
         <p>
           Mordi es una aplicación de pedidos para una cadena de comida rápida, desarrollada como
