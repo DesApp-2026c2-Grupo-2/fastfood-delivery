@@ -606,7 +606,9 @@ export function CheckoutPage() {
             />
           </div>
           <div className="checkout-block">
-          <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
+            <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
+          </div>
+          <div className="checkout-block">
           <OrderSummary
             cart={cart}
             quote={quote}
