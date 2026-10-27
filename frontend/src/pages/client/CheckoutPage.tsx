@@ -23,6 +23,7 @@ import { mediaUrl } from '../../lib/media';
 import { AddressLocationPicker } from '../../components/AddressLocationPicker';
 import { PaymentMethodPicker } from '../../components/PaymentMethodPicker';
 import { paymentLabel, type PaymentMethod } from '../../lib/payment';
+import { TransferInfo } from '../../components/TransferInfo';
 
 type GuestFormErrors = {
   name?: string;
@@ -439,11 +440,11 @@ export function CheckoutPage() {
                 <dd>{paymentLabel(paymentMethod)}</dd>
               </div>
             </dl>
-            {paymentMethod === 'transfer' ? (
-              <p className="field-hint">
-                Datos de ejemplo para transferir: alias mordi.pedidos · Titular: Mordi.
-              </p>
-            ) : null}
+          {paymentMethod === 'transfer' ? (
+            <div className="checkout-block">
+              <TransferInfo amount={order.totalAmount} />
+            </div>
+          ) : null}
           </div>
 
           <div className="checkout-block">
