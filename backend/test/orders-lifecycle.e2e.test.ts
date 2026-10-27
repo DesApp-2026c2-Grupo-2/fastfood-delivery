@@ -214,6 +214,8 @@ describe('GET /api/orders', () => {
       fulfillment: 'delivery',
       subtotal: 1500,
       discountAmount: 0,
+      // Sin tramos de envío cargados el domicilio no cobra envío.
+      deliveryFee: 0,
       totalAmount: 1500,
       promotionName: null,
       createdAt: expect.any(String),

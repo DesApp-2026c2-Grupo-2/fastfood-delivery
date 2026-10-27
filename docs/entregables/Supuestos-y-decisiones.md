@@ -100,6 +100,16 @@ El Sprint 4 las va a implementar así. Hoy el importe del pedido es solo el subt
 | D52 | Reportes base | Más vendidos, menos vendidos, sin stock y mayor facturación. Cuentan los pedidos no cancelados, incluidos los `pending`. Los adicionales no entran en esos listados de productos. |
 | D53 | Reportes extra | Pedidos, clientes, sucursales y promociones: Sprint 5. |
 
+## 7b. Clientes y costo de envío (backend listo)
+
+| # | Decisión | Valor |
+|---|---|---|
+| D54 | ABM de clientes | El admin consulta, edita nombre y email, y habilita o deshabilita clientes. El alta la hace el cliente al registrarse. La contraseña no se toca desde el admin. |
+| D55 | Baja de cliente | Lógica (`User.active`). Deshabilitado no inicia sesión (403), sus tokens dejan de valer (401) y recuperar contraseña lo trata como no registrado. Pedidos, direcciones e historial quedan. Se puede rehabilitar. |
+| D56 | “Compró” | Tiene al menos un pedido no cancelado. Cantidad de compras y total gastado cuentan solo esos. Los invitados no son clientes. |
+| D57 | Costo de envío | Por tramos de distancia sucursal–dirección, editables por el admin. Cada tramo va del tope anterior a su tope, inclusive. Más lejos que el último, se cobra el último. Sin tramos cargados, envío gratis. Retiro no paga. |
+| D58 | Envío y promo | La promo descuenta solo los productos. Total = subtotal − descuento + envío. El envío se congela al confirmar, como la promo. |
+
 ## 8. Qué se propuso al principio y no se hizo
 
 En el análisis del 20/08 había variantes que el grupo descartó. Quedan escritas para no reabrirlas sin una decisión nueva.
@@ -119,5 +129,6 @@ En el análisis del 20/08 había variantes que el grupo descartó. Quedan escrit
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.2 | 27/10/2026 | ABM de clientes con baja lógica y costo de envío por tramos de distancia (D54 a D58) |
 | 1.1 | 12/10/2026 | Feedback del profesor: el cliente elige sucursal (retiro o domicilio, stock primero), mapa de pin, hasta 5 candidatos de dirección. La promo con condición no entra |
 | 1.0 | 07/10/2026 | Primera versión de carpeta, con las reglas en uso al cierre del Sprint 3 y las de promociones ya cerradas para el Sprint 4 |
