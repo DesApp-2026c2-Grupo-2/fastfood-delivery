@@ -434,7 +434,16 @@ export function CheckoutPage() {
                 <dt>Fecha</dt>
                 <dd>{formatDateTime(order.createdAt)}</dd>
               </div>
+              <div>
+                <dt>Pago</dt>
+                <dd>{paymentLabel(paymentMethod)}</dd>
+              </div>
             </dl>
+            {paymentMethod === 'transfer' ? (
+              <p className="field-hint">
+                Datos de ejemplo para transferir: alias mordi.pedidos · Titular: Mordi.
+              </p>
+            ) : null}
           </div>
 
           <div className="checkout-block">
