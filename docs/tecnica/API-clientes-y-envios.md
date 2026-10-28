@@ -2,15 +2,15 @@
 
 **Proyecto:** Pedidos en casas de comidas rápidas (Mordi)  
 **Versión:** 1.0  
-**Actualizado:** 27/10/2026  
-**Fuente:** `backend/src/` (`customers/`, `delivery-fees/`, `orders/`, `auth/`, `admins/`)  
+**Actualizado:** 28/10/2026  
+**Fuente:** `backend/src/` (`customers/`, `delivery-fees/`, `parameters/`, `orders/`, `auth/`, `admins/`)  
 **Decisiones:** D54 a D60 de `docs/entregables/Supuestos-y-decisiones.md`
 
 Contrato del backend para las pantallas que faltan. El backend ya está hecho y testeado; falta la UI.
 
 | Quién | Qué usa de acá |
 |---|---|
-| **Admin** (`backend/admin`) | Clientes (§2), tramos de envío (§3), envío en el detalle de pedidos (§4), roles (§6) |
+| **Admin** (`backend/admin`) | Clientes (§2), precio de envío por km (§3), envío en el detalle de pedidos (§4), roles (§6) |
 | **App de clientes** (`frontend`) | Envío por sucursal en el checkout y en el pedido (§4), cuenta deshabilitada (§5) |
 
 Autenticación: `Authorization: Bearer <token>`. Sin token: **401**. Con rol cliente en rutas de admin: **403**.
@@ -25,9 +25,9 @@ cd backend
 npx prisma migrate deploy
 ```
 
-Dos migraciones: `20261027120000_user_active` (todos los usuarios quedan habilitados) y
-`20261027130000_delivery_fees` (pedidos viejos con envío 0, sin tramos cargados). **Mientras no se cargue
-ningún tramo, el envío es gratis y todo funciona como antes.**
+Migraciones: `20261027120000_user_active` (todos los usuarios quedan habilitados),
+`20261027130000_delivery_fees` (pedidos viejos con envío 0) y `20261028120000_delivery_price_per_km` (precio por
+km en 0). **Mientras el admin no cargue el precio por km, el envío es gratis y todo funciona como antes.**
 
 ---
 
@@ -115,47 +115,34 @@ Sugerencia de UI: botón “Deshabilitar” con confirmación y un badge “Desh
 
 ---
 
-## 3. Tramos de envío — `/api/admin/delivery-fees`
+## 3. Precio de envío por km — parámetro `delivery_price_per_km`
 
-Cada tramo cubre desde el tope del anterior hasta su `upToKm`, **inclusive**. Ejemplo: tramos de 2 y 4 km →
-de 0 a 2 km paga el primero, de más de 2 hasta 4 km paga el segundo. Más lejos que el último tope se cobra el
-último. Sin tramos, envío gratis. La distancia es en línea recta entre la sucursal y la dirección, redondeada a 2
-decimales (la misma `distanceKm` que ya muestra el checkout).
+**Envío = precio por km × km**, cobrando cada cuadra (100 m) iniciada. La distancia es en línea recta entre la
+sucursal y la dirección, redondeada antes a 2 decimales (la misma `distanceKm` que ya muestra el checkout).
+Ejemplo con $1000/km: 0,43 km → 5 cuadras → $500; 1,11 km → 1,2 km → $1200; 5 km → $5000. Precio 0: envío gratis.
 
-### `GET /api/admin/delivery-fees`
+Es un parámetro más del sistema, junto al radio de cobertura y las constantes de ETA. No tiene ABM propio.
 
-Ordenados por tope. `fromKm` lo calcula el backend para mostrar “de X a Y km”:
+### `GET /api/admin/parameters`
 
-```json
-[
-  { "id": "…", "fromKm": 0, "upToKm": 2, "price": 500, "updatedAt": "…" },
-  { "id": "…", "fromKm": 2, "upToKm": 4, "price": 900, "updatedAt": "…" }
-]
-```
-
-### `POST /api/admin/delivery-fees` → 201
+Aparece en la lista con los demás:
 
 ```json
-{ "upToKm": 2, "price": 500 }
+{
+  "key": "delivery_price_per_km", "label": "Precio de envío por km", "description": "…", "unit": "$/km",
+  "value": 1000, "min": 0, "max": 1000000, "integer": false, "updatedAt": "…"
+}
 ```
 
-### `PATCH /api/admin/delivery-fees/:id` → 200
+### `PATCH /api/admin/parameters` → 200
 
 ```json
-{ "price": 550 }
+{ "delivery_price_per_km": 1000 }
 ```
 
-### `DELETE /api/admin/delivery-fees/:id` → 200 `{ "id": "…" }`
+Negativo, mayor a 1.000.000, con más de 2 decimales o no numérico: **400**.
 
-| Caso | Respuesta |
-|---|---|
-| `upToKm` fuera de 0,01–100 o con más de 2 decimales | 400 |
-| `price` negativo o con más de 2 decimales | 400 |
-| Ya hay un tramo con ese `upToKm` | 409 `Ya hay un tramo con ese tope de km` |
-| PATCH sin campos | 400 `No hay cambios para guardar` |
-| Id inexistente | 404 `Tramo de envío no encontrado` |
-
-Cambiar o borrar tramos **no toca pedidos ya hechos**: cada pedido guarda su envío al confirmar.
+Cambiar el precio **no toca pedidos ya hechos**: cada pedido guarda su envío al confirmar.
 
 ---
 
@@ -164,7 +151,7 @@ Cambiar o borrar tramos **no toca pedidos ya hechos**: cada pedido guarda su env
 ### `POST /api/branches/checkout` — campo nuevo por sucursal
 
 ```json
-{ "id": "…", "name": "Centro", "distanceKm": 3.31, "withinRadius": true, "deliveryFee": 900, "canFulfill": true, "…": "…" }
+{ "id": "…", "name": "Centro", "distanceKm": 3.31, "withinRadius": true, "deliveryFee": 3400, "canFulfill": true, "…": "…" }
 ```
 
 En domicilio es lo que se cobraría desde esa sucursal; en retiro siempre `0`. Mostrarlo al elegir sucursal.

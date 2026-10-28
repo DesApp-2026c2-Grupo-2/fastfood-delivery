@@ -198,7 +198,6 @@ describe('orders_viewer: solo consulta pedidos', () => {
   it.each([
     ['get', '/api/admin/admins'],
     ['get', '/api/admin/customers'],
-    ['get', '/api/admin/delivery-fees'],
     ['get', '/api/admin/parameters'],
     ['get', '/api/admin/promotions'],
     ['get', '/api/admin/reports/products'],

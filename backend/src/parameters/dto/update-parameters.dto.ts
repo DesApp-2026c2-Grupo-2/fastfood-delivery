@@ -31,4 +31,11 @@ export class UpdateParametersDto {
   @Min(PARAMETERS.eta_km_per_min.min)
   @Max(PARAMETERS.eta_km_per_min.max)
   eta_km_per_min?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(PARAMETERS.delivery_price_per_km.min)
+  @Max(PARAMETERS.delivery_price_per_km.max)
+  delivery_price_per_km?: number;
 }

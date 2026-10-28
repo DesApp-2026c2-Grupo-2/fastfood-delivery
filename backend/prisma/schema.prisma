@@ -148,17 +148,7 @@ model Stock {
   @@index([productId])
 }
 
-// Precio de envío por distancia. Cada tramo cubre desde el tope anterior hasta `upToKm` inclusive, así no
-// hay huecos ni solapamientos. Más lejos que el último tramo se cobra el último; sin tramos, el envío es gratis.
-model DeliveryFeeTier {
-  id        String   @id @default(cuid())
-  upToKm    Decimal  @unique @db.Decimal(6, 2)
-  price     Decimal  @db.Decimal(10, 2)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// Parámetros del sistema editables por el admin (HU-19): radio de cobertura y constantes de ETA.
+// Parámetros del sistema editables por el admin (HU-19): radio de cobertura, constantes de ETA y precio de envío por km.
 model Parameter {
   key       String   @id
   value     String

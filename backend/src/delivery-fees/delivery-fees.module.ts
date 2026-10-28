@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
-import { AuthModule } from '../auth/auth.module';
-import { AdminDeliveryFeesController } from './admin-delivery-fees.controller';
+import { ParametersModule } from '../parameters/parameters.module';
 import { DeliveryFeesService } from './delivery-fees.service';
 
+// El precio por km se edita en /admin/parameters; este módulo solo calcula el envío.
 @Module({
-  imports: [AuthModule],
-  controllers: [AdminDeliveryFeesController],
+  imports: [ParametersModule],
   providers: [DeliveryFeesService],
   exports: [DeliveryFeesService],
 })

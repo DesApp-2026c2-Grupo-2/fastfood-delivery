@@ -1,7 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { DeliveryFeeTier, Parameter, Prisma } from '@prisma/client';
+import { Parameter, Prisma } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaExceptionFilter } from '../src/common/prisma-exception.filter';
@@ -13,10 +13,12 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin123!';
 
 const stamp = Date.now();
 
-// Mismas ubicaciones que fulfillment: NEAR queda a ~1,1 km del cliente y MID a ~3,3 km.
+// Mismas ubicaciones que fulfillment: NEAR queda a 1,11 km del cliente (se cobran 12 cuadras) y MID a 3,21 km (33).
 const HOME = { latitude: -32.8895, longitude: -68.8458 };
 const NEAR = { latitude: -32.8995, longitude: -68.8458 };
 const MID = { latitude: -32.8895, longitude: -68.8114 };
+
+const PARAMETER_KEYS = ['coverage_radius_km', 'delivery_price_per_km'];
 
 let app: NestExpressApplication;
 let server: ReturnType<NestExpressApplication['getHttpServer']>;
@@ -27,9 +29,8 @@ let ana: { token: string; userId: string; addressId: string };
 let near: { id: string };
 let mid: { id: string };
 let burger: { id: string };
-// Lo que ya había en la base: los tramos se sacan durante la suite y las promos activas se apagan.
-let originalTiers: DeliveryFeeTier[] = [];
-let originalRadius: Parameter | null = null;
+// Lo que ya había en la base: los parámetros se pisan durante la suite y las promos activas se apagan.
+let originalParameters: Parameter[] = [];
 let preexistingActivePromos: string[] = [];
 const createdPromotionIds: string[] = [];
 
@@ -49,12 +50,11 @@ function createBranch(name: string, location: { latitude: number; longitude: num
   });
 }
 
-async function setTiers(tiers: { upToKm: number; price: number }[]) {
-  await prisma.deliveryFeeTier.deleteMany();
-  for (const tier of tiers) {
-    const created = await request(server).post('/api/admin/delivery-fees').set(admin()).send(tier);
-    expect(created.status).toBe(201);
-  }
+const patchPricePerKm = (value: unknown) =>
+  request(server).patch('/api/admin/parameters').set(admin()).send({ delivery_price_per_km: value });
+
+async function setPricePerKm(price: number) {
+  expect((await patchPricePerKm(price)).status).toBe(200);
 }
 
 async function fillCart() {
@@ -82,8 +82,7 @@ beforeAll(async () => {
   server = app.getHttpServer();
   prisma = app.get(PrismaService);
 
-  originalTiers = await prisma.deliveryFeeTier.findMany();
-  originalRadius = await prisma.parameter.findUnique({ where: { key: 'coverage_radius_km' } });
+  originalParameters = await prisma.parameter.findMany({ where: { key: { in: PARAMETER_KEYS } } });
   await prisma.parameter.upsert({
     where: { key: 'coverage_radius_km' },
     update: { value: '5' },
@@ -132,14 +131,9 @@ beforeAll(async () => {
 }, 60_000);
 
 afterAll(async () => {
-  await prisma.deliveryFeeTier.deleteMany();
-  for (const { upToKm, price } of originalTiers) {
-    await prisma.deliveryFeeTier.create({ data: { upToKm, price } });
-  }
-  if (originalRadius) {
-    await prisma.parameter.update({ where: { key: 'coverage_radius_km' }, data: { value: originalRadius.value } });
-  } else {
-    await prisma.parameter.deleteMany({ where: { key: 'coverage_radius_km' } });
+  await prisma.parameter.deleteMany({ where: { key: { in: PARAMETER_KEYS } } });
+  for (const { key, value } of originalParameters) {
+    await prisma.parameter.create({ data: { key, value } });
   }
 
   const branchIds = [near, mid].filter(Boolean).map((branch) => branch.id);
@@ -163,98 +157,64 @@ afterAll(async () => {
 });
 
 describe('feeForDistance', () => {
-  const tiers = [
-    { upToKm: 2, price: 500 },
-    { upToKm: 4, price: 900 },
-  ];
-
-  it('cobra el primer tramo que cubre la distancia, con el tope incluido', () => {
-    expect(feeForDistance(tiers, 0)).toBe(500);
-    expect(feeForDistance(tiers, 2)).toBe(500);
-    expect(feeForDistance(tiers, 2.01)).toBe(900);
-    expect(feeForDistance(tiers, 4)).toBe(900);
+  it('cobra precio por km × km, por cuadra (100 m) iniciada', () => {
+    expect(feeForDistance(1000, 0)).toBe(0);
+    expect(feeForDistance(1000, 0.05)).toBe(100);
+    expect(feeForDistance(1000, 0.1)).toBe(100);
+    expect(feeForDistance(1000, 0.11)).toBe(200);
+    expect(feeForDistance(1000, 5)).toBe(5000);
   });
 
-  it('redondea la distancia a 2 decimales, como la que ve el cliente', () => {
-    expect(feeForDistance(tiers, 2.004)).toBe(500);
-    expect(feeForDistance(tiers, 2.006)).toBe(900);
+  it('redondea la distancia a 2 decimales antes, como la que ve el cliente', () => {
+    expect(feeForDistance(1000, 1.104)).toBe(1100);
+    expect(feeForDistance(1000, 1.106)).toBe(1200);
   });
 
-  it('más lejos que el último tramo cobra el último; sin tramos es gratis', () => {
-    expect(feeForDistance(tiers, 7)).toBe(900);
-    expect(feeForDistance([], 3)).toBe(0);
+  it('redondea el precio a centavos; con precio 0 el envío es gratis', () => {
+    expect(feeForDistance(333.33, 0.3)).toBe(100);
+    expect(feeForDistance(0, 3)).toBe(0);
   });
 });
 
-describe('ABM /api/admin/delivery-fees', () => {
-  it('alta, listado ordenado con fromKm, edición y baja', async () => {
-    await prisma.deliveryFeeTier.deleteMany();
+describe('Precio por km en /api/admin/parameters', () => {
+  it('se lista con los demás parámetros y se valida', async () => {
+    await setPricePerKm(1500.5);
+    const list = await request(server).get('/api/admin/parameters').set(admin());
+    expect(list.body.find((parameter: { key: string }) => parameter.key === 'delivery_price_per_km')).toMatchObject({
+      label: 'Precio de envío por km',
+      unit: '$/km',
+      value: 1500.5,
+      min: 0,
+    });
 
-    const far = await request(server).post('/api/admin/delivery-fees').set(admin()).send({ upToKm: 4, price: 900 });
-    const close = await request(server).post('/api/admin/delivery-fees').set(admin()).send({ upToKm: 2, price: 500 });
-    expect(far.status).toBe(201);
-    expect(close.body).toMatchObject({ upToKm: 2, price: 500 });
-
-    const list = await request(server).get('/api/admin/delivery-fees').set(admin());
-    expect(list.status).toBe(200);
-    expect(list.body).toEqual([
-      { id: close.body.id, fromKm: 0, upToKm: 2, price: 500, updatedAt: expect.any(String) },
-      { id: far.body.id, fromKm: 2, upToKm: 4, price: 900, updatedAt: expect.any(String) },
-    ]);
-
-    const edited = await request(server).patch(`/api/admin/delivery-fees/${far.body.id}`).set(admin()).send({ price: 950.5 });
-    expect(edited.status).toBe(200);
-    expect(edited.body).toMatchObject({ upToKm: 4, price: 950.5 });
-
-    const removed = await request(server).delete(`/api/admin/delivery-fees/${close.body.id}`).set(admin());
-    expect(removed.status).toBe(200);
-    const after = await request(server).get('/api/admin/delivery-fees').set(admin());
-    expect(after.body).toEqual([expect.objectContaining({ id: far.body.id, fromKm: 0, upToKm: 4 })]);
+    expect((await patchPricePerKm(-1)).status).toBe(400);
+    expect((await patchPricePerKm(10.123)).status).toBe(400);
+    expect((await patchPricePerKm('caro')).status).toBe(400);
   });
 
-  it('valida: tope repetido 409, valores fuera de rango 400, inexistente 404, sin cambios 400', async () => {
-    await setTiers([{ upToKm: 3, price: 700 }]);
-    const [tier] = (await request(server).get('/api/admin/delivery-fees').set(admin())).body;
-
-    const post = (body: object) => request(server).post('/api/admin/delivery-fees').set(admin()).send(body);
-    expect((await post({ upToKm: 3, price: 100 })).status).toBe(409);
-    expect((await post({ upToKm: 0, price: 100 })).status).toBe(400);
-    expect((await post({ upToKm: 5, price: -1 })).status).toBe(400);
-    expect((await post({ upToKm: 5 })).status).toBe(400);
-    expect((await post({ upToKm: 5.123, price: 100 })).status).toBe(400);
-
-    expect((await request(server).patch('/api/admin/delivery-fees/no-existe').set(admin()).send({ price: 1 })).status).toBe(404);
-    expect((await request(server).patch(`/api/admin/delivery-fees/${tier.id}`).set(admin()).send({})).status).toBe(400);
-    expect((await request(server).delete('/api/admin/delivery-fees/no-existe').set(admin())).status).toBe(404);
-  });
-
-  it('es solo para admins', async () => {
-    expect((await request(server).get('/api/admin/delivery-fees')).status).toBe(401);
-    expect((await request(server).get('/api/admin/delivery-fees').set(auth(ana.token))).status).toBe(403);
+  it('el ABM de tramos ya no existe', async () => {
+    expect((await request(server).get('/api/admin/delivery-fees').set(admin())).status).toBe(404);
   });
 });
 
 describe('Envío en el pedido', () => {
   beforeEach(async () => {
-    await setTiers([
-      { upToKm: 2, price: 500 },
-      { upToKm: 4, price: 900 },
-    ]);
+    await setPricePerKm(1000);
   });
 
-  it('domicilio cobra el tramo de la distancia y lo suma al total; queda congelado', async () => {
+  it('domicilio cobra precio por km × distancia y lo suma al total; queda congelado', async () => {
     await fillCart();
     const response = await placeDelivery(mid.id);
 
     expect(response.status).toBe(201);
-    expect(response.body).toMatchObject({ subtotal: 10000, discountAmount: 0, deliveryFee: 900, totalAmount: 10900 });
+    expect(response.body).toMatchObject({ subtotal: 10000, discountAmount: 0, deliveryFee: 3300, totalAmount: 13300 });
 
-    // Cambiar los tramos después no toca el pedido.
-    await setTiers([{ upToKm: 10, price: 5000 }]);
+    // Cambiar el precio después no toca el pedido.
+    await setPricePerKm(5000);
     const mine = await request(server).get(`/api/orders/${response.body.id}`).set(auth(ana.token));
-    expect(mine.body).toMatchObject({ deliveryFee: 900, totalAmount: 10900 });
+    expect(mine.body).toMatchObject({ deliveryFee: 3300, totalAmount: 13300 });
     const adminDetail = await request(server).get(`/api/admin/orders/${response.body.id}`).set(admin());
-    expect(adminDetail.body).toMatchObject({ deliveryFee: 900, totalAmount: 10900 });
+    expect(adminDetail.body).toMatchObject({ deliveryFee: 3300, totalAmount: 13300 });
   });
 
   it('retiro no paga envío', async () => {
@@ -268,12 +228,8 @@ describe('Envío en el pedido', () => {
     expect(response.body).toMatchObject({ deliveryFee: 0, totalAmount: 10000 });
   });
 
-  it('más lejos que el último tramo cobra el último; sin tramos es gratis', async () => {
-    await setTiers([{ upToKm: 1, price: 300 }]);
-    await fillCart();
-    expect((await placeDelivery(near.id)).body).toMatchObject({ deliveryFee: 300, totalAmount: 10300 });
-
-    await setTiers([]);
+  it('con precio 0 el envío es gratis', async () => {
+    await setPricePerKm(0);
     await fillCart();
     expect((await placeDelivery(near.id)).body).toMatchObject({ deliveryFee: 0, totalAmount: 10000 });
   });
@@ -289,7 +245,7 @@ describe('Envío en el pedido', () => {
     try {
       await fillCart();
       const response = await placeDelivery(near.id);
-      expect(response.body).toMatchObject({ subtotal: 10000, discountAmount: 1000, deliveryFee: 500, totalAmount: 9500 });
+      expect(response.body).toMatchObject({ subtotal: 10000, discountAmount: 1000, deliveryFee: 1200, totalAmount: 10200 });
     } finally {
       await prisma.promotion.update({ where: { id: promo.body.id }, data: { active: false } });
     }
@@ -309,7 +265,7 @@ describe('Envío en el pedido', () => {
       });
 
     expect(response.status).toBe(201);
-    expect(response.body).toMatchObject({ deliveryFee: 500, totalAmount: 10500 });
+    expect(response.body).toMatchObject({ deliveryFee: 1200, totalAmount: 11200 });
   });
 
   it('el listado de sucursales del checkout muestra el envío de cada una', async () => {
@@ -322,8 +278,8 @@ describe('Envío en el pedido', () => {
       .send({ fulfillment: 'delivery', addressId: ana.addressId });
     expect(delivery.status).toBe(200);
     expect(mine(delivery.body.branches)).toEqual([
-      expect.objectContaining({ id: near.id, deliveryFee: 500 }),
-      expect.objectContaining({ id: mid.id, deliveryFee: 900 }),
+      expect.objectContaining({ id: near.id, deliveryFee: 1200 }),
+      expect.objectContaining({ id: mid.id, deliveryFee: 3300 }),
     ]);
 
     const pickup = await request(server)

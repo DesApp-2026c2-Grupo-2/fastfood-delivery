@@ -488,7 +488,7 @@ export class OrdersService {
       offered.map(({ branch }) => branch.id),
       units,
     );
-    const feeTiers = dto.fulfillment === Fulfillment.delivery ? await this.deliveryFeesService.tiers() : [];
+    const pricePerKm = dto.fulfillment === Fulfillment.delivery ? await this.deliveryFeesService.pricePerKm() : 0;
 
     const rows = offered.map(({ branch, distanceKm, withinRadius }) => {
       const missing = shortages.get(branch.id) ?? [];
@@ -503,7 +503,7 @@ export class OrdersService {
         distanceKm: distanceKm === null ? null : Math.round(distanceKm * 100) / 100,
         withinRadius,
         // Lo que se cobraría de envío desde esta sucursal. En domicilio siempre hay distancia; retiro, 0.
-        deliveryFee: distanceKm === null ? 0 : feeForDistance(feeTiers, distanceKm),
+        deliveryFee: distanceKm === null ? 0 : feeForDistance(pricePerKm, distanceKm),
         canFulfill: missing.length === 0,
         missing: missing.map((line) => ({
           productId: line.productId,
