@@ -1,15 +1,19 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import { hashPassword, passwordMatches, toPublicUser } from '../auth/password';
+import { ParametersService } from '../parameters/parameters.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateMeDto } from './dto/update-me.dto';
 
 @Injectable()
 export class AccountService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly parametersService: ParametersService,
+  ) {}
 
   async findMe(userId: string) {
-    return toPublicUser(await this.findUser(userId));
+    return this.toMeResponse(await this.findUser(userId));
   }
 
   async updateMe(userId: string, dto: UpdateMeDto) {
@@ -35,9 +39,38 @@ export class AccountService {
     }
 
     if (Object.keys(data).length === 0) {
-      return toPublicUser(user);
+      return this.toMeResponse(user);
     }
-    return toPublicUser(await this.prisma.user.update({ where: { id: userId }, data }));
+    return this.toMeResponse(await this.prisma.user.update({ where: { id: userId }, data }));
+  }
+
+  private async toMeResponse(user: {
+    id: string;
+    email: string;
+    name: string;
+    role: Role;
+    adminRole?: import('@prisma/client').AdminRole | null;
+    loyaltyStamps?: number;
+    hasTopBuyerReward?: boolean;
+  }) {
+    const base = toPublicUser(user);
+    if (user.role !== Role.customer) {
+      return base;
+    }
+
+    const { ordersRequired, minOrderAmount } = await this.parametersService.loyaltySettings();
+    const stamps = user.loyaltyStamps ?? 0;
+    return {
+      ...base,
+      loyalty: {
+        stamps,
+        progress: stamps % ordersRequired,
+        ordersRequired,
+        minOrderAmount,
+        qualifiesThisOrder: false,
+        rewardOnThisOrder: false,
+      },
+    };
   }
 
   private async findUser(userId: string) {

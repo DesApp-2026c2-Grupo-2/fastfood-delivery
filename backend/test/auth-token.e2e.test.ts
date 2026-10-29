@@ -76,7 +76,14 @@ describe('GET /api/auth/me', () => {
     const response = await request(server).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ id, email, name: 'Token E2E', role: 'customer' });
+    expect(response.body).toEqual({
+      id,
+      email,
+      name: 'Token E2E',
+      role: 'customer',
+      loyaltyStamps: 0,
+      hasTopBuyerReward: false,
+    });
   });
 
   it('acepta el esquema Bearer sin distinguir mayúsculas', async () => {

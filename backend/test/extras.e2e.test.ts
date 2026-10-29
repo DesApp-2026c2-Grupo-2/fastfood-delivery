@@ -138,22 +138,43 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  const productIds = [burger, bacon, cheddar, gone, lower, drink].map((product) => product.id);
-  const orders = await prisma.order.findMany({
-    where: { items: { some: { productId: { in: productIds } } } },
-    select: { id: true, userId: true, addressId: true },
-  });
-  await prisma.order.deleteMany({ where: { id: { in: orders.map((order) => order.id) } } });
-  // Las direcciones de pedidos de invitado no cuelgan de un usuario: no se borran en cascada.
-  const guestAddressIds = orders.flatMap((order) => (!order.userId && order.addressId ? [order.addressId] : []));
-  await prisma.address.deleteMany({ where: { id: { in: guestAddressIds } } });
-  await prisma.user.deleteMany({ where: { id: userId } });
-  await prisma.product.deleteMany({ where: { id: { in: productIds } } });
-  await prisma.category.deleteMany({ where: { id: otherCategoryId } });
-  if (createdBranchId) {
-    await prisma.branch.deleteMany({ where: { id: createdBranchId } });
+  try {
+    const productIds = [burger, bacon, cheddar, gone, lower, drink]
+      .filter(Boolean)
+      .map((product) => product.id);
+    if (productIds.length > 0) {
+      // Pedidos que usan el producto como ítem o como adicional (OrderItemExtra).
+      const orders = await prisma.order.findMany({
+        where: {
+          OR: [
+            { items: { some: { productId: { in: productIds } } } },
+            { items: { some: { extras: { some: { extraId: { in: productIds } } } } } },
+          ],
+        },
+        select: { id: true, userId: true, addressId: true },
+      });
+      await prisma.order.deleteMany({ where: { id: { in: orders.map((order) => order.id) } } });
+      // Las direcciones de pedidos de invitado no cuelgan de un usuario: no se borran en cascada.
+      const guestAddressIds = orders.flatMap((order) => (!order.userId && order.addressId ? [order.addressId] : []));
+      await prisma.address.deleteMany({ where: { id: { in: guestAddressIds } } });
+      await prisma.cartItem.deleteMany({ where: { productId: { in: productIds } } });
+      await prisma.cartItemExtra.deleteMany({ where: { extraId: { in: productIds } } });
+      await prisma.promotion.updateMany({ where: { productId: { in: productIds } }, data: { productId: null } });
+      await prisma.stock.deleteMany({ where: { productId: { in: productIds } } });
+      await prisma.product.deleteMany({ where: { id: { in: productIds } } });
+    }
+    if (userId) {
+      await prisma.user.deleteMany({ where: { id: userId } });
+    }
+    if (otherCategoryId) {
+      await prisma.category.deleteMany({ where: { id: otherCategoryId } });
+    }
+    if (createdBranchId) {
+      await prisma.branch.deleteMany({ where: { id: createdBranchId } });
+    }
+  } finally {
+    await app.close();
   }
-  await app.close();
 });
 
 describe('GET /api/products/:id', () => {

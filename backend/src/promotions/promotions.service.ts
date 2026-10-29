@@ -26,7 +26,6 @@ const promotionInclude = { product: { select: { id: true, name: true } } } satis
 type PromotionRow = Prisma.PromotionGetPayload<{ include: typeof promotionInclude }>;
 
 const TOP3_STARTED_AT_KEY = 'top3_campaign_started_at';
-const DEFAULT_TOP3_DISCOUNT_PERCENT = 15;
 
 /**
  * Descuento de una promo. Nunca pasa el subtotal.
@@ -156,28 +155,34 @@ export class PromotionsService {
     return {
       active,
       startedAt,
-      discountPercent: DEFAULT_TOP3_DISCOUNT_PERCENT,
+      discountPercent: await this.parametersService.top3DiscountPercent(),
       ranking,
     };
   }
 
   /**
    * Inicia una nueva campaña para recolectar el gasto de las compras a partir de ahora.
+   * Si ya hay una activa, no la sobrescribe: hay que cerrarla con award primero.
    */
   async startTopBuyerCampaign() {
+    const current = await this.getTopBuyerCampaign();
+    if (current.active) {
+      throw new ConflictException(
+        'Ya hay una campaña Top 3 activa. Cerrala con award antes de iniciar otra.',
+      );
+    }
+
     const startedAt = new Date().toISOString();
-    await this.prisma.parameter.upsert({
-      where: { key: TOP3_STARTED_AT_KEY },
-      update: { value: startedAt },
-      create: { key: TOP3_STARTED_AT_KEY, value: startedAt },
+    await this.prisma.parameter.create({
+      data: { key: TOP3_STARTED_AT_KEY, value: startedAt },
     });
 
     return this.getTopBuyerCampaign();
   }
 
   /**
-   * Cierra la campaña actual, otorga el beneficio a los 3 mayores compradores y
-   * resetea automáticamente la campaña a inactiva.
+   * Cierra la campaña actual, otorga el beneficio a los 3 mayores compradores,
+   * limpia premios de campañas anteriores sin usar y deja la campaña inactiva.
    */
   async awardTopBuyerCampaign() {
     const campaign = await this.getTopBuyerCampaign();
@@ -189,6 +194,12 @@ export class PromotionsService {
     const top3UserIds = top3.map((entry) => entry.userId);
 
     await this.prisma.$transaction(async (tx) => {
+      // Premios viejos sin consumir no se acumulan entre campañas.
+      await tx.user.updateMany({
+        where: { hasTopBuyerReward: true },
+        data: { hasTopBuyerReward: false },
+      });
+
       if (top3UserIds.length > 0) {
         await tx.user.updateMany({
           where: { id: { in: top3UserIds } },
@@ -247,10 +258,15 @@ export class PromotionsService {
       });
 
       // Parámetros dinámicos configurables desde el panel de admin
-      const { ordersRequired, discountPercent } = await this.parametersService.loyaltySettings();
+      const { ordersRequired, discountPercent, minOrderAmount } = await this.parametersService.loyaltySettings();
+      const top3Percent = await this.parametersService.top3DiscountPercent();
 
-      // Premio fidelidad por alcanzar la cantidad de compras configurada
-      if (user && (user.loyaltyStamps + 1) % ordersRequired === 0) {
+      // Premio fidelidad: si esta compra suma sello y con ese sello se completa la meta.
+      if (
+        user &&
+        subtotal >= minOrderAmount &&
+        (user.loyaltyStamps + 1) % ordersRequired === 0
+      ) {
         const stampDiscount = roundMoney(subtotal * (discountPercent / 100));
         if (!best || stampDiscount > best.discountAmount) {
           best = {
@@ -265,16 +281,16 @@ export class PromotionsService {
         }
       }
 
-      // Beneficio Top Comprador (15% OFF) otorgado por el admin tras cerrar la campaña
+      // Beneficio Top Comprador de un solo uso, otorgado al cerrar la campaña.
       if (user?.hasTopBuyerReward) {
-        const topBuyerDiscount = roundMoney(subtotal * (DEFAULT_TOP3_DISCOUNT_PERCENT / 100));
+        const topBuyerDiscount = roundMoney(subtotal * (top3Percent / 100));
         if (!best || topBuyerDiscount > best.discountAmount) {
           best = {
             promotion: {
               id: 'loyalty-top-3-buyer',
-              name: `Beneficio Exclusivo Top Comprador (${DEFAULT_TOP3_DISCOUNT_PERCENT}% OFF)`,
+              name: `Beneficio Exclusivo Top Comprador (${top3Percent}% OFF)`,
               type: 'percent',
-              value: DEFAULT_TOP3_DISCOUNT_PERCENT,
+              value: top3Percent,
             },
             discountAmount: topBuyerDiscount,
           };

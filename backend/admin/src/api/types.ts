@@ -185,6 +185,20 @@ export type Promotion = {
   updatedAt: string;
 };
 
+export type Top3RankingEntry = {
+  userId: string;
+  name: string;
+  email: string;
+  totalSpent: number;
+};
+
+export type Top3Campaign = {
+  active: boolean;
+  startedAt: string | null;
+  discountPercent: number;
+  ranking: Top3RankingEntry[];
+};
+
 export type Branch = {
   id: string;
   name: string;

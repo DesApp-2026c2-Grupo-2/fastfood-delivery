@@ -46,6 +46,43 @@ export const PARAMETERS = {
     max: 1_000_000,
     integer: false,
   },
+  loyalty_orders_required: {
+    label: 'Pedidos para premio de fidelidad',
+    description:
+      'Cada N pedidos (con monto mínimo) el cliente recibe el descuento de fidelidad. Si cancela, el sello se revierte.',
+    unit: 'pedidos',
+    defaultValue: 10,
+    min: 1,
+    max: 100,
+    integer: true,
+  },
+  loyalty_min_order_amount: {
+    label: 'Monto mínimo por sello',
+    description: 'Subtotal mínimo del pedido (sin envío) para sumar una estampa al confirmar. Se revierte si cancela.',
+    unit: '$',
+    defaultValue: 15_000,
+    min: 0,
+    max: 1_000_000,
+    integer: false,
+  },
+  loyalty_discount_percent: {
+    label: 'Descuento de fidelidad',
+    description: 'Porcentaje de descuento que se aplica al pedido que cumple la meta de sellos.',
+    unit: '%',
+    defaultValue: 30,
+    min: 1,
+    max: 100,
+    integer: true,
+  },
+  top3_discount_percent: {
+    label: 'Descuento Top 3 compradores',
+    description: 'Porcentaje de descuento de un solo uso que reciben los 3 mayores compradores al cerrar la campaña.',
+    unit: '%',
+    defaultValue: 15,
+    min: 1,
+    max: 100,
+    integer: true,
+  },
 } as const;
 
 export type ParameterKey = keyof typeof PARAMETERS;
@@ -53,8 +90,3 @@ export type ParameterKey = keyof typeof PARAMETERS;
 export type ParameterValues = Record<ParameterKey, number>;
 
 export const PARAMETER_KEYS = Object.keys(PARAMETERS) as ParameterKey[];
-
-export const LOYALTY_ORDERS_REQUIRED_KEY = 'loyalty_orders_required';
-export const LOYALTY_DISCOUNT_PERCENT_KEY = 'loyalty_discount_percent';
-export const DEFAULT_LOYALTY_ORDERS_REQUIRED = 10;
-export const DEFAULT_LOYALTY_DISCOUNT_PERCENT = 30;

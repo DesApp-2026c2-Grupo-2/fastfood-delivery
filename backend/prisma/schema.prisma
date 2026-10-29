@@ -42,18 +42,6 @@ enum PromotionType {
 }
 
 model User {
-<<<<<<< HEAD
-  id            String               @id @default(cuid())
-  email         String               @unique
-  passwordHash  String
-  role          Role
-  name          String
-  loyaltyStamps Int                  @default(0)
-  hasTopBuyerReward   Boolean              @default(false)
-  addresses     Address[]
-  cart          Cart?
-  orders        Order[]
-=======
   id           String    @id @default(cuid())
   email        String    @unique
   passwordHash String
@@ -63,10 +51,13 @@ model User {
   active       Boolean   @default(true)
   // Solo para role = admin; en los clientes queda vacío.
   adminRole    AdminRole?
+  // Sellos de fidelización: +1 al crear un pedido que llega al mínimo; se revierte si se cancela.
+  loyaltyStamps Int      @default(0)
+  // Premio de un solo uso por cerrar una campaña Top 3 compradores.
+  hasTopBuyerReward Boolean @default(false)
   addresses    Address[]
   cart         Cart?
   orders       Order[]
->>>>>>> 932a15cdcc68e266171fd8814719fa3b3f27b57a
   statusChanges OrderStatusHistory[]
   passwordResetTokens PasswordResetToken[]
   createdAt     DateTime             @default(now())
@@ -241,13 +232,10 @@ model Order {
   // true mientras el pedido tiene stock reservado en su sucursal (HU-18). Los pedidos anteriores
   // al stock quedan en false: al cancelarlos o entregarlos no se toca el stock.
   stockReserved Boolean     @default(false)
-<<<<<<< HEAD
-  // Precio de lista (productos + adicionales). totalAmount es lo que se cobra: subtotal − discountAmount.
-  subtotal Decimal @default(0) @db.Decimal(10, 2)
-=======
+  // true si al crear el pedido se sumó un sello de fidelidad (para revertirlo al cancelar).
+  loyaltyStampGranted Boolean @default(false)
   // Precio de lista (productos + adicionales). totalAmount es lo que se cobra: subtotal − discountAmount + deliveryFee.
   subtotal       Decimal    @db.Decimal(10, 2)
->>>>>>> 932a15cdcc68e266171fd8814719fa3b3f27b57a
   discountAmount Decimal    @default(0) @db.Decimal(10, 2)
   // Costo de envío según el tramo de distancia al confirmar; se congela. En retiro y en pedidos viejos, 0.
   deliveryFee    Decimal    @default(0) @db.Decimal(10, 2)

@@ -77,12 +77,8 @@ function cartLines(cart: CartWithItems) {
   }));
 }
 
-<<<<<<< HEAD
-// Importes del pedido. Mantiene la firma esperada por las suites de pruebas de ciclo de vida.
-=======
 // Importes del pedido. Los pedidos anteriores a las promos tienen subtotal = total y descuento 0;
 // los anteriores al costo de envío, y los de retiro, tienen envío 0.
->>>>>>> 932a15cdcc68e266171fd8814719fa3b3f27b57a
 function pricing(order: {
   subtotal: Prisma.Decimal;
   discountAmount: Prisma.Decimal;
@@ -331,19 +327,14 @@ export class OrdersService {
     );
     const lines = cartLines(cart);
     const createdAt = new Date();
-<<<<<<< HEAD
-    // La promo vigente contempla promociones generales, podio Top 3 y premio por fidelidad.
+    // Promo vigente + fidelidad / Top 3 si corresponde; no depende de la sucursal ni del tipo de entrega.
     const price = await this.promotionsService.apply(
       linesSubtotal(lines),
       promotionLines(lines),
       createdAt,
       userId,
     );
-=======
-    // La promo vigente se aplica al confirmar (HU-21); no depende de la sucursal ni del tipo de entrega.
-    const price = await this.promotionsService.apply(linesSubtotal(lines), promotionLines(lines), createdAt);
     const deliveryFee = await this.deliveryFeesService.feeFor(dto.fulfillment, distanceKm);
->>>>>>> 932a15cdcc68e266171fd8814719fa3b3f27b57a
     const estimatedDeliveryAt = estimateDeliveryAt(
       createdAt,
       cart.items.reduce((sum, item) => sum + item.quantity, 0),
@@ -351,6 +342,8 @@ export class OrdersService {
       await this.parametersService.etaSettings(),
     );
     const units = stockLines(lines);
+    const { minOrderAmount } = await this.parametersService.loyaltySettings();
+    const qualifiesForStamp = price.subtotal >= minOrderAmount;
 
     const order = await this.prisma.$transaction(async (tx) => {
       // Sin stock suficiente sale un 409 y no se crea el pedido; el carrito queda como estaba.
@@ -367,6 +360,7 @@ export class OrdersService {
           createdAt,
           estimatedDeliveryAt,
           stockReserved: true,
+          loyaltyStampGranted: qualifiesForStamp,
           items: {
             create: cart.items.map((item) => ({
               productId: item.productId,
@@ -392,21 +386,30 @@ export class OrdersService {
 
       await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
-      const usedTopBuyerReward = price.promotion?.id === 'loyalty-top-3-buyer';
-
-      // Incrementa el sello de fidelidad y consume el premio de Top Comprador si fue utilizado
-      await tx.user.update({
-        where: { id: userId },
-        data: {
-          loyaltyStamps: { increment: 1 },
-          ...(usedTopBuyerReward ? { hasTopBuyerReward: false } : {}),
-        },
-      });
+      const userData: Prisma.UserUpdateInput = {};
+      // Sello al crear el pedido (si llega al mínimo); se revierte al cancelar.
+      if (qualifiesForStamp) {
+        userData.loyaltyStamps = { increment: 1 };
+      }
+      // El premio Top 3 se consume al confirmar el pedido que lo usó.
+      if (price.promotion?.id === 'loyalty-top-3-buyer') {
+        userData.hasTopBuyerReward = false;
+      }
+      if (Object.keys(userData).length > 0) {
+        await tx.user.update({ where: { id: userId }, data: userData });
+      }
 
       return created;
     });
 
-    return serialize(order);
+    return {
+      ...serialize(order),
+      loyalty: await this.loyaltyProgressFor(
+        userId,
+        qualifiesForStamp,
+        price.promotion?.id === 'loyalty-target-order',
+      ),
+    };
   }
 
   async createGuest(dto: CreateGuestOrderDto) {
@@ -725,26 +728,44 @@ export class OrdersService {
     return cartLines(await this.loadCart(user.sub));
   }
 
-<<<<<<< HEAD
-  private priceData(price: Awaited<ReturnType<PromotionsService['apply']>>) {
-    const isVirtualPromo = price.promotion?.id.startsWith('loyalty-');
-    return {
-      subtotal: price.subtotal,
-      discountAmount: price.discountAmount,
-      totalAmount: price.totalAmount,
-      promotionId: isVirtualPromo ? null : (price.promotion?.id ?? null),
-=======
   // Los importes que se guardan en el pedido. El nombre de la promo se copia. La promo descuenta solo
-  // los productos: el envío se suma después.
+  // los productos: el envío se suma después. Las promos virtuales de fidelidad/Top 3 no tienen fila en Promotion.
   private priceData(price: Awaited<ReturnType<PromotionsService['apply']>>, deliveryFee: number) {
+    const isVirtualPromo = price.promotion?.id.startsWith('loyalty-') ?? false;
     return {
       subtotal: price.subtotal,
       discountAmount: price.discountAmount,
       deliveryFee,
       totalAmount: Math.round((price.totalAmount + deliveryFee) * 100) / 100,
-      promotionId: price.promotion?.id ?? null,
->>>>>>> 932a15cdcc68e266171fd8814719fa3b3f27b57a
+      promotionId: isVirtualPromo ? null : (price.promotion?.id ?? null),
       promotionName: price.promotion?.name ?? null,
+    };
+  }
+
+  /**
+   * Progreso de fidelidad para la pantalla de pedido confirmado.
+   * El sello ya está acreditado (si calificó); acá solo armamos el contador visual del ciclo.
+   */
+  private async loyaltyProgressFor(
+    userId: string,
+    qualifiesThisOrder: boolean,
+    rewardOnThisOrder: boolean,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { loyaltyStamps: true },
+    });
+    const { ordersRequired, minOrderAmount } = await this.parametersService.loyaltySettings();
+    const stamps = user?.loyaltyStamps ?? 0;
+    const mod = stamps % ordersRequired;
+    const progress = qualifiesThisOrder && mod === 0 && stamps > 0 ? ordersRequired : mod;
+    return {
+      stamps,
+      progress,
+      ordersRequired,
+      minOrderAmount,
+      qualifiesThisOrder,
+      rewardOnThisOrder,
     };
   }
 
@@ -786,6 +807,18 @@ export class OrdersService {
         } else {
           await this.stockService.consume(tx, current.branchId, units);
         }
+      }
+
+      // Si el pedido había sumado sello al crearse, al cancelar se revierte.
+      if (status === OrderStatus.cancelled && current.userId && current.loyaltyStampGranted) {
+        await tx.user.updateMany({
+          where: { id: current.userId, loyaltyStamps: { gt: 0 } },
+          data: { loyaltyStamps: { decrement: 1 } },
+        });
+        await tx.order.update({
+          where: { id },
+          data: { loyaltyStampGranted: false },
+        });
       }
     });
 

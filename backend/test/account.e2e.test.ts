@@ -92,7 +92,22 @@ describe('Perfil: GET y PATCH /api/me (HU-14)', () => {
     const response = await request(server).get('/api/me').set(auth(token));
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ id, email, name: 'Cliente cliente', role: 'customer' });
+    expect(response.body).toMatchObject({
+      id,
+      email,
+      name: 'Cliente cliente',
+      role: 'customer',
+      loyaltyStamps: 0,
+      hasTopBuyerReward: false,
+      loyalty: {
+        stamps: 0,
+        progress: 0,
+        ordersRequired: 10,
+        minOrderAmount: 15000,
+        qualifiesThisOrder: false,
+        rewardOnThisOrder: false,
+      },
+    });
     expect((await request(server).get('/api/me')).status).toBe(401);
   });
 
@@ -102,7 +117,14 @@ describe('Perfil: GET y PATCH /api/me (HU-14)', () => {
     const response = await patchMe(token, { name: '  Ana María  ' });
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ id, email, name: 'Ana María', role: 'customer' });
+    expect(response.body).toMatchObject({
+      id,
+      email,
+      name: 'Ana María',
+      role: 'customer',
+      loyaltyStamps: 0,
+      hasTopBuyerReward: false,
+    });
     const me = await request(server).get('/api/auth/me').set(auth(token));
     expect(me.body.name).toBe('Ana María');
   });
