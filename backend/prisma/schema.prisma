@@ -36,18 +36,20 @@ enum PromotionType {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String
-  role         Role
-  name         String
-  addresses    Address[]
-  cart         Cart?
-  orders       Order[]
+  id            String               @id @default(cuid())
+  email         String               @unique
+  passwordHash  String
+  role          Role
+  name          String
+  loyaltyStamps Int                  @default(0)
+  hasTopBuyerReward   Boolean              @default(false)
+  addresses     Address[]
+  cart          Cart?
+  orders        Order[]
   statusChanges OrderStatusHistory[]
   passwordResetTokens PasswordResetToken[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 }
 
 // Recuperar contraseña (HU-15). Se guarda el hash del token, nunca el token. Vence y es de un solo uso.
@@ -219,7 +221,7 @@ model Order {
   // al stock quedan en false: al cancelarlos o entregarlos no se toca el stock.
   stockReserved Boolean     @default(false)
   // Precio de lista (productos + adicionales). totalAmount es lo que se cobra: subtotal − discountAmount.
-  subtotal       Decimal    @db.Decimal(10, 2)
+  subtotal Decimal @default(0) @db.Decimal(10, 2)
   discountAmount Decimal    @default(0) @db.Decimal(10, 2)
   // La promo aplicada al confirmar. El nombre se copia: editar la promo después no cambia el pedido.
   promotionId    String?

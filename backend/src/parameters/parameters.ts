@@ -44,3 +44,8 @@ export type ParameterKey = keyof typeof PARAMETERS;
 export type ParameterValues = Record<ParameterKey, number>;
 
 export const PARAMETER_KEYS = Object.keys(PARAMETERS) as ParameterKey[];
+
+export const LOYALTY_ORDERS_REQUIRED_KEY = 'loyalty_orders_required';
+export const LOYALTY_DISCOUNT_PERCENT_KEY = 'loyalty_discount_percent';
+export const DEFAULT_LOYALTY_ORDERS_REQUIRED = 10;
+export const DEFAULT_LOYALTY_DISCOUNT_PERCENT = 30;

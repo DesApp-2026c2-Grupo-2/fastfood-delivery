@@ -2,7 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EtaSettings } from '../orders/eta';
 import { UpdateParametersDto } from './dto/update-parameters.dto';
-import { PARAMETER_KEYS, PARAMETERS, ParameterValues } from './parameters';
+import {
+  DEFAULT_LOYALTY_DISCOUNT_PERCENT,
+  DEFAULT_LOYALTY_ORDERS_REQUIRED,
+  LOYALTY_DISCOUNT_PERCENT_KEY,
+  LOYALTY_ORDERS_REQUIRED_KEY,
+  PARAMETER_KEYS,
+  PARAMETERS,
+  ParameterValues,
+} from './parameters';
 
 @Injectable()
 export class ParametersService {
@@ -43,6 +51,25 @@ export class ParametersService {
       prepBaseMin: values.eta_prep_base_min,
       minPerItem: values.eta_min_per_item,
       kmPerMin: values.eta_km_per_min,
+    };
+  }
+
+  async loyaltySettings(): Promise<{ ordersRequired: number; discountPercent: number }> {
+    const rows = await this.prisma.parameter.findMany({
+      where: {
+        key: {
+          in: [LOYALTY_ORDERS_REQUIRED_KEY, LOYALTY_DISCOUNT_PERCENT_KEY],
+        },
+      },
+    });
+
+    const map = new Map(rows.map((r) => [r.key, Number(r.value)]));
+    const req = map.get(LOYALTY_ORDERS_REQUIRED_KEY);
+    const disc = map.get(LOYALTY_DISCOUNT_PERCENT_KEY);
+
+    return {
+      ordersRequired: Number.isFinite(req) && req! > 0 ? req! : DEFAULT_LOYALTY_ORDERS_REQUIRED,
+      discountPercent: Number.isFinite(disc) && disc! > 0 ? disc! : DEFAULT_LOYALTY_DISCOUNT_PERCENT,
     };
   }
 
