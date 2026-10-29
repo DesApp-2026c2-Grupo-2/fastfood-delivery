@@ -25,6 +25,7 @@ const BASELINE = {
   eta_prep_base_min: '15',
   eta_min_per_item: '3',
   eta_km_per_min: '0.5',
+  delivery_price_per_km: '0',
 };
 
 let app: NestExpressApplication;
@@ -177,7 +178,7 @@ describe('Parámetros del sistema (HU-19)', () => {
   const valuesOf = (list: { key: string; value: number }[]) =>
     Object.fromEntries(list.map((parameter) => [parameter.key, parameter.value]));
 
-  it('lista radio y constantes de ETA con su valor, etiqueta y límites', async () => {
+  it('lista radio, constantes de ETA y precio de envío con su valor, etiqueta y límites', async () => {
     const response = await request(server).get('/api/admin/parameters').set(auth(adminToken));
 
     expect(response.status).toBe(200);
@@ -186,6 +187,7 @@ describe('Parámetros del sistema (HU-19)', () => {
       'eta_prep_base_min',
       'eta_min_per_item',
       'eta_km_per_min',
+      'delivery_price_per_km',
     ]);
     expect(response.body[0]).toEqual({
       key: 'coverage_radius_km',
@@ -203,6 +205,7 @@ describe('Parámetros del sistema (HU-19)', () => {
       eta_prep_base_min: 15,
       eta_min_per_item: 3,
       eta_km_per_min: 0.5,
+      delivery_price_per_km: 0,
     });
   });
 
@@ -215,6 +218,7 @@ describe('Parámetros del sistema (HU-19)', () => {
       eta_prep_base_min: 20,
       eta_min_per_item: 3,
       eta_km_per_min: 0.5,
+      delivery_price_per_km: 0,
     });
     const stored = await prisma.parameter.findUniqueOrThrow({ where: { key: 'coverage_radius_km' } });
     expect(stored.value).toBe('7.5');
@@ -240,6 +244,7 @@ describe('Parámetros del sistema (HU-19)', () => {
       eta_prep_base_min: 15,
       eta_min_per_item: 3,
       eta_km_per_min: 0.5,
+      delivery_price_per_km: 0,
     });
   });
 

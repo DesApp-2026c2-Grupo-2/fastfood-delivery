@@ -3,6 +3,7 @@ import { AddressesModule } from '../addresses/addresses.module';
 import { AuthModule } from '../auth/auth.module';
 import { BranchesModule } from '../branches/branches.module';
 import { CartModule } from '../cart/cart.module';
+import { DeliveryFeesModule } from '../delivery-fees/delivery-fees.module';
 import { ExtrasModule } from '../extras/extras.module';
 import { ParametersModule } from '../parameters/parameters.module';
 import { PromotionsModule } from '../promotions/promotions.module';
@@ -22,6 +23,7 @@ import { PromotionQuoteController } from './promotion-quote.controller';
     AddressesModule,
     BranchesModule,
     CartModule,
+    DeliveryFeesModule,
     ExtrasModule,
     ParametersModule,
     PromotionsModule,

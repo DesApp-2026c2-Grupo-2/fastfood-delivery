@@ -7,6 +7,8 @@ import { AuthModule } from './auth/auth.module';
 import { BranchesModule } from './branches/branches.module';
 import { CartModule } from './cart/cart.module';
 import { CategoriesModule } from './categories/categories.module';
+import { CustomersModule } from './customers/customers.module';
+import { DeliveryFeesModule } from './delivery-fees/delivery-fees.module';
 import { OrdersModule } from './orders/orders.module';
 import { ParametersModule } from './parameters/parameters.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -30,6 +32,8 @@ import { ReportsModule } from './reports/reports.module';
     BranchesModule,
     CartModule,
     CategoriesModule,
+    CustomersModule,
+    DeliveryFeesModule,
     OrdersModule,
     ParametersModule,
     ProductsModule,

@@ -35,7 +35,8 @@ export class PasswordResetService {
     const response = { message: GENERIC_MESSAGE };
 
     const user = await this.prisma.user.findFirst({
-      where: { email: { equals: email, mode: 'insensitive' }, role: Role.customer },
+      // Un cliente deshabilitado se trata como no registrado.
+      where: { email: { equals: email, mode: 'insensitive' }, role: Role.customer, active: true },
       select: { id: true },
     });
     if (!user) {

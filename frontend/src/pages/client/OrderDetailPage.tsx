@@ -381,17 +381,23 @@ export function OrderDetailPage() {
 
         <div className="total-divider" />
 
+        {order.discountAmount > 0 || order.address ? (
+          <div className="total-line">
+            <span>Subtotal</span>
+            <span>{formatPrice(order.subtotal)}</span>
+          </div>
+        ) : null}
         {order.discountAmount > 0 ? (
-          <>
-            <div className="total-line">
-              <span>Subtotal</span>
-              <span>{formatPrice(order.subtotal)}</span>
-            </div>
-            <div className="total-line">
-              <span>Descuento{promoCaption ? ` (${promoCaption})` : ''}</span>
-              <span>−{formatPrice(order.discountAmount)}</span>
-            </div>
-          </>
+          <div className="total-line">
+            <span>Descuento{promoCaption ? ` (${promoCaption})` : ''}</span>
+            <span>−{formatPrice(order.discountAmount)}</span>
+          </div>
+        ) : null}
+        {order.address ? (
+          <div className="total-line">
+            <span>Envío</span>
+            <span>{order.deliveryFee ? formatPrice(order.deliveryFee) : 'Gratis'}</span>
+          </div>
         ) : null}
         <div className="total-line">
           <span>Total</span>
