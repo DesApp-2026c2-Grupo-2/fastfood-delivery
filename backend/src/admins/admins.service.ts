@@ -1,14 +1,14 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, Role } from '@prisma/client';
+import { AdminRole, Prisma, Role } from '@prisma/client';
 import { hashPassword } from '../auth/password';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { initialAdminPolicy } from './initial-admin.policy';
 
-const adminSelect = { id: true, name: true, email: true, createdAt: true };
+const adminSelect = { id: true, name: true, email: true, adminRole: true, createdAt: true };
 
-type AdminRow = { id: string; name: string; email: string; createdAt: Date };
+type AdminRow = { id: string; name: string; email: string; adminRole: AdminRole | null; createdAt: Date };
 
 @Injectable()
 export class AdminsService {
@@ -35,19 +35,32 @@ export class AdminsService {
         email: dto.email,
         passwordHash: await hashPassword(dto.password),
         role: Role.admin,
+        adminRole: dto.adminRole ?? AdminRole.super_admin,
       },
       select: adminSelect,
     });
     return this.serialize(admin);
   }
 
-  async update(id: string, dto: UpdateAdminDto) {
+  async update(id: string, dto: UpdateAdminDto, actorId: string) {
     const admin = await this.findAdmin(id);
-    if (dto.name === undefined && dto.email === undefined && dto.password === undefined) {
+    if (
+      dto.name === undefined &&
+      dto.email === undefined &&
+      dto.password === undefined &&
+      dto.adminRole === undefined
+    ) {
       throw new BadRequestException('No hay cambios para guardar');
     }
     if (dto.email) {
       initialAdminPolicy.assertCanChangeEmail(admin.email, dto.email);
+    }
+    if (dto.adminRole && dto.adminRole !== admin.adminRole) {
+      // Un super admin que se baja a sí mismo pierde el acceso a este ABM y no puede volver atrás.
+      if (admin.id === actorId) {
+        throw new ConflictException('No podés cambiar tu propio rol');
+      }
+      initialAdminPolicy.assertCanChangeRole(admin.email, dto.adminRole);
     }
     if (dto.email && dto.email !== admin.email) {
       await this.assertEmailAvailable(dto.email, id);
@@ -59,6 +72,7 @@ export class AdminsService {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
         ...(dto.email !== undefined ? { email: dto.email } : {}),
         ...(dto.password !== undefined ? { passwordHash: await hashPassword(dto.password) } : {}),
+        ...(dto.adminRole !== undefined ? { adminRole: dto.adminRole } : {}),
       },
       select: adminSelect,
     });
@@ -111,6 +125,7 @@ export class AdminsService {
       id: admin.id,
       name: admin.name,
       email: admin.email,
+      adminRole: admin.adminRole,
       createdAt: admin.createdAt,
       deletable: !initialAdminPolicy.isInitial(admin.email),
     };

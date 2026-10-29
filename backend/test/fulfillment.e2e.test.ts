@@ -25,6 +25,7 @@ const BASELINE = {
   eta_prep_base_min: '15',
   eta_min_per_item: '3',
   eta_km_per_min: '0.5',
+  delivery_price_per_km: '0',
 };
 
 let app: NestExpressApplication;
