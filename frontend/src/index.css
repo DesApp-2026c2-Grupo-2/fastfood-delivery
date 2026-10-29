@@ -1666,6 +1666,23 @@ h2 {
   margin: 0;
 }
 
+.payment-box {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem 1.1rem;
+  border: 2px solid var(--accent);
+  border-radius: 1.1rem;
+  background: var(--accent-soft);
+}
+
+.payment-box-title {
+  margin: 0;
+  font-family: Fredoka, Nunito, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+
 .app-shell:not(.app-shell--admin) {
   display: flex;
   flex-direction: column;
