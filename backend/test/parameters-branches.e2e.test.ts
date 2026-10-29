@@ -26,6 +26,10 @@ const BASELINE = {
   eta_min_per_item: '3',
   eta_km_per_min: '0.5',
   delivery_price_per_km: '0',
+  loyalty_orders_required: '10',
+  loyalty_min_order_amount: '15000',
+  loyalty_discount_percent: '30',
+  top3_discount_percent: '15',
 };
 
 let app: NestExpressApplication;
@@ -188,6 +192,10 @@ describe('Parámetros del sistema (HU-19)', () => {
       'eta_min_per_item',
       'eta_km_per_min',
       'delivery_price_per_km',
+      'loyalty_orders_required',
+      'loyalty_min_order_amount',
+      'loyalty_discount_percent',
+      'top3_discount_percent',
     ]);
     expect(response.body[0]).toEqual({
       key: 'coverage_radius_km',
@@ -206,11 +214,22 @@ describe('Parámetros del sistema (HU-19)', () => {
       eta_min_per_item: 3,
       eta_km_per_min: 0.5,
       delivery_price_per_km: 0,
+      loyalty_orders_required: 10,
+      loyalty_min_order_amount: 15000,
+      loyalty_discount_percent: 30,
+      top3_discount_percent: 15,
     });
   });
 
   it('actualiza solo los que vienen en el body', async () => {
-    const response = await patchParameters({ coverage_radius_km: 7.5, eta_prep_base_min: 20 });
+    const response = await patchParameters({
+      coverage_radius_km: 7.5,
+      eta_prep_base_min: 20,
+      loyalty_orders_required: 5,
+      loyalty_min_order_amount: 12000,
+      loyalty_discount_percent: 25,
+      top3_discount_percent: 20,
+    });
 
     expect(response.status).toBe(200);
     expect(valuesOf(response.body)).toEqual({
@@ -219,6 +238,10 @@ describe('Parámetros del sistema (HU-19)', () => {
       eta_min_per_item: 3,
       eta_km_per_min: 0.5,
       delivery_price_per_km: 0,
+      loyalty_orders_required: 5,
+      loyalty_min_order_amount: 12000,
+      loyalty_discount_percent: 25,
+      top3_discount_percent: 20,
     });
     const stored = await prisma.parameter.findUniqueOrThrow({ where: { key: 'coverage_radius_km' } });
     expect(stored.value).toBe('7.5');
@@ -232,6 +255,10 @@ describe('Parámetros del sistema (HU-19)', () => {
       { eta_prep_base_min: -1 },
       { eta_prep_base_min: 'mucho' },
       { eta_km_per_min: 0 },
+      { loyalty_orders_required: 0 },
+      { loyalty_min_order_amount: -1 },
+      { loyalty_discount_percent: 101 },
+      { top3_discount_percent: 0 },
       { otra_clave: 1 },
     ];
     for (const body of invalid) {
@@ -245,6 +272,10 @@ describe('Parámetros del sistema (HU-19)', () => {
       eta_min_per_item: 3,
       eta_km_per_min: 0.5,
       delivery_price_per_km: 0,
+      loyalty_orders_required: 10,
+      loyalty_min_order_amount: 15000,
+      loyalty_discount_percent: 30,
+      top3_discount_percent: 15,
     });
   });
 

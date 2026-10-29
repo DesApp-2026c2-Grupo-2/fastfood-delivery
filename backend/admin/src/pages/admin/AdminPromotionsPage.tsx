@@ -1,9 +1,10 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
-import type { Product, Promotion } from '../../api/types';
+import type { Product, Promotion, Top3Campaign } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
 
 type PromoType = 'percent' | 'two_for_one';
 type FormState = {
@@ -92,19 +93,27 @@ export function AdminPromotionsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [campaign, setCampaign] = useState<Top3Campaign | null>(null);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [error, setError] = useState('');
-  const [ok, setOk] = useState((location.state as { notice?: string } | null)?.notice ?? '');
+  const [error, setError] = useTimedNotice();
+  const [ok, setOk] = useSuccessNotice();
   const [loading, setLoading] = useState(true);
+  const [campaignBusy, setCampaignBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Promotion | null>(null);
+  const [pendingAward, setPendingAward] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   async function load() {
     setLoading(true);
     setError('');
     try {
-      setPromotions(await api<Promotion[]>('/admin/promotions', { token }));
+      const [promotionList, campaignStatus] = await Promise.all([
+        api<Promotion[]>('/admin/promotions', { token }),
+        api<Top3Campaign>('/admin/promotions/top3-campaign', { token }),
+      ]);
+      setPromotions(promotionList);
+      setCampaign(campaignStatus);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar las promociones');
     } finally {
@@ -114,6 +123,8 @@ export function AdminPromotionsPage() {
 
   useEffect(() => {
     void load();
+    const notice = (location.state as { notice?: string } | null)?.notice;
+    if (notice) setOk(notice);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -152,6 +163,51 @@ export function AdminPromotionsPage() {
     }
   }
 
+  async function refreshCampaign() {
+    setCampaignBusy(true);
+    setError('');
+    try {
+      setCampaign(await api<Top3Campaign>('/admin/promotions/top3-campaign', { token }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo actualizar el ranking');
+    } finally {
+      setCampaignBusy(false);
+    }
+  }
+
+  async function startCampaign() {
+    setCampaignBusy(true);
+    setError('');
+    setOk('');
+    try {
+      setCampaign(await api<Top3Campaign>('/admin/promotions/top3-campaign/start', { method: 'POST', token }));
+      setOk('Campaña Top 3 iniciada. El ranking suma pedidos desde ahora; si se cancelan, se descuentan.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo iniciar la campaña');
+    } finally {
+      setCampaignBusy(false);
+    }
+  }
+
+  async function awardCampaign() {
+    setCampaignBusy(true);
+    setError('');
+    setOk('');
+    try {
+      const result = await api<{ message: string; awardedUsers: { name: string }[] }>(
+        '/admin/promotions/top3-campaign/award',
+        { method: 'POST', token },
+      );
+      setPendingAward(false);
+      setOk(result.message);
+      setCampaign(await api<Top3Campaign>('/admin/promotions/top3-campaign', { token }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo cerrar la campaña');
+    } finally {
+      setCampaignBusy(false);
+    }
+  }
+
   return (
     <section className="stack">
       <header className="page-head">
@@ -175,6 +231,91 @@ export function AdminPromotionsPage() {
         <p className="success" role="status">
           {ok}
         </p>
+      ) : null}
+
+      {!loading && campaign ? (
+        <article className="card order-detail-card top3-campaign">
+          <div className="top3-campaign-head">
+            <div>
+              <h2>Campaña Top 3 compradores</h2>
+              <p className="muted">
+                Premia a los 3 clientes con más gasto desde el inicio de la campaña. Los pedidos cuentan al
+                confirmarse; si se cancelan, se descuentan. El descuento ({campaign.discountPercent}% OFF de un
+                solo uso) se configura en Parámetros.
+              </p>
+            </div>
+            <span className={campaign.active ? 'badge' : 'badge badge--off'}>
+              {campaign.active ? 'activa' : 'inactiva'}
+            </span>
+          </div>
+
+          {campaign.active && campaign.startedAt ? (
+            <p>
+              Inició el{' '}
+              {new Date(campaign.startedAt).toLocaleString('es-AR', {
+                dateStyle: 'short',
+                timeStyle: 'short',
+              })}
+              .
+            </p>
+          ) : (
+            <p className="muted">No hay campaña en curso. Al iniciarla, el ranking empieza de cero.</p>
+          )}
+
+          <div className="row">
+            {campaign.active ? (
+              <>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={campaignBusy}
+                  onClick={() => void refreshCampaign()}
+                >
+                  Actualizar ranking
+                </button>
+                <button type="button" disabled={campaignBusy} onClick={() => setPendingAward(true)}>
+                  Cerrar y premiar Top 3
+                </button>
+              </>
+            ) : (
+              <button type="button" disabled={campaignBusy} onClick={() => void startCampaign()}>
+                {campaignBusy ? 'Iniciando…' : 'Iniciar campaña'}
+              </button>
+            )}
+          </div>
+
+          {campaign.active ? (
+            campaign.ranking.length === 0 ? (
+              <p className="muted">Todavía no hay pedidos desde el inicio de la campaña.</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Cliente</th>
+                      <th>Email</th>
+                      <th className="data-table-price">Gastado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {campaign.ranking.map((entry, index) => (
+                      <tr key={entry.userId} className={index < 3 ? 'top3-podium-row' : undefined}>
+                        <td>{index + 1}</td>
+                        <td>
+                          <strong>{entry.name}</strong>
+                          {index < 3 ? <span className="badge">podio</span> : null}
+                        </td>
+                        <td>{entry.email}</td>
+                        <td className="data-table-price">{formatMoney(entry.totalSpent)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : null}
+        </article>
       ) : null}
 
       <div className="admin-toolbar">
@@ -303,6 +444,22 @@ export function AdminPromotionsPage() {
           onConfirm={() => void remove(pendingDelete)}
           onClose={() => {
             if (!deleting) setPendingDelete(null);
+          }}
+        />
+      ) : null}
+
+      {pendingAward && campaign ? (
+        <ConfirmModal
+          title="Cerrar campaña Top 3"
+          message={`Se va a premiar a los 3 primeros del ranking con ${campaign.discountPercent}% OFF de un solo uso, se limpian premios viejos sin usar y la campaña queda inactiva. ¿Continuar?`}
+          confirmLabel="Premiar y cerrar"
+          busyLabel="Premiando…"
+          busy={campaignBusy}
+          danger={false}
+          error={error}
+          onConfirm={() => void awardCampaign()}
+          onClose={() => {
+            if (!campaignBusy) setPendingAward(false);
           }}
         />
       ) : null}

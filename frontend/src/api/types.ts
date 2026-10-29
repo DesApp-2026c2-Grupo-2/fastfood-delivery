@@ -1,10 +1,22 @@
 export type Role = 'customer' | 'admin';
 
+export type LoyaltyProgress = {
+  stamps: number;
+  progress: number;
+  ordersRequired: number;
+  minOrderAmount: number;
+  qualifiesThisOrder: boolean;
+  rewardOnThisOrder: boolean;
+};
+
 export type User = {
   id: string;
   email: string;
   name: string;
   role: Role;
+  loyaltyStamps?: number;
+  hasTopBuyerReward?: boolean;
+  loyalty?: LoyaltyProgress;
 };
 
 export type Category = {
@@ -129,6 +141,8 @@ export type Order = {
   createdAt: string;
   guestName?: string | null;
   guestEmail?: string | null;
+  // Solo en la respuesta de crear pedido autenticado.
+  loyalty?: LoyaltyProgress;
   branch: {
     id: string;
     name: string;

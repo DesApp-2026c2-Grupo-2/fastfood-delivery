@@ -1613,6 +1613,29 @@ h2 {
   margin-bottom: 0.55rem;
 }
 
+.top3-campaign {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.top3-campaign-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.top3-campaign-head h2 {
+  margin-bottom: 0.25rem;
+}
+
+.top3-podium-row td:nth-child(2) {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
 .order-timeline {
   margin: 0;
   padding: 0 0 0 1.1rem;

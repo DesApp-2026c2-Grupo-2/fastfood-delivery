@@ -16,6 +16,7 @@ import { useCart } from '../../cart/CartContext';
 import { getToken, isCustomer } from '../../auth/session';
 import { clearGuestCart, getGuestCart, hydrateGuestCart } from '../../cart/guestCart';
 import { LineExtras } from '../../components/LineExtras';
+import { LoyaltyStampsCard } from '../../components/LoyaltyStampsCard';
 import { parseNotesAndExtras } from '../../lib/cart-notes';
 import { discountCaption } from '../../lib/discount-label';
 import { formatDateTime, formatPrice } from '../../lib/money';
@@ -403,6 +404,12 @@ export function CheckoutPage() {
             </div>
           </div>
 
+          {order.loyalty ? (
+            <div className="checkout-block">
+              <LoyaltyStampsCard loyalty={order.loyalty} context="checkout" />
+            </div>
+          ) : null}
+
           <div className="checkout-block">
             <h2>Datos</h2>
             <dl className="order-confirmed-facts">
@@ -452,6 +459,7 @@ export function CheckoutPage() {
             <ul className="order-items">
               {order.items.map((item) => {
                 const itemTotal = item.subtotal ?? item.quantity * item.unitPrice;
+                const note = parseNotesAndExtras(item.notes).kitchenNote;
                 return (
                   <li key={item.id}>
                     <span className="checkout-line">
@@ -466,7 +474,8 @@ export function CheckoutPage() {
                       </span>
                       <span className="checkout-line-price">{formatPrice(itemTotal)}</span>
                     </span>
-                    {item.notes ? <small className="muted">{item.notes}</small> : null}
+                    <LineExtras className="checkout-line-extras" extras={item.extras ?? []} />
+                    {note ? <small className="muted checkout-line-note">{note}</small> : null}
                   </li>
                 );
               })}

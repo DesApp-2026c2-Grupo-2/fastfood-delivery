@@ -85,7 +85,6 @@ function pricing(order: {
   deliveryFee: Prisma.Decimal;
   totalAmount: Prisma.Decimal;
   promotionName: string | null;
-  promotion: { type: 'percent' | 'two_for_one'; value: number } | null;
 }) {
   return {
     subtotal: Number(order.subtotal),
@@ -93,8 +92,6 @@ function pricing(order: {
     deliveryFee: Number(order.deliveryFee),
     totalAmount: Number(order.totalAmount),
     promotionName: order.promotionName,
-    promotionType: order.promotion?.type ?? null,
-    promotionValue: order.promotion?.value ?? null,
   };
 }
 
@@ -281,8 +278,6 @@ const customerDetailInclude = {
 
 type OrderCustomerDetail = Prisma.OrderGetPayload<{ include: typeof customerDetailInclude }>;
 
-// Lo mismo que devuelve el checkout, más el seguimiento. El historial no dice quién hizo cada cambio:
-// al cliente no se le muestran los nombres de los administradores.
 function serializeCustomer(order: OrderCustomerDetail) {
   return {
     ...serialize(order),
@@ -332,8 +327,13 @@ export class OrdersService {
     );
     const lines = cartLines(cart);
     const createdAt = new Date();
-    // La promo vigente se aplica al confirmar (HU-21); no depende de la sucursal ni del tipo de entrega.
-    const price = await this.promotionsService.apply(linesSubtotal(lines), promotionLines(lines), createdAt);
+    // Promo vigente + fidelidad / Top 3 si corresponde; no depende de la sucursal ni del tipo de entrega.
+    const price = await this.promotionsService.apply(
+      linesSubtotal(lines),
+      promotionLines(lines),
+      createdAt,
+      userId,
+    );
     const deliveryFee = await this.deliveryFeesService.feeFor(dto.fulfillment, distanceKm);
     const estimatedDeliveryAt = estimateDeliveryAt(
       createdAt,
@@ -342,6 +342,8 @@ export class OrdersService {
       await this.parametersService.etaSettings(),
     );
     const units = stockLines(lines);
+    const { minOrderAmount } = await this.parametersService.loyaltySettings();
+    const qualifiesForStamp = price.subtotal >= minOrderAmount;
 
     const order = await this.prisma.$transaction(async (tx) => {
       // Sin stock suficiente sale un 409 y no se crea el pedido; el carrito queda como estaba.
@@ -358,6 +360,7 @@ export class OrdersService {
           createdAt,
           estimatedDeliveryAt,
           stockReserved: true,
+          loyaltyStampGranted: qualifiesForStamp,
           items: {
             create: cart.items.map((item) => ({
               productId: item.productId,
@@ -383,10 +386,30 @@ export class OrdersService {
 
       await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
+      const userData: Prisma.UserUpdateInput = {};
+      // Sello al crear el pedido (si llega al mínimo); se revierte al cancelar.
+      if (qualifiesForStamp) {
+        userData.loyaltyStamps = { increment: 1 };
+      }
+      // El premio Top 3 se consume al confirmar el pedido que lo usó.
+      if (price.promotion?.id === 'loyalty-top-3-buyer') {
+        userData.hasTopBuyerReward = false;
+      }
+      if (Object.keys(userData).length > 0) {
+        await tx.user.update({ where: { id: userId }, data: userData });
+      }
+
       return created;
     });
 
-    return serialize(order);
+    return {
+      ...serialize(order),
+      loyalty: await this.loyaltyProgressFor(
+        userId,
+        qualifiesForStamp,
+        price.promotion?.id === 'loyalty-target-order',
+      ),
+    };
   }
 
   async createGuest(dto: CreateGuestOrderDto) {
@@ -513,19 +536,22 @@ export class OrdersService {
         })),
       };
     });
-    // sort es estable: dentro de cada grupo queda el orden por cercanía.
     rows.sort((a, b) => Number(b.canFulfill) - Number(a.canFulfill));
 
     return { fulfillment: dto.fulfillment, radiusKm, branches: rows };
   }
 
   /**
-   * Subtotal, descuento y total antes de confirmar (HU-21), con la misma regla que se aplica al crear
-   * el pedido. `promotion` es null cuando no hay descuento.
+   * Subtotal, descuento y total antes de confirmar (HU-21), contemplando promociones y beneficios por fidelidad.
    */
   async quote(dto: QuotePromotionDto, user?: JwtPayload) {
     const lines = await this.checkoutLines(dto, user);
-    return this.promotionsService.apply(linesSubtotal(lines), promotionLines(lines));
+    return this.promotionsService.apply(
+      linesSubtotal(lines),
+      promotionLines(lines),
+      new Date(),
+      user?.sub,
+    );
   }
 
   async findAllAdmin(query: {
@@ -598,7 +624,6 @@ export class OrdersService {
     return this.findOneAdmin(id);
   }
 
-  // Historial del cliente logueado. Los pedidos de invitado no tienen userId y no aparecen.
   async findAllForUser(userId: string) {
     const orders = await this.prisma.order.findMany({
       where: { userId },
@@ -624,7 +649,6 @@ export class OrdersService {
   }
 
   async findOneForUser(userId: string, id: string) {
-    // Un pedido de otro usuario da 404, igual que uno que no existe: no se revela que el id existe.
     const order = await this.prisma.order.findFirst({
       where: { id, userId },
       include: customerDetailInclude,
@@ -641,10 +665,6 @@ export class OrdersService {
     return this.findOneForUser(userId, id);
   }
 
-  /**
-   * Suma los ítems de un pedido anterior al carrito, con los precios de hoy; no crea un pedido.
-   * Lo que ya no está disponible se omite y se informa en `skipped`.
-   */
   async repeatForUser(userId: string, id: string) {
     await this.assertOwnedByUser(userId, id);
     const items = await this.prisma.orderItem.findMany({
@@ -684,12 +704,10 @@ export class OrdersService {
         await this.cartService.addItem(userId, {
           productId: item.product.id,
           quantity: item.quantity,
-          // Sin observaciones no se pisan las que ya tenga esa línea en el carrito.
           notes: item.notes || undefined,
           extraIds,
         });
       } catch (error) {
-        // Por ejemplo, el producto dejó de admitir adicionales. Se omite esa línea y se sigue con el resto.
         if (!(error instanceof BadRequestException || error instanceof NotFoundException)) {
           throw error;
         }
@@ -700,7 +718,6 @@ export class OrdersService {
     return { cart: await this.cartService.getCart(userId), skipped };
   }
 
-  // Lo que pediría el cliente: los ítems que manda (invitado) o, con sesión, su carrito.
   private async checkoutLines(dto: { items?: CheckoutBranchesDto['items'] }, user?: JwtPayload) {
     if (dto.items) {
       return this.resolveLines(dto.items);
@@ -712,15 +729,43 @@ export class OrdersService {
   }
 
   // Los importes que se guardan en el pedido. El nombre de la promo se copia. La promo descuenta solo
-  // los productos: el envío se suma después.
+  // los productos: el envío se suma después. Las promos virtuales de fidelidad/Top 3 no tienen fila en Promotion.
   private priceData(price: Awaited<ReturnType<PromotionsService['apply']>>, deliveryFee: number) {
+    const isVirtualPromo = price.promotion?.id.startsWith('loyalty-') ?? false;
     return {
       subtotal: price.subtotal,
       discountAmount: price.discountAmount,
       deliveryFee,
       totalAmount: Math.round((price.totalAmount + deliveryFee) * 100) / 100,
-      promotionId: price.promotion?.id ?? null,
+      promotionId: isVirtualPromo ? null : (price.promotion?.id ?? null),
       promotionName: price.promotion?.name ?? null,
+    };
+  }
+
+  /**
+   * Progreso de fidelidad para la pantalla de pedido confirmado.
+   * El sello ya está acreditado (si calificó); acá solo armamos el contador visual del ciclo.
+   */
+  private async loyaltyProgressFor(
+    userId: string,
+    qualifiesThisOrder: boolean,
+    rewardOnThisOrder: boolean,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { loyaltyStamps: true },
+    });
+    const { ordersRequired, minOrderAmount } = await this.parametersService.loyaltySettings();
+    const stamps = user?.loyaltyStamps ?? 0;
+    const mod = stamps % ordersRequired;
+    const progress = qualifiesThisOrder && mod === 0 && stamps > 0 ? ordersRequired : mod;
+    return {
+      stamps,
+      progress,
+      ordersRequired,
+      minOrderAmount,
+      qualifiesThisOrder,
+      rewardOnThisOrder,
     };
   }
 
@@ -731,7 +776,6 @@ export class OrdersService {
     }
   }
 
-  // Cambio de estado del admin o del cliente (cancelar): valida el salto, lo guarda en el historial y avisa por Pusher.
   private async transition(id: string, status: OrderStatus, changedByUserId: string) {
     const current = await this.prisma.order.findUnique({ where: { id } });
     if (!current) {
@@ -740,15 +784,11 @@ export class OrdersService {
     if (!canTransition(current.status, status)) {
       throw new ConflictException('No se puede pasar el pedido a ese estado');
     }
-    // Cancelar libera la reserva y entregar la descuenta (HU-18). Los pedidos anteriores al stock
-    // no reservaron nada y no lo tocan.
+
     const settlesStock =
       current.stockReserved && (status === OrderStatus.cancelled || status === OrderStatus.delivered);
 
     await this.prisma.$transaction(async (tx) => {
-      // Solo actualiza si el estado sigue siendo el leído: si otro lo cambió en el medio
-      // (el admin lo pasa a preparación mientras el cliente cancela), gana el primero y el otro recibe 409.
-      // Así la reserva se libera o se descuenta una sola vez.
       const { count } = await tx.order.updateMany({
         where: { id, status: current.status, stockReserved: current.stockReserved },
         data: { status, ...(settlesStock ? { stockReserved: false } : {}) },
@@ -767,6 +807,18 @@ export class OrdersService {
         } else {
           await this.stockService.consume(tx, current.branchId, units);
         }
+      }
+
+      // Si el pedido había sumado sello al crearse, al cancelar se revierte.
+      if (status === OrderStatus.cancelled && current.userId && current.loyaltyStampGranted) {
+        await tx.user.updateMany({
+          where: { id: current.userId, loyaltyStamps: { gt: 0 } },
+          data: { loyaltyStamps: { decrement: 1 } },
+        });
+        await tx.order.update({
+          where: { id },
+          data: { loyaltyStampGranted: false },
+        });
       }
     });
 
@@ -807,7 +859,6 @@ export class OrdersService {
     );
   }
 
-  // Las mismas unidades que se reservaron al confirmar: los productos y adicionales del pedido.
   private async orderStockLines(tx: Prisma.TransactionClient, orderId: string) {
     const items = await tx.orderItem.findMany({
       where: { orderId },
@@ -826,7 +877,6 @@ export class OrdersService {
     );
   }
 
-  // El carrito del cliente tal como se va a pedir: con algo adentro y todo disponible.
   private async loadCart(userId: string) {
     const cart = await this.prisma.cart.findUnique({
       where: { userId },

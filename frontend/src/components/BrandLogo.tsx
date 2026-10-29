@@ -1,13 +1,15 @@
 type BrandLogoProps = {
   size?: number;
+  className?: string;
+  alt?: string;
 };
 
-export function BrandLogo({ size = 48 }: BrandLogoProps) {
+export function BrandLogo({ size = 48, className, alt = 'Mordi' }: BrandLogoProps) {
   return (
     <img
-      className="brand-logo"
+      className={className ? `brand-logo ${className}` : 'brand-logo'}
       src="/logo-mordi.png"
-      alt="Mordi"
+      alt={alt}
       width={size}
       height={size}
     />

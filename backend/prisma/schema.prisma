@@ -51,13 +51,17 @@ model User {
   active       Boolean   @default(true)
   // Solo para role = admin; en los clientes queda vacío.
   adminRole    AdminRole?
+  // Sellos de fidelización: +1 al crear un pedido que llega al mínimo; se revierte si se cancela.
+  loyaltyStamps Int      @default(0)
+  // Premio de un solo uso por cerrar una campaña Top 3 compradores.
+  hasTopBuyerReward Boolean @default(false)
   addresses    Address[]
   cart         Cart?
   orders       Order[]
   statusChanges OrderStatusHistory[]
   passwordResetTokens PasswordResetToken[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 }
 
 // Recuperar contraseña (HU-15). Se guarda el hash del token, nunca el token. Vence y es de un solo uso.
@@ -228,6 +232,8 @@ model Order {
   // true mientras el pedido tiene stock reservado en su sucursal (HU-18). Los pedidos anteriores
   // al stock quedan en false: al cancelarlos o entregarlos no se toca el stock.
   stockReserved Boolean     @default(false)
+  // true si al crear el pedido se sumó un sello de fidelidad (para revertirlo al cancelar).
+  loyaltyStampGranted Boolean @default(false)
   // Precio de lista (productos + adicionales). totalAmount es lo que se cobra: subtotal − discountAmount + deliveryFee.
   subtotal       Decimal    @db.Decimal(10, 2)
   discountAmount Decimal    @default(0) @db.Decimal(10, 2)

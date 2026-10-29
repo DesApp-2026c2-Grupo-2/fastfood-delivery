@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import { useSession } from '../../auth/SessionContext';
 import type { UpdateMeRequest, User } from '../../api/types';
 import { clearSession, getToken, isCustomer, updateStoredUser } from '../../auth/session';
+import { LoyaltyStampsCard } from '../../components/LoyaltyStampsCard';
 import { PasswordField } from '../../components/PasswordField';
 import { useAutoClear } from '../../lib/useAutoClear';
 
@@ -134,6 +135,12 @@ function AccountContent({ token }: { token: string }) {
         <p className="success" role="status">
           {ok}
         </p>
+      ) : null}
+
+      {user.loyalty ? (
+        <div className="card form">
+          <LoyaltyStampsCard loyalty={user.loyalty} context="profile" />
+        </div>
       ) : null}
 
       <form className="card form" onSubmit={onSubmit}>

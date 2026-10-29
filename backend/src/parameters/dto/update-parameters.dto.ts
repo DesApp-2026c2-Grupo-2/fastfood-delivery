@@ -38,4 +38,32 @@ export class UpdateParametersDto {
   @Min(PARAMETERS.delivery_price_per_km.min)
   @Max(PARAMETERS.delivery_price_per_km.max)
   delivery_price_per_km?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(PARAMETERS.loyalty_orders_required.min)
+  @Max(PARAMETERS.loyalty_orders_required.max)
+  loyalty_orders_required?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(PARAMETERS.loyalty_min_order_amount.min)
+  @Max(PARAMETERS.loyalty_min_order_amount.max)
+  loyalty_min_order_amount?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(PARAMETERS.loyalty_discount_percent.min)
+  @Max(PARAMETERS.loyalty_discount_percent.max)
+  loyalty_discount_percent?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(PARAMETERS.top3_discount_percent.min)
+  @Max(PARAMETERS.top3_discount_percent.max)
+  top3_discount_percent?: number;
 }

@@ -10,6 +10,21 @@ import { PromotionsService } from './promotions.service';
 export class AdminPromotionsController {
   constructor(private readonly promotionsService: PromotionsService) {}
 
+  @Get('top3-campaign')
+  getTopBuyerCampaign() {
+    return this.promotionsService.getTopBuyerCampaign();
+  }
+
+  @Post('top3-campaign/start')
+  startTopBuyerCampaign() {
+    return this.promotionsService.startTopBuyerCampaign();
+  }
+
+  @Post('top3-campaign/award')
+  awardTopBuyerCampaign() {
+    return this.promotionsService.awardTopBuyerCampaign();
+  }
+
   @Get()
   findAll() {
     return this.promotionsService.findAll();

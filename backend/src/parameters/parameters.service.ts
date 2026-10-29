@@ -50,6 +50,23 @@ export class ParametersService {
     };
   }
 
+  async loyaltySettings(): Promise<{
+    ordersRequired: number;
+    discountPercent: number;
+    minOrderAmount: number;
+  }> {
+    const values = await this.values();
+    return {
+      ordersRequired: values.loyalty_orders_required,
+      discountPercent: values.loyalty_discount_percent,
+      minOrderAmount: values.loyalty_min_order_amount,
+    };
+  }
+
+  async top3DiscountPercent() {
+    return (await this.values()).top3_discount_percent;
+  }
+
   // Sin caché: se leen en cada pedido, así un cambio del admin rige desde el próximo.
   private async read() {
     const rows = await this.prisma.parameter.findMany({ where: { key: { in: PARAMETER_KEYS } } });
