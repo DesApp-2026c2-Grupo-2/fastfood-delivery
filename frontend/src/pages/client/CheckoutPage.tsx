@@ -21,6 +21,9 @@ import { discountCaption } from '../../lib/discount-label';
 import { formatDateTime, formatPrice } from '../../lib/money';
 import { mediaUrl } from '../../lib/media';
 import { AddressLocationPicker } from '../../components/AddressLocationPicker';
+import { PaymentMethodPicker } from '../../components/PaymentMethodPicker';
+import { paymentLabel, type PaymentMethod } from '../../lib/payment';
+import { TransferInfo } from '../../components/TransferInfo';
 
 type GuestFormErrors = {
   name?: string;
@@ -59,6 +62,7 @@ export function CheckoutPage() {
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [fulfillment, setFulfillment] = useState<Fulfillment>('delivery');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [branchId, setBranchId] = useState('');
   const [branchOptions, setBranchOptions] = useState<CheckoutBranchesResponse | null>(null);
   const [branchesLoading, setBranchesLoading] = useState(false);
@@ -431,7 +435,16 @@ export function CheckoutPage() {
                 <dt>Fecha</dt>
                 <dd>{formatDateTime(order.createdAt)}</dd>
               </div>
+              <div>
+                <dt>Pago</dt>
+                <dd>{paymentLabel(paymentMethod)}</dd>
+              </div>
             </dl>
+          {paymentMethod === 'transfer' ? (
+            <div className="checkout-block">
+              <TransferInfo amount={order.totalAmount} />
+            </div>
+          ) : null}
           </div>
 
           <div className="checkout-block">
@@ -599,6 +612,9 @@ export function CheckoutPage() {
               hint=""
               blockedReason={blockedReason}
             />
+          </div>
+          <div className="checkout-block">
+            <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
           </div>
           <div className="checkout-block">
           <OrderSummary
