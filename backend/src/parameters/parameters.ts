@@ -37,6 +37,15 @@ export const PARAMETERS = {
     max: 10,
     integer: false,
   },
+  delivery_price_per_km: {
+    label: 'Precio de envío por km',
+    description: 'Lo que se cobra por cada km de envío a domicilio, por cuadra (100 m) iniciada. 0 = envío gratis.',
+    unit: '$/km',
+    defaultValue: 0,
+    min: 0,
+    max: 1_000_000,
+    integer: false,
+  },
 } as const;
 
 export type ParameterKey = keyof typeof PARAMETERS;

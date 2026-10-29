@@ -45,6 +45,10 @@ export class ParametersService {
     return (await this.values()).coverage_radius_km;
   }
 
+  async deliveryPricePerKm() {
+    return (await this.values()).delivery_price_per_km;
+  }
+
   async etaSettings(): Promise<EtaSettings> {
     const values = await this.values();
     return {

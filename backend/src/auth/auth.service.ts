@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
@@ -23,6 +23,10 @@ export class AuthService {
     const matches = await passwordMatches(dto.password, user.passwordHash);
     if (!matches) {
       throw new UnauthorizedException('Credenciales inválidas');
+    }
+    // Recién después de validar la contraseña: así no se revela qué cuentas están deshabilitadas.
+    if (!user.active) {
+      throw new ForbiddenException('Tu cuenta está deshabilitada');
     }
 
     return this.tokenResponse(user);

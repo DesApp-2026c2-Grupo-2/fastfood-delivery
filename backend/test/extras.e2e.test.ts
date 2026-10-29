@@ -209,8 +209,9 @@ describe('POST /api/cart/items con adicionales', () => {
     expect(item.unitPrice).toBe(20000);
     expect(item.extras).toEqual(
       expect.arrayContaining([
-        { id: bacon.id, name: bacon.name, price: 2000, available: true },
-        { id: cheddar.id, name: cheddar.name, price: 1500, available: true },
+        // Los adicionales de prueba no tienen foto.
+        { id: bacon.id, name: bacon.name, price: 2000, available: true, imageUrl: null },
+        { id: cheddar.id, name: cheddar.name, price: 1500, available: true, imageUrl: null },
       ]),
     );
     expect(item.extrasTotal).toBe(3500);

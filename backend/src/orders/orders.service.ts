@@ -4,6 +4,7 @@ import { AddressesService } from '../addresses/addresses.service';
 import { JwtPayload } from '../auth/jwt-payload';
 import { BranchesService } from '../branches/branches.service';
 import { CartService } from '../cart/cart.service';
+import { DeliveryFeesService, feeForDistance } from '../delivery-fees/delivery-fees.service';
 import { byName, ExtrasService } from '../extras/extras.service';
 import { ParametersService } from '../parameters/parameters.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -76,16 +77,23 @@ function cartLines(cart: CartWithItems) {
   }));
 }
 
+<<<<<<< HEAD
 // Importes del pedido. Mantiene la firma esperada por las suites de pruebas de ciclo de vida.
+=======
+// Importes del pedido. Los pedidos anteriores a las promos tienen subtotal = total y descuento 0;
+// los anteriores al costo de envío, y los de retiro, tienen envío 0.
+>>>>>>> 932a15cdcc68e266171fd8814719fa3b3f27b57a
 function pricing(order: {
   subtotal: Prisma.Decimal;
   discountAmount: Prisma.Decimal;
+  deliveryFee: Prisma.Decimal;
   totalAmount: Prisma.Decimal;
   promotionName: string | null;
 }) {
   return {
     subtotal: Number(order.subtotal),
     discountAmount: Number(order.discountAmount),
+    deliveryFee: Number(order.deliveryFee),
     totalAmount: Number(order.totalAmount),
     promotionName: order.promotionName,
   };
@@ -300,6 +308,7 @@ export class OrdersService {
     private readonly addressesService: AddressesService,
     private readonly branchesService: BranchesService,
     private readonly cartService: CartService,
+    private readonly deliveryFeesService: DeliveryFeesService,
     private readonly extrasService: ExtrasService,
     private readonly orderEvents: OrderEvents,
     private readonly parametersService: ParametersService,
@@ -322,6 +331,7 @@ export class OrdersService {
     );
     const lines = cartLines(cart);
     const createdAt = new Date();
+<<<<<<< HEAD
     // La promo vigente contempla promociones generales, podio Top 3 y premio por fidelidad.
     const price = await this.promotionsService.apply(
       linesSubtotal(lines),
@@ -329,6 +339,11 @@ export class OrdersService {
       createdAt,
       userId,
     );
+=======
+    // La promo vigente se aplica al confirmar (HU-21); no depende de la sucursal ni del tipo de entrega.
+    const price = await this.promotionsService.apply(linesSubtotal(lines), promotionLines(lines), createdAt);
+    const deliveryFee = await this.deliveryFeesService.feeFor(dto.fulfillment, distanceKm);
+>>>>>>> 932a15cdcc68e266171fd8814719fa3b3f27b57a
     const estimatedDeliveryAt = estimateDeliveryAt(
       createdAt,
       cart.items.reduce((sum, item) => sum + item.quantity, 0),
@@ -347,7 +362,7 @@ export class OrdersService {
           branchId: branch.id,
           fulfillment: dto.fulfillment,
           addressId: address?.id ?? null,
-          ...this.priceData(price),
+          ...this.priceData(price, deliveryFee),
           status: 'pending',
           createdAt,
           estimatedDeliveryAt,
@@ -404,6 +419,7 @@ export class OrdersService {
     );
     const createdAt = new Date();
     const price = await this.promotionsService.apply(linesSubtotal(lines), promotionLines(lines), createdAt);
+    const deliveryFee = await this.deliveryFeesService.feeFor(dto.fulfillment, distanceKm);
     const estimatedDeliveryAt = estimateDeliveryAt(
       createdAt,
       lines.reduce((sum, line) => sum + line.quantity, 0),
@@ -432,7 +448,7 @@ export class OrdersService {
           branchId: branch.id,
           fulfillment: dto.fulfillment,
           addressId: address?.id ?? null,
-          ...this.priceData(price),
+          ...this.priceData(price, deliveryFee),
           status: 'pending',
           createdAt,
           estimatedDeliveryAt,
@@ -492,6 +508,7 @@ export class OrdersService {
       offered.map(({ branch }) => branch.id),
       units,
     );
+    const pricePerKm = dto.fulfillment === Fulfillment.delivery ? await this.deliveryFeesService.pricePerKm() : 0;
 
     const rows = offered.map(({ branch, distanceKm, withinRadius }) => {
       const missing = shortages.get(branch.id) ?? [];
@@ -505,6 +522,8 @@ export class OrdersService {
         longitude: Number(branch.longitude),
         distanceKm: distanceKm === null ? null : Math.round(distanceKm * 100) / 100,
         withinRadius,
+        // Lo que se cobraría de envío desde esta sucursal. En domicilio siempre hay distancia; retiro, 0.
+        deliveryFee: distanceKm === null ? 0 : feeForDistance(pricePerKm, distanceKm),
         canFulfill: missing.length === 0,
         missing: missing.map((line) => ({
           productId: line.productId,
@@ -706,6 +725,7 @@ export class OrdersService {
     return cartLines(await this.loadCart(user.sub));
   }
 
+<<<<<<< HEAD
   private priceData(price: Awaited<ReturnType<PromotionsService['apply']>>) {
     const isVirtualPromo = price.promotion?.id.startsWith('loyalty-');
     return {
@@ -713,6 +733,17 @@ export class OrdersService {
       discountAmount: price.discountAmount,
       totalAmount: price.totalAmount,
       promotionId: isVirtualPromo ? null : (price.promotion?.id ?? null),
+=======
+  // Los importes que se guardan en el pedido. El nombre de la promo se copia. La promo descuenta solo
+  // los productos: el envío se suma después.
+  private priceData(price: Awaited<ReturnType<PromotionsService['apply']>>, deliveryFee: number) {
+    return {
+      subtotal: price.subtotal,
+      discountAmount: price.discountAmount,
+      deliveryFee,
+      totalAmount: Math.round((price.totalAmount + deliveryFee) * 100) / 100,
+      promotionId: price.promotion?.id ?? null,
+>>>>>>> 932a15cdcc68e266171fd8814719fa3b3f27b57a
       promotionName: price.promotion?.name ?? null,
     };
   }

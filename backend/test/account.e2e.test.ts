@@ -294,6 +294,7 @@ describe('Administradores (HU-16)', () => {
       id: expect.any(String),
       name: expect.any(String),
       email: ADMIN_EMAIL,
+      adminRole: 'super_admin',
       createdAt: expect.any(String),
       deletable: ADMIN_EMAIL.toLowerCase() !== 'admin@rapido.local',
     });
@@ -312,6 +313,7 @@ describe('Administradores (HU-16)', () => {
       id: expect.any(String),
       name: 'Carla Admin',
       email,
+      adminRole: 'super_admin',
       createdAt: expect.any(String),
       deletable: true,
     });
@@ -374,6 +376,7 @@ describe('Administradores (HU-16)', () => {
       id: created.body.id,
       name: 'Editado',
       email: nextEmail,
+      adminRole: 'super_admin',
       createdAt: expect.any(String),
       deletable: true,
     });

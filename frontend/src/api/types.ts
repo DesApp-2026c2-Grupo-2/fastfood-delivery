@@ -123,6 +123,8 @@ export type Order = {
   promotionName: string | null;
   promotionType?: 'percent' | 'two_for_one' | null;
   promotionValue?: number | null;
+  // Envío cobrado; 0 en retiro y en pedidos anteriores al costo de envío.
+  deliveryFee?: number;
   totalAmount: number;
   createdAt: string;
   guestName?: string | null;
@@ -257,6 +259,8 @@ export type CheckoutBranch = {
   longitude: number;
   distanceKm: number | null;
   withinRadius: boolean | null;
+  // Lo que se cobraría de envío desde esta sucursal (precio por km del admin). En retiro, 0.
+  deliveryFee: number;
   canFulfill: boolean;
   missing: CheckoutBranchMissing[];
 };

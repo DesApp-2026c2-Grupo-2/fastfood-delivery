@@ -461,6 +461,7 @@ export function CheckoutPage() {
             <PriceBreakdown
               subtotal={order.subtotal}
               discountAmount={order.discountAmount}
+              deliveryFee={order.address ? (order.deliveryFee ?? 0) : null}
               totalAmount={order.totalAmount}
               promotionName={order.promotionName}
               promotionType={order.promotionType}
@@ -487,6 +488,12 @@ export function CheckoutPage() {
         ? `Ninguna sucursal llega a esta dirección (radio de ${branchOptions.radiusKm.toLocaleString('es-AR')} km). Elegí otra dirección o pedí para retirar.`
         : 'No hay sucursales activas en este momento.';
   }
+
+  // El envío de la sucursal elegida, el mismo que se cobra al confirmar. Retiro no tiene línea de envío.
+  const selectedDeliveryFee =
+    branchOptions?.fulfillment === 'delivery'
+      ? (branchOptions.branches.find((branch) => branch.id === branchId)?.deliveryFee ?? null)
+      : null;
 
   return (
     <section className="stack checkout-page">
@@ -597,6 +604,7 @@ export function CheckoutPage() {
           <OrderSummary
             cart={cart}
             quote={quote}
+            deliveryFee={selectedDeliveryFee}
             saving={saving}
             shortages={stockError?.items ?? []}
             blockedReason={blockedReason}
@@ -707,6 +715,7 @@ export function CheckoutPage() {
             <OrderSummary
               cart={cart}
               quote={quote}
+              deliveryFee={selectedDeliveryFee}
               saving={saving}
               shortages={stockError?.items ?? []}
               blockedReason={blockedReason}
@@ -799,6 +808,11 @@ function BranchPicker({
               {branch.distanceKm !== null ? (
                 <span className="checkout-choice-meta">{formatDistance(branch.distanceKm)}</span>
               ) : null}
+              {options.fulfillment === 'delivery' ? (
+                <span className="checkout-choice-meta">
+                  · Envío {branch.deliveryFee > 0 ? formatPrice(branch.deliveryFee) : 'gratis'}
+                </span>
+              ) : null}
             </span>
             <span className="checkout-choice-meta">{branch.address}</span>
             {branch.canFulfill ? (
@@ -818,6 +832,7 @@ function BranchPicker({
 function PriceBreakdown({
   subtotal,
   discountAmount,
+  deliveryFee,
   totalAmount,
   promotionName,
   promotionType,
@@ -825,13 +840,15 @@ function PriceBreakdown({
 }: {
   subtotal: number;
   discountAmount: number;
+  // null: no es a domicilio, no hay línea de envío.
+  deliveryFee: number | null;
   totalAmount: number;
   promotionName?: string | null;
   promotionType?: 'percent' | 'two_for_one' | null;
   promotionValue?: number | null;
 }) {
   const caption = discountCaption({ name: promotionName, type: promotionType, value: promotionValue });
-  if (!discountAmount) {
+  if (!discountAmount && deliveryFee === null) {
     return (
       <p className="total-row">
         <span>Total</span>
@@ -845,13 +862,21 @@ function PriceBreakdown({
         <span>Subtotal</span>
         <strong>{formatPrice(subtotal)}</strong>
       </p>
-      <p className="total-row total-row--detail">
-        <span className="total-discount">
-          <span>Descuento</span>
-          {caption ? <small>{caption}</small> : null}
-        </span>
-        <strong>−{formatPrice(discountAmount)}</strong>
-      </p>
+      {discountAmount ? (
+        <p className="total-row total-row--detail">
+          <span className="total-discount">
+            <span>Descuento</span>
+            {caption ? <small>{caption}</small> : null}
+          </span>
+          <strong>−{formatPrice(discountAmount)}</strong>
+        </p>
+      ) : null}
+      {deliveryFee !== null ? (
+        <p className="total-row total-row--detail">
+          <span>Envío</span>
+          <strong>{deliveryFee > 0 ? formatPrice(deliveryFee) : 'Gratis'}</strong>
+        </p>
+      ) : null}
       <p className="total-row">
         <span>Total</span>
         <strong>{formatPrice(totalAmount)}</strong>
@@ -863,16 +888,21 @@ function PriceBreakdown({
 function OrderSummary({
   cart,
   quote,
+  deliveryFee,
   saving,
   shortages,
   blockedReason,
 }: {
   cart: Cart;
   quote: PromotionQuote | null;
+  deliveryFee: number | null;
   saving: boolean;
   shortages: OutOfStockItem[];
   blockedReason: string;
 }) {
+  // Igual que al confirmar: total con descuento + envío, redondeado a centavos.
+  const itemsTotal = quote?.totalAmount ?? cart.total;
+  const totalAmount = Math.round((itemsTotal + (deliveryFee ?? 0)) * 100) / 100;
   return (
     <>
       <h2>Resumen</h2>
@@ -910,7 +940,8 @@ function OrderSummary({
       <PriceBreakdown
         subtotal={quote?.subtotal ?? cart.total}
         discountAmount={quote?.discountAmount ?? 0}
-        totalAmount={quote?.totalAmount ?? cart.total}
+        deliveryFee={deliveryFee}
+        totalAmount={totalAmount}
         promotionName={quote?.promotion?.name}
         promotionType={quote?.promotion?.type}
         promotionValue={quote?.promotion?.value}

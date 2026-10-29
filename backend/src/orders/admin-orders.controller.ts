@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
 import { Request } from 'express';
-import { AdminGuard } from '../auth/admin.guard';
+import { AdminGuard, AllowOrdersViewer } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { JwtPayload } from '../auth/jwt-payload';
 import { ChangeOrderStatusDto } from './dto/change-order-status.dto';
@@ -14,7 +14,9 @@ type AuthedRequest = Request & { user: JwtPayload };
 export class AdminOrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
+  // Consultar pedidos también lo puede hacer el rol orders_viewer; cambiar estados, solo super_admin.
   @Get()
+  @AllowOrdersViewer()
   findAll(
     @Query('status') status?: OrderStatus,
     @Query('code') code?: string,
@@ -27,6 +29,7 @@ export class AdminOrdersController {
   }
 
   @Get(':id')
+  @AllowOrdersViewer()
   findOne(@Param('id') id: string) {
     return this.ordersService.findOneAdmin(id);
   }
