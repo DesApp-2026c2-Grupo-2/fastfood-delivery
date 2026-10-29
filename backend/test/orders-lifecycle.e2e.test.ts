@@ -6,6 +6,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaExceptionFilter } from '../src/common/prisma-exception.filter';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { branchCodePrefix } from '../src/orders/order-code';
 import { coveringBranchId } from './support/covering-branch';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@rapido.local';
@@ -223,6 +224,7 @@ describe('GET /api/orders', () => {
       createdAt: expect.any(String),
       branch: { id: expect.any(String), name: expect.any(String) },
       itemCount: 1,
+      loyaltyStampGranted: expect.any(Boolean),
       estimatedDeliveryAt: expect.any(String),
       etaMinutes: expect.any(Number),
       delayMinutes: 0,
@@ -242,6 +244,9 @@ describe('GET /api/orders/:id', () => {
     const response = await request(server).get(`/api/orders/${orderId}`).set(auth(ana.token));
 
     expect(response.status).toBe(200);
+    expect(response.body.code).toMatch(/^[A-Z]{3}\d{6}$/);
+    expect(response.body.code.startsWith(branchCodePrefix(response.body.branch.name))).toBe(true);
+    expect(Number(response.body.code.slice(3))).toBeGreaterThanOrEqual(100000);
     expect(response.body).toMatchObject({
       id: orderId,
       status: 'pending',

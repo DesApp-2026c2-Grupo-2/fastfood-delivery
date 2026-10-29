@@ -15,6 +15,7 @@ import { OrderDetailPage } from './pages/client/OrderDetailPage';
 import { OrdersPage } from './pages/client/OrdersPage';
 import { ProductDetailPage } from './pages/client/ProductDetailPage';
 import { ProductListPage } from './pages/client/ProductListPage';
+import { PromotionsPage } from './pages/client/PromotionsPage';
 import { RegisterPage } from './pages/client/RegisterPage';
 import { ResetPasswordPage } from './pages/client/ResetPasswordPage';
 
@@ -32,8 +33,10 @@ export default function App() {
             <Route path="/products" element={<ProductListPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/terminos" element={<TermsPage />} />
+            <Route path="/promociones" element={<PromotionsPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/checkout/pedido/:orderId" element={<CheckoutPage />} />
             <Route path="/branches" element={<BranchesPage />} />
             <Route element={<RequireCustomer />}>
               <Route path="/account" element={<AccountPage />} />

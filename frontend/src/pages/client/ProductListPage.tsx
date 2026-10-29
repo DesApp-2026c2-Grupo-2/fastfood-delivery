@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Category, Product } from '../../api/types';
 import { ProductTags, PromoBadge } from '../../components/ProductTags';
+import { PromoBanner } from '../../components/PromoBanner';
 import { mediaUrl } from '../../lib/media';
 import { formatPrice } from '../../lib/money';
+import { useAutoClear } from '../../lib/useAutoClear';
 
 const MENU_CATEGORY_ORDER = ['hamburguesas', 'guarnicion', 'bebidas', 'aderezos'];
 
@@ -26,6 +28,11 @@ function menuCategories(categoryList: Category[]) {
 }
 
 export function ProductListPage() {
+  const location = useLocation();
+  const [notice, setNotice] = useState(
+    (location.state as { notice?: string } | null)?.notice ?? '',
+  );
+  useAutoClear(notice, () => setNotice(''));
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryId = searchParams.get('categoryId') ?? '';
   const [categories, setCategories] = useState<Category[]>([]);
@@ -76,10 +83,16 @@ export function ProductListPage() {
 
   return (
     <section>
+      <PromoBanner />
       <h1>Productos</h1>
       <p className="muted">
         Cositas ricas{selectedName ? ` · ${selectedName}` : ' para pedir'}.
       </p>
+      {notice ? (
+        <p className="success" role="status">
+          {notice}
+        </p>
+      ) : null}
 
       <div className="filters">
         <button

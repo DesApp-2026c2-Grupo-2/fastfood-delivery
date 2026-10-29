@@ -5,6 +5,7 @@ import { useOrderStatusEvents } from '../../api/order-events';
 import {
   ORDER_STATUS_LABEL,
   ORDER_STATUSES,
+  orderStatusLabel,
   type AdminOrderListItem,
   type AdminOrderListResponse,
   type OrderStatus,
@@ -169,7 +170,7 @@ export function AdminOrdersPage() {
           <input
             value={codeInput}
             onChange={(event) => setCodeInput(event.target.value)}
-            placeholder="Código completo"
+            placeholder="Ej. 482913"
             type="search"
             autoComplete="off"
           />
@@ -254,7 +255,7 @@ export function AdminOrdersPage() {
                 return (
                 <tr key={order.id} className="orders-table-row" onClick={openDetail}>
                   <td>
-                    <OrderCode id={order.id} to={`/admin/orders/${order.id}`} state={{ listSearch }} />
+                    <OrderCode id={order.id} code={order.code} to={`/admin/orders/${order.id}`} state={{ listSearch }} />
                     <p className="table-slug muted">{order.itemCount} ítems</p>
                   </td>
                   <td>
@@ -263,9 +264,12 @@ export function AdminOrdersPage() {
                   </td>
                   <td>{order.branch.name}</td>
                   <td>
-                    <span className={`badge badge-status badge-status--${order.status}`}>
-                      {ORDER_STATUS_LABEL[order.status]}
-                    </span>
+                    <div className="order-status-marks">
+                      {order.fulfillment === 'pickup' ? <span className="pickup-badge">Retiro</span> : null}
+                      <span className={`badge badge-status badge-status--${order.status}`}>
+                        {orderStatusLabel(order.status, order.fulfillment)}
+                      </span>
+                    </div>
                     {timing.delay ? <p className="table-slug"><span className="badge badge-delay">{timing.delay}</span></p> : null}
                     {timing.eta ? <p className="table-slug muted">{timing.eta}</p> : null}
                   </td>
@@ -286,10 +290,13 @@ export function AdminOrdersPage() {
             return (
             <li key={order.id} className="order-card">
               <div className="order-card-top">
-                <OrderCode id={order.id} to={`/admin/orders/${order.id}`} state={{ listSearch }} />
-                <span className={`badge badge-status badge-status--${order.status}`}>
-                  {ORDER_STATUS_LABEL[order.status]}
-                </span>
+                <OrderCode id={order.id} code={order.code} to={`/admin/orders/${order.id}`} state={{ listSearch }} />
+                <div className="order-status-marks">
+                  {order.fulfillment === 'pickup' ? <span className="pickup-badge">Retiro</span> : null}
+                  <span className={`badge badge-status badge-status--${order.status}`}>
+                    {orderStatusLabel(order.status, order.fulfillment)}
+                  </span>
+                </div>
               </div>
               <Link className="order-card-body" to={`/admin/orders/${order.id}`} state={{ listSearch }}>
                 <p className="muted">

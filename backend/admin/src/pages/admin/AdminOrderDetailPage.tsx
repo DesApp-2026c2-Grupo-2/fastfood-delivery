@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import { useOrderStatusEvents } from '../../api/order-events';
-import { ORDER_STATUS_LABEL, type AdminOrderDetail, type OrderStatus } from '../../api/types';
+import { orderStatusLabel, type AdminOrderDetail, type OrderStatus } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { OrderCode } from '../../components/OrderCode';
@@ -120,15 +120,18 @@ export function AdminOrderDetailPage() {
       <header className="page-head">
         <div>
           <h1 className="order-title">
-            Pedido <OrderCode id={order.id} wrap />
+            Pedido <OrderCode id={order.id} code={order.code} wrap />
           </h1>
           <p className="muted">{formatWhen(order.createdAt)}</p>
           {timing.eta ? <p className="muted">{timing.eta}</p> : null}
           {timing.delay ? <p className="badge badge-delay">{timing.delay}</p> : null}
         </div>
-        <span className={`badge badge-status badge-status--${order.status}`}>
-          {ORDER_STATUS_LABEL[order.status]}
-        </span>
+        <div className="order-status-marks">
+          {order.fulfillment === 'pickup' ? <span className="pickup-badge">Retiro</span> : null}
+          <span className={`badge badge-status badge-status--${order.status}`}>
+            {orderStatusLabel(order.status, order.fulfillment)}
+          </span>
+        </div>
       </header>
 
       {error ? (
@@ -148,7 +151,7 @@ export function AdminOrderDetailPage() {
               setPendingStatus(forward);
             }}
           >
-            Pasar a {ORDER_STATUS_LABEL[forward]}
+            Pasar a {orderStatusLabel(forward, order.fulfillment)}
           </button>
         ) : null}
         {canCancel ? (
@@ -247,7 +250,7 @@ export function AdminOrderDetailPage() {
           <ol className="order-timeline">
             {order.history.map((event) => (
               <li key={event.id}>
-                <strong>{ORDER_STATUS_LABEL[event.status]}</strong>
+                <strong>{orderStatusLabel(event.status, order.fulfillment)}</strong>
                 <p className="muted">
                   {formatWhen(event.changedAt)} · {event.changedByName}
                 </p>
@@ -262,10 +265,10 @@ export function AdminOrderDetailPage() {
           message={
             pendingStatus === 'cancelled'
               ? 'El pedido se cancela y no se puede volver atrás.'
-              : `El pedido pasa a ${ORDER_STATUS_LABEL[pendingStatus]}. Este paso no se puede deshacer.`
+              : `El pedido pasa a ${orderStatusLabel(pendingStatus, order.fulfillment)}. Este paso no se puede deshacer.`
           }
           confirmLabel={
-            pendingStatus === 'cancelled' ? 'Cancelar pedido' : `Pasar a ${ORDER_STATUS_LABEL[pendingStatus]}`
+            pendingStatus === 'cancelled' ? 'Cancelar pedido' : `Pasar a ${orderStatusLabel(pendingStatus, order.fulfillment)}`
           }
           busyLabel="Guardando…"
           busy={saving}

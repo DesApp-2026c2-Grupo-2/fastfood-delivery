@@ -261,3 +261,25 @@ describe('PATCH /api/admin/customers/:id/status (baja lógica)', () => {
     expect((await setStatus(admin.id, false)).status).toBe(404);
   });
 });
+
+describe('POST /api/admin/customers', () => {
+  it('crea un cliente que puede entrar, y rechaza un email repetido', async () => {
+    const email = uniqueEmail('alta');
+    const created = await request(server)
+      .post('/api/admin/customers')
+      .set(auth(adminToken))
+      .send({ name: '  Cliente Alta  ', email: email.toUpperCase(), password: PASSWORD });
+
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({ name: 'Cliente Alta', email, active: true, orderCount: 0 });
+
+    const login = await request(server).post('/api/auth/login').send({ email, password: PASSWORD });
+    expect(login.status).toBe(201);
+
+    const duplicate = await request(server)
+      .post('/api/admin/customers')
+      .set(auth(adminToken))
+      .send({ name: 'Otro', email, password: PASSWORD });
+    expect(duplicate.status).toBe(409);
+  });
+});

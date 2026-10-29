@@ -1,26 +1,30 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ApiError, api } from '../../api/client';
+import { isStatusBehind, useOrderStatusEvents } from '../../api/order-events';
 import type {
   Address,
   Cart,
   CheckoutBranchesResponse,
   Fulfillment,
   Order,
+  Product,
   PromotionQuote,
   OutOfCoverageError,
   OutOfStockError,
   OutOfStockItem,
 } from '../../api/types';
 import { useCart } from '../../cart/CartContext';
-import { getToken, isCustomer } from '../../auth/session';
-import { clearGuestCart, getGuestCart, hydrateGuestCart } from '../../cart/guestCart';
+import { getToken, getUserId, isCustomer } from '../../auth/session';
+import { clearGuestCart, getGuestCart, guestOrderItem, hydrateGuestCart } from '../../cart/guestCart';
 import { LineExtras } from '../../components/LineExtras';
+import { PromotionOffers } from '../../components/PromotionOffers';
 import { LoyaltyStampsCard } from '../../components/LoyaltyStampsCard';
 import { parseNotesAndExtras } from '../../lib/cart-notes';
 import { discountCaption } from '../../lib/discount-label';
 import { formatDateTime, formatPrice } from '../../lib/money';
 import { mediaUrl } from '../../lib/media';
+import { orderStatusHint, orderStatusLabel } from '../../lib/order-status';
 import { AddressLocationPicker } from '../../components/AddressLocationPicker';
 import { PaymentMethodPicker } from '../../components/PaymentMethodPicker';
 import { paymentLabel, type PaymentMethod } from '../../lib/payment';
@@ -49,9 +53,55 @@ function parseCoordinate(value: string, min: number, max: number): number | null
   return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : null;
 }
 
+
+function confirmedKey(orderId: string) {
+  return `mordi.confirmed-order.${orderId}`;
+}
+
+function readConfirmed(orderId: string): { order: Order; paymentMethod: PaymentMethod } | null {
+  try {
+    const raw = sessionStorage.getItem(confirmedKey(orderId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { order?: Order; paymentMethod?: PaymentMethod };
+    if (!parsed.order || parsed.order.id !== orderId) return null;
+    return { order: parsed.order, paymentMethod: parsed.paymentMethod ?? 'cash' };
+  } catch {
+    return null;
+  }
+}
+
+function rememberConfirmed(order: Order, paymentMethod: PaymentMethod) {
+  sessionStorage.setItem(confirmedKey(order.id), JSON.stringify({ order, paymentMethod }));
+}
+
+function withExtraImages(order: Order, products: Product[]): Order {
+  if (products.length === 0) return order;
+  return {
+    ...order,
+    items: order.items.map((item) => ({
+      ...item,
+      extras: (item.extras ?? []).map((extra) => {
+        const matched = products.find(
+          (product) =>
+            product.id === extra.id ||
+            product.name.toLowerCase().trim() === extra.name.toLowerCase().trim(),
+        );
+        return {
+          ...extra,
+          imageUrl: extra.imageUrl || matched?.imageUrl || matched?.images?.[0]?.url || null,
+        };
+      }),
+    })),
+  };
+}
+
 export function CheckoutPage() {
+  const { orderId } = useParams();
+  const navigate = useNavigate();
+  const savedConfirmation = orderId ? readConfirmed(orderId) : null;
   const loggedIn = isCustomer();
   const token = getToken() ?? '';
+  const userId = getUserId();
   const { refresh } = useCart();
   const [cart, setCart] = useState<Cart | null>(null);
   const [quote, setQuote] = useState<PromotionQuote | null>(null);
@@ -63,12 +113,14 @@ export function CheckoutPage() {
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [fulfillment, setFulfillment] = useState<Fulfillment>('delivery');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(savedConfirmation?.paymentMethod ?? 'cash');
   const [branchId, setBranchId] = useState('');
   const [branchOptions, setBranchOptions] = useState<CheckoutBranchesResponse | null>(null);
   const [branchesLoading, setBranchesLoading] = useState(false);
   const [branchesError, setBranchesError] = useState('');
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<Order | null>(savedConfirmation?.order ?? null);
+  const [catalog, setCatalog] = useState<Product[]>([]);
+  const [orderError, setOrderError] = useState('');
   const [error, setError] = useState('');
   const [coverageError, setCoverageError] = useState<OutOfCoverageError | null>(null);
   const [stockError, setStockError] = useState<OutOfStockError | null>(null);
@@ -111,6 +163,101 @@ export function CheckoutPage() {
     };
   }, [loggedIn, token]);
 
+  useEffect(() => {
+    if (!orderId) return;
+    const id = orderId;
+    let cancelled = false;
+
+    async function loadConfirmed() {
+      const saved = readConfirmed(id);
+      try {
+        if (isCustomer()) {
+          const fresh = await api<Order>(`/orders/${id}`, { token: getToken() ?? '', cache: 'no-store' });
+          if (cancelled) return;
+          const next = { ...fresh, loyalty: fresh.loyalty ?? saved?.order.loyalty };
+          setOrder((current) => ({ ...next, loyalty: next.loyalty ?? current?.loyalty }));
+          rememberConfirmed(next, saved?.paymentMethod ?? 'cash');
+          return;
+        }
+        if (!saved) {
+          if (!cancelled) setOrderError('No encontramos este pedido en este dispositivo.');
+          return;
+        }
+        const status = await api<{ status: string }>(`/orders/${id}/status`);
+        if (cancelled) return;
+        setOrder((current) => {
+          const base = current ?? saved.order;
+          if (isStatusBehind(status.status, base.status)) return base;
+          return { ...base, status: status.status };
+        });
+      } catch (err) {
+        if (cancelled || saved) return;
+        setOrderError(err instanceof Error ? err.message : 'No se pudo cargar el pedido');
+      }
+    }
+
+    void loadConfirmed();
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId]);
+
+  const orderTerminal = order?.status === 'delivered' || order?.status === 'cancelled';
+
+  useEffect(() => {
+    if (!orderId || orderTerminal) return;
+    const id = orderId;
+    const interval = setInterval(() => {
+      if (isCustomer()) {
+        void api<Order>(`/orders/${id}`, { token: getToken() ?? '', cache: 'no-store' })
+          .then((fresh) => {
+            setOrder((current) => {
+              if (!current || isStatusBehind(fresh.status, current.status)) return current;
+              return { ...fresh, loyalty: fresh.loyalty ?? current.loyalty };
+            });
+          })
+          .catch(() => {
+            /* el próximo intento vuelve a pedir el estado */
+          });
+        return;
+      }
+      void api<{ status: string }>(`/orders/${id}/status`, { cache: 'no-store' })
+        .then((fresh) => {
+          setOrder((current) => {
+            if (!current || isStatusBehind(fresh.status, current.status)) return current;
+            return { ...current, status: fresh.status };
+          });
+        })
+        .catch(() => {
+          /* el próximo intento vuelve a pedir el estado */
+        });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [orderId, orderTerminal]);
+
+  useOrderStatusEvents(token, userId, (event) => {
+    if (!orderId || event.orderId !== orderId) return;
+    setOrder((current) => {
+      if (!current || isStatusBehind(event.status, current.status)) return current;
+      return { ...current, status: event.status };
+    });
+  });
+
+  useEffect(() => {
+    if (!order) return;
+    let cancelled = false;
+    api<Product[]>('/products')
+      .then((products) => {
+        if (!cancelled) setCatalog(products);
+      })
+      .catch(() => {
+        if (!cancelled) setCatalog([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [order?.id]);
+
   // La misma regla que se aplica al confirmar: porcentual del pedido o 2x1 del producto.
   useEffect(() => {
     if (loading || !cart || cart.items.length === 0) {
@@ -121,11 +268,7 @@ export function CheckoutPage() {
     const body = loggedIn
       ? {}
       : {
-          items: cart.items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            notes: item.notes,
-          })),
+          items: cart.items.map(guestOrderItem),
         };
     api<PromotionQuote>('/promotions/quote', { method: 'POST', token, body: JSON.stringify(body) })
       .then((next) => {
@@ -155,11 +298,7 @@ export function CheckoutPage() {
         body.addressId = addressId;
       }
     } else {
-      body.items = cart.items.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        notes: item.notes,
-      }));
+      body.items = cart.items.map(guestOrderItem);
       if (fulfillment === 'delivery') {
         const lat = parseCoordinate(latitude, -90, 90);
         const lng = parseCoordinate(longitude, -180, 180);
@@ -294,7 +433,8 @@ export function CheckoutPage() {
         }),
       });
       await refresh();
-      setOrder(created);
+      rememberConfirmed(created, paymentMethod);
+      navigate(`/checkout/pedido/${created.id}`, { replace: true });
     } catch (err) {
       showConfirmError(err);
     } finally {
@@ -371,16 +511,13 @@ export function CheckoutPage() {
                 longitude: Number(longitude),
               }
             : {}),
-          items: current.items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            notes: item.notes,
-          })),
+          items: current.items.map(guestOrderItem),
         }),
       });
       clearGuestCart();
       await refresh();
-      setOrder(created);
+      rememberConfirmed(created, paymentMethod);
+      navigate(`/checkout/pedido/${created.id}`, { replace: true });
     } catch (err) {
       showConfirmError(err);
     } finally {
@@ -388,7 +525,17 @@ export function CheckoutPage() {
     }
   }
 
-  if (loading) return <p className="muted">Cargando…</p>;
+  if (loading && !order && !orderId) return <p className="muted">Cargando…</p>;
+
+  if (orderId && !order) {
+    return (
+      <section className="stack">
+        <p className={orderError ? 'error' : 'muted'} role={orderError ? 'alert' : undefined}>
+          {orderError || 'Cargando el pedido…'}
+        </p>
+      </section>
+    );
+  }
 
   if (order) {
     return (
@@ -399,8 +546,13 @@ export function CheckoutPage() {
         <div className="card form checkout order-confirmed">
           <div className="checkout-block">
             <div className="checkout-receive">
-              <span className="badge badge--pending">Pendiente</span>
-              <p className="muted">Quedó registrado. Te avisamos cuando avance.</p>
+              <div className="order-status-marks">
+                {order.fulfillment === 'pickup' ? <span className="pickup-badge">Retiro</span> : null}
+                <span className={`badge badge--${order.status}`}>
+                  {orderStatusLabel(order.status, order.fulfillment)}
+                </span>
+              </div>
+              <p className="muted">{orderStatusHint(order.status, order.fulfillment)}</p>
             </div>
           </div>
 
@@ -415,7 +567,7 @@ export function CheckoutPage() {
             <dl className="order-confirmed-facts">
               <div className="is-wide">
                 <dt>Código</dt>
-                <dd className="order-id">{order.id}</dd>
+                <dd className="order-public-code">{order.code ? `#${order.code}` : order.id}</dd>
               </div>
               {order.guestName ? (
                 <div className="is-wide">
@@ -457,7 +609,7 @@ export function CheckoutPage() {
           <div className="checkout-block">
             <h2>Resumen</h2>
             <ul className="order-items">
-              {order.items.map((item) => {
+              {withExtraImages(order, catalog).items.map((item) => {
                 const itemTotal = item.subtotal ?? item.quantity * item.unitPrice;
                 const note = parseNotesAndExtras(item.notes).kitchenNote;
                 return (
@@ -737,6 +889,9 @@ export function CheckoutPage() {
             />
           </div>
           <div className="checkout-block">
+            <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
+          </div>
+          <div className="checkout-block">
             <OrderSummary
               cart={cart}
               quote={quote}
@@ -859,6 +1014,7 @@ function PriceBreakdown({
   discountAmount,
   deliveryFee,
   totalAmount,
+  promotionId,
   promotionName,
   promotionType,
   promotionValue,
@@ -868,11 +1024,12 @@ function PriceBreakdown({
   // null: no es a domicilio, no hay línea de envío.
   deliveryFee: number | null;
   totalAmount: number;
+  promotionId?: string | null;
   promotionName?: string | null;
   promotionType?: 'percent' | 'two_for_one' | null;
   promotionValue?: number | null;
 }) {
-  const caption = discountCaption({ name: promotionName, type: promotionType, value: promotionValue });
+  const caption = discountCaption({ id: promotionId, name: promotionName, type: promotionType, value: promotionValue });
   if (!discountAmount && deliveryFee === null) {
     return (
       <p className="total-row">
@@ -962,11 +1119,13 @@ function OrderSummary({
           );
         })}
       </ul>
+      <PromotionOffers offers={quote?.offers} />
       <PriceBreakdown
         subtotal={quote?.subtotal ?? cart.total}
         discountAmount={quote?.discountAmount ?? 0}
         deliveryFee={deliveryFee}
         totalAmount={totalAmount}
+        promotionId={quote?.promotion?.id}
         promotionName={quote?.promotion?.name}
         promotionType={quote?.promotion?.type}
         promotionValue={quote?.promotion?.value}

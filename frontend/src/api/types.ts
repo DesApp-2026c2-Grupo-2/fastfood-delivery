@@ -5,6 +5,7 @@ export type LoyaltyProgress = {
   progress: number;
   ordersRequired: number;
   minOrderAmount: number;
+  active?: boolean;
   qualifiesThisOrder: boolean;
   rewardOnThisOrder: boolean;
 };
@@ -119,15 +120,26 @@ export type OrderItem = {
   extras?: OrderItemExtra[];
 };
 
+export type QuotedOffer = {
+  id: string;
+  name: string;
+  type: 'percent' | 'two_for_one';
+  value: number;
+  discountAmount: number;
+  applied: boolean;
+};
+
 export type PromotionQuote = {
   subtotal: number;
   discountAmount: number;
   totalAmount: number;
   promotion: { id: string; name: string; type: 'percent' | 'two_for_one'; value: number } | null;
+  offers?: QuotedOffer[];
 };
 
 export type Order = {
   id: string;
+  code?: string;
   status: string;
   fulfillment?: Fulfillment;
   subtotal: number;
@@ -159,11 +171,14 @@ export type Order = {
 // Lo que devuelve GET /orders (listado)
 export type OrderSummary = {
   id: string;
+  code?: string;
   status: string;
+  fulfillment?: Fulfillment;
   totalAmount: number;
   createdAt: string;
   branch: { id: string; name: string };
   itemCount: number;
+  loyaltyStampGranted?: boolean;
   estimatedDeliveryAt?: string | null;
   delayMinutes?: number | null;
 };

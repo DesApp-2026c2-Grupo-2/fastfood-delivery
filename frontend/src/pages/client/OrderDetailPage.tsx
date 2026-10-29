@@ -6,18 +6,10 @@ import type { OrderDetail, OrderStatus, Product } from '../../api/types';
 import { getToken, getUserId } from '../../auth/session';
 import { discountCaption } from '../../lib/discount-label';
 import { formatDateTime, formatPrice } from '../../lib/money';
+import { orderStatusLabel } from '../../lib/order-status';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import { LoyaltyStampsCard } from '../../components/LoyaltyStampsCard';
 import { mediaUrl } from '../../lib/media';
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendiente',
-  confirmed: 'Confirmado',
-  preparing: 'En preparación',
-  ready: 'Listo para entregar',
-  on_the_way: 'En camino',
-  delivered: 'Entregado',
-  cancelled: 'Cancelado',
-};
 
 function applyStatusEvent(order: OrderDetail | null, event: OrderStatusChangedEvent): OrderDetail | null {
   if (!order || isStatusBehind(event.status, order.status)) return order;
@@ -220,14 +212,19 @@ export function OrderDetailPage() {
           <div>
             <h1>Seguimiento de pedido</h1>
             <p className="tracking-code">
-              Código: <code>{order.id}</code>
+              Código: <strong className="order-public-code">{order.code ? `#${order.code}` : order.id}</strong>
             </p>
           </div>
-          <span className={`tracking-badge tracking-badge--${order.status}`}>
-            {STATUS_LABELS[order.status] ?? order.status}
-          </span>
+          <div className="order-status-marks">
+            {order.fulfillment === 'pickup' ? <span className="pickup-badge">Retiro</span> : null}
+            <span className={`tracking-badge tracking-badge--${order.status}`}>
+              {orderStatusLabel(order.status, order.fulfillment)}
+            </span>
+          </div>
         </header>
       </div>
+
+      {order.loyalty ? <LoyaltyStampsCard loyalty={order.loyalty} context="checkout" /> : null}
 
       {/* Bloque 1: Estado, ETA, Demora, Sucursal y Timeline */}
       <div className="tracking-card">
@@ -235,7 +232,7 @@ export function OrderDetailPage() {
           <div className="eta-block">
             <span className="banner-sublabel">Estado del pedido</span>
             <strong className={`eta-time tracking-headline tracking-headline--${order.status}`}>
-              {STATUS_LABELS[order.status] ?? order.status}
+              {orderStatusLabel(order.status, order.fulfillment)}
             </strong>
             {order.status === 'cancelled' ? null : !isTerminal ? (
               isDelayed ? (
@@ -287,7 +284,7 @@ export function OrderDetailPage() {
                     <div className="timeline-dot" />
                     <div className="timeline-info">
                       <span className="timeline-status">
-                        {STATUS_LABELS[h.status] ?? h.status}
+                        {orderStatusLabel(h.status, order.fulfillment)}
                       </span>
                       <small className="timeline-date">{formatDateTime(h.changedAt)}</small>
                     </div>

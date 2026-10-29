@@ -4,6 +4,10 @@ import { ORDER_STATUS_LABEL, type OrderStatus, type OrderStatusInfo, type System
 import { getToken } from '../../auth/session';
 import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
 
+function shownInParameters(parameter: SystemParameter) {
+  return !parameter.key.startsWith('loyalty_') && parameter.key !== 'top3_discount_percent';
+}
+
 function formatNumber(value: number) {
   return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 4 }).format(value);
 }
@@ -56,7 +60,7 @@ export function AdminParametersPage() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     const changes: Record<string, number> = {};
-    for (const parameter of parameters) {
+    for (const parameter of parameters.filter(shownInParameters)) {
       const raw = drafts[parameter.key] ?? '';
       const value = parseParameter(raw, parameter);
       if (value == null) {
@@ -108,7 +112,7 @@ export function AdminParametersPage() {
 
       {!loading && parameters.length > 0 ? (
         <form className="form" onSubmit={onSubmit} noValidate>
-          {parameters.map((parameter) => (
+          {parameters.filter(shownInParameters).map((parameter) => (
             <label key={parameter.key}>
               {parameter.label}
               <span className="param-input">

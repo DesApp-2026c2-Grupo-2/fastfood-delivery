@@ -42,7 +42,14 @@ export function TermsPage() {
 
         <h2>6. Tus datos</h2>
         <p>
-          Usamos tu nombre, tu email y tus direcciones solo para gestionar tus pedidos.
+          Mientras la cuenta está activa, usamos tu nombre, tu email y tus direcciones para
+          gestionar los pedidos.
+        </p>
+        <p>
+          Podés eliminar la cuenta desde Mi cuenta. Al hacerlo, tus datos se anonimizan: no
+          guardamos ni el nombre ni el email. El nombre queda como Usuario eliminado, el email
+          deja de existir en la cuenta y la contraseña deja de servir. Los pedidos que ya hiciste
+          se conservan.
         </p>
       </div>
     </section>

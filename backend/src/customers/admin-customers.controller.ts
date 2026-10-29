@@ -1,11 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CustomersService } from './customers.service';
+import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerStatusDto } from './dto/update-customer-status.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
-// Clientes desde el admin: consulta, edición y baja lógica. El alta la hace el cliente al registrarse.
+// Clientes desde el admin: alta, consulta, edición y baja lógica.
 @Controller('admin/customers')
 @UseGuards(JwtAuthGuard, AdminGuard)
 export class AdminCustomersController {
@@ -19,6 +20,11 @@ export class AdminCustomersController {
     @Query('page') page?: string,
   ) {
     return this.customersService.findAll({ q, withOrders, active, page });
+  }
+
+  @Post()
+  create(@Body() dto: CreateCustomerDto) {
+    return this.customersService.create(dto);
   }
 
   @Get(':id')

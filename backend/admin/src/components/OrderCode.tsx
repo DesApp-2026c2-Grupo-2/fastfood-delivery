@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 type OrderCodeProps = {
   id: string;
+  code?: string | null;
   to?: string;
   state?: unknown;
   /** En el detalle el id puede partirse si la columna es angosta. */
@@ -25,15 +26,16 @@ async function copyText(value: string) {
   area.remove();
 }
 
-export function OrderCode({ id, to, state, wrap = false }: OrderCodeProps) {
+export function OrderCode({ id, code, to, state, wrap = false }: OrderCodeProps) {
   const [copied, setCopied] = useState(false);
-  const label = `#${id}`;
+  const shown = code || id;
+  const label = `#${shown}`;
 
   async function copy(event: { preventDefault(): void; stopPropagation(): void }) {
     event.preventDefault();
     event.stopPropagation();
     try {
-      await copyText(id);
+      await copyText(shown);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
@@ -46,11 +48,11 @@ export function OrderCode({ id, to, state, wrap = false }: OrderCodeProps) {
   return (
     <span className="order-code">
       {to ? (
-        <Link className={className} to={to} state={state} title={id}>
+        <Link className={className} to={to} state={state} title={shown}>
           {label}
         </Link>
       ) : (
-        <span className={className} title={id}>
+        <span className={className} title={shown}>
           {label}
         </span>
       )}

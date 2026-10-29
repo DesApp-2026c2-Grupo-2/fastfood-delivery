@@ -10,4 +10,9 @@ export class PromotionsController {
   banner() {
     return this.promotionsService.banner();
   }
+
+  @Get('active')
+  active() {
+    return this.promotionsService.publicSummary();
+  }
 }

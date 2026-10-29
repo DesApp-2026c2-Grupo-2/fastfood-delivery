@@ -30,6 +30,11 @@ export class OrdersController {
     return this.ordersService.findAllForUser(req.user.sub);
   }
 
+  @Get(':id/status')
+  findStatus(@Param('id') id: string) {
+    return this.ordersService.findStatus(id);
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard, CustomerGuard)
   findOne(@Req() req: AuthedRequest, @Param('id') id: string) {

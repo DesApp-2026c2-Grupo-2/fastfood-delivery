@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { OrderStatus, Prisma, Role } from '@prisma/client';
+import { hashPassword } from '../auth/password';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 const CUSTOMER_PAGE_SIZE = 20;
@@ -63,6 +65,21 @@ export class CustomersService {
       page,
       pageSize: CUSTOMER_PAGE_SIZE,
     };
+  }
+
+  async create(dto: CreateCustomerDto) {
+    await this.assertEmailAvailable(dto.email);
+    const created = await this.prisma.user.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        passwordHash: await hashPassword(dto.password),
+        role: Role.customer,
+        active: true,
+      },
+      select: customerSelect,
+    });
+    return this.serialize(created);
   }
 
   async findOne(id: string) {
@@ -162,9 +179,12 @@ export class CustomersService {
   }
 
   // El email no se repite entre clientes y admins (D9).
-  private async assertEmailAvailable(email: string, excludeId: string) {
+  private async assertEmailAvailable(email: string, excludeId?: string) {
     const existing = await this.prisma.user.findFirst({
-      where: { email: { equals: email, mode: 'insensitive' }, NOT: { id: excludeId } },
+      where: {
+        email: { equals: email, mode: 'insensitive' },
+        ...(excludeId ? { NOT: { id: excludeId } } : {}),
+      },
       select: { id: true },
     });
     if (existing) {

@@ -28,6 +28,15 @@ let branch: { id: string };
 let burger: { id: string };
 let preexistingActive: string[] = [];
 const createdPromotionIds: string[] = [];
+const PARAMETER_KEYS = [
+  TOP3_STARTED_AT_KEY,
+  'loyalty_campaign_active',
+  'loyalty_orders_required',
+  'loyalty_min_order_amount',
+  'loyalty_discount_percent',
+  'top3_discount_percent',
+];
+let savedParameters: { key: string; value: string }[] | null = null;
 
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
@@ -92,6 +101,10 @@ beforeAll(async () => {
   await app.init();
   server = app.getHttpServer();
   prisma = app.get(PrismaService);
+  savedParameters = await prisma.parameter.findMany({
+    where: { key: { in: PARAMETER_KEYS } },
+    select: { key: true, value: true },
+  });
 
   const active = await prisma.promotion.findMany({ where: { active: true }, select: { id: true } });
   preexistingActive = active.map((promotion) => promotion.id);
@@ -140,7 +153,7 @@ beforeEach(async () => {
     where: { cart: { userId: { in: [ana.userId, beto.userId, cari.userId, danny.userId] } } },
   });
   await prisma.promotion.updateMany({ where: { id: { in: createdPromotionIds } }, data: { active: false } });
-  await prisma.parameter.deleteMany({ where: { key: TOP3_STARTED_AT_KEY } });
+  await prisma.parameter.deleteMany({ where: { key: { in: [TOP3_STARTED_AT_KEY, 'loyalty_campaign_active'] } } });
   await prisma.user.updateMany({
     where: { id: { in: [ana.userId, beto.userId, cari.userId, danny.userId] } },
     data: { loyaltyStamps: 0, hasTopBuyerReward: false },
@@ -168,28 +181,12 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  await prisma.parameter.deleteMany({ where: { key: TOP3_STARTED_AT_KEY } });
-  // Deja los defaults de fidelidad (no los valores de prueba de la suite).
-  await prisma.parameter.upsert({
-    where: { key: 'loyalty_orders_required' },
-    update: { value: '10' },
-    create: { key: 'loyalty_orders_required', value: '10' },
-  });
-  await prisma.parameter.upsert({
-    where: { key: 'loyalty_min_order_amount' },
-    update: { value: '15000' },
-    create: { key: 'loyalty_min_order_amount', value: '15000' },
-  });
-  await prisma.parameter.upsert({
-    where: { key: 'loyalty_discount_percent' },
-    update: { value: '30' },
-    create: { key: 'loyalty_discount_percent', value: '30' },
-  });
-  await prisma.parameter.upsert({
-    where: { key: 'top3_discount_percent' },
-    update: { value: '15' },
-    create: { key: 'top3_discount_percent', value: '15' },
-  });
+  if (savedParameters) {
+    await prisma.parameter.deleteMany({ where: { key: { in: PARAMETER_KEYS } } });
+    if (savedParameters.length > 0) {
+      await prisma.parameter.createMany({ data: savedParameters });
+    }
+  }
   if (branch) {
     const orders = await prisma.order.findMany({
       where: { branchId: branch.id },
@@ -226,9 +223,50 @@ describe('Fidelización por sellos', () => {
       discountAmount: 3000,
       totalAmount: 7000,
     });
-    expect(order.promotionName).toMatch(/Fidelidad/);
+    expect(order.promotionName).toBe('Premio Fidelidad');
     expect(await stampsOf(ana.userId)).toMatchObject({ loyaltyStamps: 3 });
     expect(order.loyalty).toMatchObject({ stamps: 3, progress: 3, rewardOnThisOrder: true });
+  });
+
+  it('el detalle y el listado distinguen el sello del premio', async () => {
+    const plain = await placePickup(ana);
+    const plainDetail = await request(server).get(`/api/orders/${plain.id}`).set(auth(ana.token));
+    expect(plainDetail.status).toBe(200);
+    expect(plainDetail.body.loyalty).toEqual({
+      stamps: 1,
+      progress: 1,
+      ordersRequired: 3,
+      minOrderAmount: 0,
+      qualifiesThisOrder: true,
+      rewardOnThisOrder: false,
+    });
+    const list = await request(server).get('/api/orders').set(auth(ana.token));
+    expect(list.body.find((row: { id: string }) => row.id === plain.id).loyaltyStampGranted).toBe(true);
+
+    await prisma.user.update({ where: { id: ana.userId }, data: { loyaltyStamps: 2 } });
+    const reward = await placePickup(ana);
+    expect(reward.promotionName).toBe('Premio Fidelidad');
+    const rewardDetail = await request(server).get(`/api/orders/${reward.id}`).set(auth(ana.token));
+    expect(rewardDetail.body.loyalty).toMatchObject({
+      stamps: 3,
+      progress: 3,
+      ordersRequired: 3,
+      qualifiesThisOrder: true,
+      rewardOnThisOrder: true,
+    });
+  });
+
+  it('la página pública no revela el porcentaje de los premios', async () => {
+    const started = await request(server)
+      .post('/api/admin/promotions/top3-campaign/start')
+      .set(auth(adminToken));
+    expect(started.status).toBe(201);
+
+    const response = await request(server).get('/api/promotions/active');
+    expect(response.status).toBe(200);
+    expect(response.body.loyalty).toEqual({ ordersRequired: 3, minOrderAmount: 0 });
+    expect(response.body.top3).toEqual({ active: true });
+    expect(JSON.stringify(response.body)).not.toContain('discountPercent');
   });
 
   it('si el pedido se cancela se revierte el sello', async () => {
@@ -304,12 +342,37 @@ describe('Campaña Top 3 compradores', () => {
 
     const first = await placePickup(ana);
     expect(first).toMatchObject({ discountAmount: 2000, totalAmount: 8000 });
-    expect(first.promotionName).toMatch(/Top Comprador/);
+    expect(first.promotionName).toBe('Premio Top 3');
     expect(await stampsOf(ana.userId)).toMatchObject({ hasTopBuyerReward: false });
 
     const second = await placePickup(ana);
     expect(second.discountAmount).toBe(0);
     expect(second.promotionName).toBeNull();
+  });
+
+  it('con la campaña de sellos finalizada no suma sello ni aplica el premio', async () => {
+    const finished = await request(server)
+      .post('/api/admin/promotions/loyalty-campaign/finish')
+      .set(auth(adminToken));
+    expect(finished.status).toBe(201);
+    expect(finished.body.active).toBe(false);
+
+    await prisma.user.update({ where: { id: ana.userId }, data: { loyaltyStamps: 2 } });
+    const order = await placePickup(ana);
+    expect(order.loyalty?.qualifiesThisOrder).toBe(false);
+    expect(order.promotionName).toBeNull();
+    expect(await stampsOf(ana.userId)).toMatchObject({ loyaltyStamps: 2 });
+
+    const detail = await request(server).get(`/api/orders/${order.id}`).set(auth(ana.token));
+    expect(detail.body.loyalty).toBeNull();
+    const list = await request(server).get('/api/orders').set(auth(ana.token));
+    expect(list.body.find((row: { id: string }) => row.id === order.id).loyaltyStampGranted).toBe(false);
+
+    const started = await request(server)
+      .post('/api/admin/promotions/loyalty-campaign/start')
+      .set(auth(adminToken));
+    expect(started.status).toBe(201);
+    expect(started.body).toMatchObject({ active: true, ordersRequired: 3, discountPercent: 30 });
   });
 
   it('award sin campaña activa responde 400', async () => {

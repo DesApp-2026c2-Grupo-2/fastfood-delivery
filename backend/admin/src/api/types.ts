@@ -62,6 +62,16 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   cancelled: 'Cancelado',
 };
 
+export type Fulfillment = 'delivery' | 'pickup';
+
+export function orderStatusLabel(status: OrderStatus, fulfillment?: Fulfillment | null): string {
+  if (fulfillment === 'pickup') {
+    if (status === 'ready') return 'Listo para retirar';
+    if (status === 'delivered') return 'Retirado';
+  }
+  return ORDER_STATUS_LABEL[status];
+}
+
 export const ORDER_STATUSES: OrderStatus[] = [
   'pending',
   'confirmed',
@@ -74,7 +84,9 @@ export const ORDER_STATUSES: OrderStatus[] = [
 
 export type AdminOrderListItem = {
   id: string;
+  code?: string;
   status: OrderStatus;
+  fulfillment: Fulfillment;
   totalAmount: number;
   createdAt: string;
   customerName: string;
@@ -192,10 +204,61 @@ export type Top3RankingEntry = {
   totalSpent: number;
 };
 
+export type LoyaltyHolder = {
+  userId: string;
+  name: string;
+  email: string;
+  stamps: number;
+};
+
+export type LoyaltyCampaign = {
+  active: boolean;
+  ordersRequired: number;
+  minOrderAmount: number;
+  discountPercent: number;
+  holders: LoyaltyHolder[];
+  limits: {
+    ordersRequired: { min: number; max: number };
+    minOrderAmount: { min: number; max: number };
+    discountPercent: { min: number; max: number };
+  };
+};
+
+export type AdminCustomer = {
+  id: string;
+  name: string;
+  email: string;
+  active: boolean;
+  createdAt: string;
+  orderCount: number;
+  totalSpent: number;
+  lastOrderAt: string | null;
+};
+
+export type AdminCustomerList = {
+  items: AdminCustomer[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type AdminCustomerDetail = AdminCustomer & {
+  addresses: { id: string; alias: string; street: string; isDefault: boolean }[];
+  recentOrders: {
+    id: string;
+    status: OrderStatus;
+    fulfillment: string;
+    totalAmount: number;
+    createdAt: string;
+    branch: { id: string; name: string };
+  }[];
+};
+
 export type Top3Campaign = {
   active: boolean;
   startedAt: string | null;
   discountPercent: number;
+  limits: { discountPercent: { min: number; max: number } };
   ranking: Top3RankingEntry[];
 };
 

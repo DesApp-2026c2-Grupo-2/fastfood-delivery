@@ -4,6 +4,8 @@ import { api } from '../../api/client';
 import { useSession } from '../../auth/SessionContext';
 import type { UpdateMeRequest, User } from '../../api/types';
 import { clearSession, getToken, isCustomer, updateStoredUser } from '../../auth/session';
+import { useCart } from '../../cart/CartContext';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import { LoyaltyStampsCard } from '../../components/LoyaltyStampsCard';
 import { PasswordField } from '../../components/PasswordField';
 import { useAutoClear } from '../../lib/useAutoClear';
@@ -22,6 +24,7 @@ export function AccountPage() {
 function AccountContent({ token }: { token: string }) {
   const navigate = useNavigate();
   const { refresh: refreshSession } = useSession();
+  const { refresh: refreshCart } = useCart();
   const [user, setUser] = useState<User | null>(null);
   const [name, setName] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -33,6 +36,11 @@ function AccountContent({ token }: { token: string }) {
   useAutoClear(ok, () => setOk(''));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   async function load() {
     setLoading(true);
@@ -106,6 +114,40 @@ function AccountContent({ token }: { token: string }) {
     clearSession();
     refreshSession();
     navigate('/products');
+  }
+
+  function askDelete() {
+    setDeleteError('');
+    if (!deletePassword) {
+      setDeleteError('Ingresá tu contraseña para eliminar la cuenta.');
+      return;
+    }
+    setConfirmDelete(true);
+  }
+
+  async function deleteAccount() {
+    setDeleteError('');
+    setDeleting(true);
+    try {
+      await api('/me', {
+        method: 'DELETE',
+        token,
+        body: JSON.stringify({ password: deletePassword }),
+      });
+      clearSession();
+      refreshSession();
+      await refreshCart();
+      navigate('/products', {
+        replace: true,
+        state: {
+          notice: 'Eliminamos tu cuenta. Tus datos personales quedaron como Usuario eliminado.',
+        },
+      });
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'No se pudo eliminar la cuenta');
+    } finally {
+      setDeleting(false);
+    }
   }
 
   if (loading) return <p className="muted">Cargando…</p>;
@@ -189,6 +231,51 @@ function AccountContent({ token }: { token: string }) {
           Salir
         </button>
       </form>
+
+      <section className="card form">
+        <h2>Dar de baja la cuenta</h2>
+        <p className="field-hint">
+          Tu nombre queda como Usuario eliminado y el email deja de estar asociado a la cuenta. Los pedidos que ya
+          hiciste se conservan. No vas a poder volver a entrar con esta cuenta.
+        </p>
+        <label>
+          Contraseña
+          <PasswordField
+            value={deletePassword}
+            onChange={setDeletePassword}
+            autoComplete="current-password"
+            visible={showDeletePassword}
+            onToggle={() => setShowDeletePassword((current) => !current)}
+          />
+        </label>
+        {deleteError && !confirmDelete ? (
+          <p className="error" role="alert">
+            {deleteError}
+          </p>
+        ) : null}
+        <button type="button" className="danger" onClick={askDelete}>
+          Eliminar mi cuenta
+        </button>
+      </section>
+
+      {confirmDelete ? (
+        <ConfirmModal
+          title="Eliminar tu cuenta"
+          message="Esta acción no se puede deshacer. Tus datos personales se reemplazan por Usuario eliminado y los pedidos quedan en el historial."
+          confirmLabel="Sí, eliminar"
+          dismissLabel="Volver"
+          busyLabel="Eliminando…"
+          busy={deleting}
+          error={deleteError}
+          onConfirm={() => void deleteAccount()}
+          onClose={() => {
+            if (!deleting) {
+              setConfirmDelete(false);
+              setDeleteError('');
+            }
+          }}
+        />
+      ) : null}
     </section>
   );
 }

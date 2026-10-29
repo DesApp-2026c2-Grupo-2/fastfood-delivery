@@ -370,8 +370,8 @@ describe('POST /api/orders con adicionales', () => {
     expect(burgerLine.unitPrice).toBe(20000);
     expect(burgerLine.extras).toEqual(
       expect.arrayContaining([
-        { id: bacon.id, name: bacon.name, price: 2000 },
-        { id: cheddar.id, name: cheddar.name, price: 1500 },
+        { id: bacon.id, name: bacon.name, price: 2000, imageUrl: null },
+        { id: cheddar.id, name: cheddar.name, price: 1500, imageUrl: null },
       ]),
     );
     expect(burgerLine.extrasTotal).toBe(3500);
@@ -427,7 +427,7 @@ describe('POST /api/orders/guest con adicionales', () => {
     expect(response.status).toBe(201);
     expect(response.body.totalAmount).toBe(22000 + 3000);
     const burgerLine = response.body.items.find((item: { productId: string }) => item.productId === burger.id);
-    expect(burgerLine.extras).toEqual([{ id: bacon.id, name: bacon.name, price: 2000 }]);
+    expect(burgerLine.extras).toEqual([{ id: bacon.id, name: bacon.name, price: 2000, imageUrl: null }]);
     expect(burgerLine.subtotal).toBe(22000);
   });
 

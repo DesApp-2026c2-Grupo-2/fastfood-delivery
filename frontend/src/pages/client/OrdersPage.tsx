@@ -2,24 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { isStatusBehind, useOrderStatusEvents } from '../../api/order-events';
-import type { OrderSummary, RepeatOrderResult } from '../../api/types';
+import type { LoyaltyProgress, OrderSummary, RepeatOrderResult, User } from '../../api/types';
 import { useCart } from '../../cart/CartContext';
 import { getToken, getUserId, isCustomer } from '../../auth/session';
 import { formatPrice } from '../../lib/money';
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendiente',
-  confirmed: 'Confirmado',
-  preparing: 'En preparación',
-  ready: 'Listo para entregar',
-  on_the_way: 'En camino',
-  delivered: 'Entregado',
-  cancelled: 'Cancelado',
-};
-
-function statusLabel(status: string): string {
-  return STATUS_LABELS[status] ?? status;
-}
+import { orderStatusLabel } from '../../lib/order-status';
+import { BrandLogo } from '../../components/BrandLogo';
+import { LoyaltyStampsCard } from '../../components/LoyaltyStampsCard';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('es-AR', {
@@ -46,15 +35,26 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
   const navigate = useNavigate();
   const { count, refresh } = useCart();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [loyalty, setLoyalty] = useState<LoyaltyProgress | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [repeatingId, setRepeatingId] = useState('');
+
+  async function loadOrders() {
+    const [freshOrders, me] = await Promise.all([
+      api<OrderSummary[]>('/orders', { token, cache: 'no-store' }),
+      api<User>('/me', { token, cache: 'no-store' }).catch(() => null),
+    ]);
+    return { freshOrders, loyalty: me?.loyalty?.active ? me.loyalty : null };
+  }
 
   async function load() {
     setLoading(true);
     setError('');
     try {
-      setOrders(await api<OrderSummary[]>('/orders', { token, cache: 'no-store' }));
+      const next = await loadOrders();
+      setOrders(next.freshOrders);
+      setLoyalty(next.loyalty);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar los pedidos');
     } finally {
@@ -64,10 +64,11 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
 
   async function refreshOrders() {
     try {
-      const fresh = await api<OrderSummary[]>('/orders', { token, cache: 'no-store' });
+      const next = await loadOrders();
+      setLoyalty(next.loyalty);
       setOrders((current) => {
         const shown = new Map(current.map((order) => [order.id, order.status]));
-        return fresh.map((order) => {
+        return next.freshOrders.map((order) => {
           const status = shown.get(order.id);
           if (status && isStatusBehind(order.status, status)) return { ...order, status };
           return order;
@@ -142,6 +143,7 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
           {error}
         </p>
       ) : null}
+      {loyalty ? <LoyaltyStampsCard loyalty={loyalty} context="profile" /> : null}
       {loading ? <p className="muted">Cargando…</p> : null}
 
       {!loading && orders.length === 0 ? (
@@ -159,8 +161,12 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
                 <div className="order-card-title">
                   <Link className="order-card-date" to={`/orders/${order.id}`}>
                     <strong>{formatDate(order.createdAt)}</strong>
+                    {order.code ? <span className="order-card-code">#{order.code}</span> : null}
                   </Link>
-                  <span className={`badge badge--${order.status}`}>{statusLabel(order.status)}</span>
+                  {order.fulfillment === 'pickup' ? <span className="pickup-badge">Retiro</span> : null}
+                  <span className={`badge badge--${order.status}`}>
+                    {orderStatusLabel(order.status, order.fulfillment)}
+                  </span>
                 </div>
                 <Link className="order-card-detail" to={`/orders/${order.id}`}>
                   {order.branch.name}
@@ -187,9 +193,16 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
                   </button>
                 </div>
               </div>
-              <Link className="order-card-total" to={`/orders/${order.id}`}>
-                {formatPrice(order.totalAmount)}
-              </Link>
+              <div className="order-card-side">
+                {loyalty && order.loyaltyStampGranted ? (
+                  <span className="order-card-stamp" title="Este pedido sumó un sello" aria-label="Este pedido sumó un sello">
+                    <BrandLogo size={36} className="order-card-stamp__logo" alt="" />
+                  </span>
+                ) : null}
+                <Link className="order-card-total" to={`/orders/${order.id}`}>
+                  {formatPrice(order.totalAmount)}
+                </Link>
+              </div>
             </li>
           ))}
         </ul>

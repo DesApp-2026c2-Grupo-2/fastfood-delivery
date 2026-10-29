@@ -1,8 +1,11 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { OrderStatus } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { DELETED_USER_NAME, deletedUserEmail } from '../src/account/account.service';
+import { passwordMatches } from '../src/auth/password';
 import { PrismaExceptionFilter } from '../src/common/prisma-exception.filter';
 import { PrismaService } from '../src/prisma/prisma.service';
 
@@ -190,6 +193,148 @@ describe('Perfil: GET y PATCH /api/me (HU-14)', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ email: ADMIN_EMAIL, role: 'admin' });
+  });
+});
+
+describe('DELETE /api/me (baja y anonimización)', () => {
+  const stamp = Date.now();
+
+  async function createBranch() {
+    return prisma.branch.create({
+      data: {
+        name: `Sucursal cuenta E2E ${stamp} ${Math.random().toString(36).slice(2, 6)}`,
+        address: 'Calle E2E 123',
+        latitude: -34.6,
+        longitude: -58.4,
+        openingHours: '10-22',
+        phone: '1111-1111',
+      },
+    });
+  }
+
+  async function createOrder(userId: string, branchId: string, status: OrderStatus, addressId?: string) {
+    return prisma.order.create({
+      data: {
+        userId,
+        branchId,
+        addressId,
+        fulfillment: addressId ? 'delivery' : 'pickup',
+        status,
+        subtotal: 2500,
+        totalAmount: 2500,
+        estimatedDeliveryAt: new Date(),
+      },
+    });
+  }
+
+  it('con la contraseña mal no toca la cuenta', async () => {
+    const { email, token } = await registerCustomer('baja-clave');
+
+    const response = await request(server).delete('/api/me').set(auth(token)).send({ password: 'incorrecta' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('La contraseña no es correcta');
+    expect((await prisma.user.findUniqueOrThrow({ where: { email } })).active).toBe(true);
+    expect((await request(server).get('/api/me').set(auth(token))).status).toBe(200);
+  });
+
+  it('con un pedido en curso responde 409 y no anonimiza', async () => {
+    const customer = await registerCustomer('baja-curso');
+    const branch = await createBranch();
+    const order = await createOrder(customer.id, branch.id, OrderStatus.preparing);
+
+    try {
+      const response = await request(server).delete('/api/me').set(auth(customer.token)).send({ password: PASSWORD });
+
+      expect(response.status).toBe(409);
+      expect(response.body.message).toBe('Tenés un pedido en curso');
+      const stored = await prisma.user.findUniqueOrThrow({ where: { id: customer.id } });
+      expect(stored.email).toBe(customer.email);
+      expect(stored.name).toBe('Cliente baja-curso');
+      expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe('preparing');
+    } finally {
+      await prisma.order.deleteMany({ where: { id: order.id } });
+      await prisma.branch.delete({ where: { id: branch.id } });
+    }
+  });
+
+  it('anonimiza solo al usuario y conserva el pedido', async () => {
+    const customer = await registerCustomer('baja-ok');
+    const branch = await createBranch();
+    const delivery = await prisma.address.create({
+      data: {
+        userId: customer.id,
+        alias: 'Casa',
+        street: 'Av. Siempre Viva 742',
+        latitude: -34.61,
+        longitude: -58.41,
+        isDefault: true,
+      },
+    });
+    const unused = await prisma.address.create({
+      data: {
+        userId: customer.id,
+        alias: 'Trabajo',
+        street: 'Oficina 8',
+        latitude: -34.62,
+        longitude: -58.42,
+      },
+    });
+    const order = await createOrder(customer.id, branch.id, OrderStatus.delivered, delivery.id);
+    await prisma.cart.create({ data: { userId: customer.id } });
+    await prisma.user.update({
+      where: { id: customer.id },
+      data: { loyaltyStamps: 4, hasTopBuyerReward: true },
+    });
+    await forgot(customer.email);
+
+    try {
+      const response = await request(server).delete('/api/me').set(auth(customer.token)).send({ password: PASSWORD });
+
+      expect(response.status).toBe(204);
+      const stored = await prisma.user.findUniqueOrThrow({ where: { id: customer.id } });
+      expect(stored.name).toBe(DELETED_USER_NAME);
+      expect(stored.email).toBe(deletedUserEmail(customer.id));
+      expect(stored.email).not.toBe(customer.email);
+      expect(stored.active).toBe(false);
+      expect(stored.loyaltyStamps).toBe(0);
+      expect(stored.hasTopBuyerReward).toBe(false);
+      expect(await passwordMatches(PASSWORD, stored.passwordHash)).toBe(false);
+
+      const keptOrder = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
+      expect(keptOrder.userId).toBe(customer.id);
+      expect(Number(keptOrder.totalAmount)).toBe(2500);
+      expect(keptOrder.addressId).toBe(delivery.id);
+      const keptAddress = await prisma.address.findUniqueOrThrow({ where: { id: delivery.id } });
+      expect(keptAddress.street).toBe('Av. Siempre Viva 742');
+      expect(keptAddress.userId).toBeNull();
+      expect(keptAddress.alias).toBe('');
+      expect(await prisma.address.findUnique({ where: { id: unused.id } })).toBeNull();
+      expect(await prisma.cart.count({ where: { userId: customer.id } })).toBe(0);
+      expect(await prisma.passwordResetToken.count({ where: { userId: customer.id } })).toBe(0);
+
+      expect((await request(server).get('/api/me').set(auth(customer.token))).status).toBe(401);
+      expect((await login(customer.email, PASSWORD)).status).toBe(401);
+      const sameEmail = await request(server)
+        .post('/api/auth/register')
+        .send({ email: customer.email, name: 'Otra persona', password: PASSWORD });
+      expect(sameEmail.status).toBe(201);
+    } finally {
+      await prisma.order.deleteMany({ where: { userId: customer.id } });
+      await prisma.address.deleteMany({ where: { id: { in: [delivery.id, unused.id] } } });
+      await prisma.passwordResetToken.deleteMany({ where: { userId: customer.id } });
+      await prisma.cart.deleteMany({ where: { userId: customer.id } });
+      await prisma.user.deleteMany({ where: { id: customer.id } });
+      await prisma.user.deleteMany({ where: { email: customer.email } });
+      await prisma.branch.delete({ where: { id: branch.id } });
+    }
+  });
+
+  it('un admin no puede eliminar su cuenta por esta vía', async () => {
+    const response = await request(server).delete('/api/me').set(auth(adminToken)).send({ password: ADMIN_PASSWORD });
+
+    expect(response.status).toBe(403);
+    expect((await prisma.user.findUniqueOrThrow({ where: { email: ADMIN_EMAIL } })).name).not.toBe(DELETED_USER_NAME);
   });
 });
 

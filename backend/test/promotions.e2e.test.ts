@@ -322,6 +322,15 @@ describe('promo porcentual automática al confirmar (HU-21)', () => {
     const bigger = await createPromotion({ name: `Promo E2E 15 ${stamp}`, value: 15 });
     await fillCart([{ productId: burger.id, quantity: 1 }]);
 
+    const quoted = await request(server).post('/api/promotions/quote').set(auth(ana.token)).send({});
+    expect(quoted.body.offers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: bigger.id, discountAmount: 1500, applied: true }),
+        expect.objectContaining({ discountAmount: 1000, applied: false }),
+      ]),
+    );
+    expect(quoted.body.offers.filter((offer: { applied: boolean }) => offer.applied)).toHaveLength(1);
+
     const first = await placePickup();
     expect(first.body).toMatchObject({ discountAmount: 1500, promotionName: bigger.name });
 
@@ -454,6 +463,16 @@ describe('promo 2x1 de un producto (HU-20, HU-21)', () => {
       discountAmount: 10000,
       totalAmount: 10000,
       promotion: { id: promo.id, name: promo.name, type: 'two_for_one', value: 0 },
+      offers: [
+        {
+          id: promo.id,
+          name: promo.name,
+          type: 'two_for_one',
+          value: 0,
+          discountAmount: 10000,
+          applied: true,
+        },
+      ],
     });
   });
 });
@@ -471,6 +490,16 @@ describe('POST /api/promotions/quote', () => {
       discountAmount: 1150,
       totalAmount: 10350,
       promotion: { id: promo.id, name: promo.name, type: 'percent', value: 10 },
+      offers: [
+        {
+          id: promo.id,
+          name: promo.name,
+          type: 'percent',
+          value: 10,
+          discountAmount: 1150,
+          applied: true,
+        },
+      ],
     });
   });
 
@@ -480,7 +509,13 @@ describe('POST /api/promotions/quote', () => {
       .send({ items: [{ productId: burger.id, quantity: 3 }] });
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ subtotal: 30000, discountAmount: 0, totalAmount: 30000, promotion: null });
+    expect(response.body).toEqual({
+      subtotal: 30000,
+      discountAmount: 0,
+      totalAmount: 30000,
+      promotion: null,
+      offers: [],
+    });
   });
 
   it('sin sesión y sin ítems, o con el carrito vacío, responde 400', async () => {

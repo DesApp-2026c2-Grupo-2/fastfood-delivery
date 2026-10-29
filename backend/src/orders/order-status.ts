@@ -1,4 +1,4 @@
-import { OrderStatus } from '@prisma/client';
+import { Fulfillment, OrderStatus } from '@prisma/client';
 
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   pending: 'Pendiente',
@@ -20,20 +20,28 @@ const NEXT: Record<OrderStatus, OrderStatus[]> = {
   cancelled: [],
 };
 
-export function nextStatuses(status: OrderStatus): OrderStatus[] {
+export function nextStatuses(status: OrderStatus, fulfillment: Fulfillment = Fulfillment.delivery): OrderStatus[] {
+  // El retiro no sale a la calle: de listo pasa a retirado. Si un pedido viejo quedó en camino, el siguiente paso es el mismo.
+  if (fulfillment === Fulfillment.pickup && (status === OrderStatus.ready || status === OrderStatus.on_the_way)) {
+    return [OrderStatus.delivered];
+  }
   return NEXT[status] ?? [];
 }
 
-export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
-  return NEXT[from]?.includes(to) ?? false;
+export function canTransition(
+  from: OrderStatus,
+  to: OrderStatus,
+  fulfillment: Fulfillment = Fulfillment.delivery,
+): boolean {
+  return nextStatuses(from, fulfillment).includes(to);
 }
 
 const DESCRIPTION: Record<OrderStatus, string> = {
   pending: 'El cliente confirmó el pedido y el stock quedó reservado. Espera que el local lo acepte.',
   confirmed: 'El local aceptó el pedido. Todavía se puede cancelar.',
   preparing: 'El pedido se está preparando. Ya no se puede cancelar.',
-  ready: 'El pedido está listo y espera al repartidor.',
-  on_the_way: 'El repartidor está llevando el pedido.',
+  ready: 'En domicilio espera al repartidor. En retiro, el cliente ya puede pasar a buscarlo.',
+  on_the_way: 'Solo en domicilio: el repartidor está llevando el pedido. En retiro este estado no se usa.',
   delivered: 'El pedido llegó. La reserva de stock se descuenta.',
   cancelled: 'El pedido se canceló. La reserva de stock vuelve a estar disponible.',
 };

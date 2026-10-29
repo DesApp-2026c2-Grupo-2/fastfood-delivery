@@ -50,6 +50,7 @@ export function AdminHomePage() {
   const [branches, setBranches] = useState<Branch[] | null>(null);
   const [promotions, setPromotions] = useState<Promotion[] | null>(null);
   const [admins, setAdmins] = useState<AdminAccount[] | null>(null);
+  const [customerTotal, setCustomerTotal] = useState<number | null>(null);
   const [parameters, setParameters] = useState<ParameterRow[] | null>(null);
   const [orderTotal, setOrderTotal] = useState<number | null>(null);
   const [pendingOrders, setPendingOrders] = useState<number | null>(null);
@@ -58,13 +59,14 @@ export function AdminHomePage() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [categoryList, productList, branchList, promotionList, adminList, parameterList, orders, pending, reportData] =
+      const [categoryList, productList, branchList, promotionList, adminList, customerList, parameterList, orders, pending, reportData] =
         await Promise.all([
           api<Category[]>('/admin/categories', { token }).catch(() => [] as Category[]),
           api<Product[]>('/admin/products', { token }).catch(() => [] as Product[]),
           api<Branch[]>('/admin/branches', { token }).catch(() => [] as Branch[]),
           api<Promotion[]>('/admin/promotions', { token }).catch(() => [] as Promotion[]),
           api<AdminAccount[]>('/admin/admins', { token }).catch(() => [] as AdminAccount[]),
+          api<{ total: number }>('/admin/customers', { token }).catch(() => null),
           api<ParameterRow[]>('/admin/parameters', { token }).catch(() => [] as ParameterRow[]),
           api<AdminOrderListResponse>('/admin/orders', { token }).catch(() => null),
           api<AdminOrderListResponse>('/admin/orders?status=pending', { token }).catch(() => null),
@@ -76,6 +78,7 @@ export function AdminHomePage() {
       setBranches(branchList);
       setPromotions(promotionList);
       setAdmins(adminList);
+      setCustomerTotal(customerList?.total ?? null);
       setParameters(parameterList);
       setOrderTotal(orders?.total ?? null);
       setPendingOrders(pending?.total ?? null);
@@ -116,8 +119,8 @@ export function AdminHomePage() {
       </header>
 
       <ol className="demo-steps">
-        <li>Operación: pedidos, stock y reportes de ventas.</li>
-        <li>Carta: productos, categorías y promociones. Sucursales es el local.</li>
+        <li>Operación: pedidos, clientes, stock y reportes de ventas.</li>
+        <li>Carta: productos, categorías, promociones y campañas. Sucursales es el local.</li>
         <li>Configuración: radio y tiempo estimado, y quiénes administran.</li>
       </ol>
 
@@ -280,6 +283,13 @@ export function AdminHomePage() {
                 ? '…'
                 : `Radio ${radius?.value ?? '—'} km · preparación base ${prep?.value ?? '—'} min`}
             </small>
+          </Link>
+        </article>
+
+        <article className="home-panel">
+          <Link className="card-link" to="/admin/customers">
+            <span>Clientes</span>
+            <small>{customerTotal === null ? '…' : `${customerTotal} registrados`}</small>
           </Link>
         </article>
 

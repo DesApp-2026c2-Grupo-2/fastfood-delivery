@@ -8,6 +8,7 @@ import { DeliveryFeesService, feeForDistance } from '../delivery-fees/delivery-f
 import { byName, ExtrasService } from '../extras/extras.service';
 import { ParametersService } from '../parameters/parameters.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { loyaltyCardProgress, LOYALTY_REWARD_ID, TOP3_REWARD_ID } from '../promotions/campaign-rewards';
 import { PromotionLine, PromotionsService } from '../promotions/promotions.service';
 import { stockLines } from '../stock/stock-lines';
 import { StockService } from '../stock/stock.service';
@@ -16,21 +17,26 @@ import { CreateGuestOrderDto } from './dto/create-guest-order.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { QuotePromotionDto } from './dto/quote-promotion.dto';
 import { deliveryTiming, estimateDeliveryAt } from './eta';
+import { allocateOrderCode } from './order-code';
 import { OrderEvents } from './order-events';
 import { canTransition, nextStatuses } from './order-status';
+
+const itemInclude = {
+  product: {
+    include: { images: { orderBy: { sortOrder: 'asc' as const }, take: 1 } },
+  },
+  extras: {
+    include: {
+      extra: { include: { images: { orderBy: { sortOrder: 'asc' as const }, take: 1 } } },
+    },
+  },
+};
 
 const withRelations = {
   branch: true,
   address: true,
   promotion: { select: { type: true, value: true } },
-  items: {
-    include: {
-      product: {
-        include: { images: { orderBy: { sortOrder: 'asc' as const }, take: 1 } },
-      },
-      extras: true,
-    },
-  },
+  items: { include: itemInclude },
 };
 
 type OrderWithRelations = Prisma.OrderGetPayload<{ include: typeof withRelations }>;
@@ -100,14 +106,7 @@ const adminDetailInclude = {
   promotion: { select: { type: true, value: true } },
   branch: true,
   address: true,
-  items: {
-    include: {
-      product: {
-        include: { images: { orderBy: { sortOrder: 'asc' as const }, take: 1 } },
-      },
-      extras: true,
-    },
-  },
+  items: { include: itemInclude },
   statusHistory: {
     orderBy: { changedAt: 'asc' as const },
     include: { changedBy: { select: { name: true, email: true } } },
@@ -152,9 +151,16 @@ function buildAdminOrderWhere(query: {
     and.push({ status: query.status });
   }
 
-  const code = query.code?.trim().replace(/^#/, '').toLowerCase();
+  const code = query.code?.trim().replace(/^#/, '');
   if (code) {
-    and.push({ id: { contains: code, mode: 'insensitive' } });
+    const matches: Prisma.OrderWhereInput[] = [
+      { code: { equals: code, mode: 'insensitive' } },
+      { id: { contains: code, mode: 'insensitive' } },
+    ];
+    if (/^\d{6}$/.test(code)) {
+      matches.push({ code: { endsWith: code } });
+    }
+    and.push({ OR: matches });
   }
 
   const customer = query.customer?.trim();
@@ -194,6 +200,7 @@ function serializeItems(items: OrderWithRelations['items']) {
         id: extra.extraId,
         name: extra.name,
         price: Number(extra.price),
+        imageUrl: extra.extra.images[0]?.url ?? null,
       }))
       .sort(byName);
     const extrasTotal = sumPrices(extras.map((extra) => extra.price));
@@ -218,6 +225,7 @@ function serializeItems(items: OrderWithRelations['items']) {
 function serialize(order: OrderWithRelations) {
   return {
     id: order.id,
+    code: order.code,
     status: order.status,
     ...pricing(order),
     createdAt: order.createdAt,
@@ -241,6 +249,7 @@ function serialize(order: OrderWithRelations) {
 function serializeAdmin(order: OrderAdminDetail) {
   return {
     id: order.id,
+    code: order.code,
     status: order.status,
     ...pricing(order),
     createdAt: order.createdAt,
@@ -267,7 +276,7 @@ function serializeAdmin(order: OrderAdminDetail) {
       changedByName: event.changedBy?.name ?? 'Sistema',
     })),
     ...deliveryTiming(order),
-    nextStatuses: nextStatuses(order.status),
+    nextStatuses: nextStatuses(order.status, order.fulfillment),
   };
 }
 
@@ -287,7 +296,7 @@ function serializeCustomer(order: OrderCustomerDetail) {
       changedAt: event.changedAt,
     })),
     ...deliveryTiming(order),
-    canCancel: canTransition(order.status, OrderStatus.cancelled),
+    canCancel: canTransition(order.status, OrderStatus.cancelled, order.fulfillment),
   };
 }
 
@@ -342,15 +351,23 @@ export class OrdersService {
       await this.parametersService.etaSettings(),
     );
     const units = stockLines(lines);
-    const { minOrderAmount } = await this.parametersService.loyaltySettings();
-    const qualifiesForStamp = price.subtotal >= minOrderAmount;
+    const loyaltySettings = await this.parametersService.loyaltySettings();
+    const qualifiesForStamp = loyaltySettings.active && price.subtotal >= loyaltySettings.minOrderAmount;
+    const stampsBefore = qualifiesForStamp
+      ? ((await this.prisma.user.findUnique({ where: { id: userId }, select: { loyaltyStamps: true } }))?.loyaltyStamps ?? 0)
+      : 0;
+    const loyaltyCycleCompleted =
+      qualifiesForStamp && (stampsBefore + 1) % loyaltySettings.ordersRequired === 0;
+    const loyaltyRewardApplied = price.promotion?.id === LOYALTY_REWARD_ID;
 
     const order = await this.prisma.$transaction(async (tx) => {
       // Sin stock suficiente sale un 409 y no se crea el pedido; el carrito queda como estaba.
       await this.stockService.reserve(tx, branch, units);
 
+      const code = await allocateOrderCode(tx, branch.name);
       const created = await tx.order.create({
         data: {
+          code,
           userId,
           branchId: branch.id,
           fulfillment: dto.fulfillment,
@@ -361,6 +378,8 @@ export class OrdersService {
           estimatedDeliveryAt,
           stockReserved: true,
           loyaltyStampGranted: qualifiesForStamp,
+          loyaltyCycleCompleted,
+          loyaltyRewardApplied,
           items: {
             create: cart.items.map((item) => ({
               productId: item.productId,
@@ -392,7 +411,7 @@ export class OrdersService {
         userData.loyaltyStamps = { increment: 1 };
       }
       // El premio Top 3 se consume al confirmar el pedido que lo usó.
-      if (price.promotion?.id === 'loyalty-top-3-buyer') {
+      if (price.promotion?.id === TOP3_REWARD_ID) {
         userData.hasTopBuyerReward = false;
       }
       if (Object.keys(userData).length > 0) {
@@ -404,10 +423,14 @@ export class OrdersService {
 
     return {
       ...serialize(order),
-      loyalty: await this.loyaltyProgressFor(
+      loyalty: await this.loyaltyView(
         userId,
-        qualifiesForStamp,
-        price.promotion?.id === 'loyalty-target-order',
+        {
+          qualifiesThisOrder: qualifiesForStamp,
+          rewardOnThisOrder: loyaltyRewardApplied,
+          cycleCompleted: loyaltyCycleCompleted,
+        },
+        false,
       ),
     };
   }
@@ -444,8 +467,10 @@ export class OrdersService {
           })
         : null;
 
+      const code = await allocateOrderCode(tx, branch.name);
       const created = await tx.order.create({
         data: {
+          code,
           guestName: dto.name.trim(),
           guestEmail: dto.email.trim().toLowerCase(),
           branchId: branch.id,
@@ -591,6 +616,7 @@ export class OrdersService {
     return {
       items: orders.map((order) => ({
         id: order.id,
+        code: order.code,
         status: order.status,
         fulfillment: order.fulfillment,
         ...pricing(order),
@@ -600,7 +626,7 @@ export class OrdersService {
         branch: order.branch,
         itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
         ...deliveryTiming(order),
-        nextStatuses: nextStatuses(order.status),
+        nextStatuses: nextStatuses(order.status, order.fulfillment),
       })),
       total,
       page,
@@ -638,14 +664,27 @@ export class OrdersService {
 
     return orders.map((order) => ({
       id: order.id,
+      code: order.code,
       status: order.status,
       fulfillment: order.fulfillment,
       ...pricing(order),
       createdAt: order.createdAt,
       branch: order.branch,
       itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
+      loyaltyStampGranted: order.loyaltyStampGranted,
       ...deliveryTiming(order),
     }));
+  }
+
+  async findStatus(id: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    });
+    if (!order) {
+      throw new NotFoundException('Pedido no encontrado');
+    }
+    return order;
   }
 
   async findOneForUser(userId: string, id: string) {
@@ -656,7 +695,40 @@ export class OrdersService {
     if (!order) {
       throw new NotFoundException('Pedido no encontrado');
     }
-    return serializeCustomer(order);
+    return {
+      ...serializeCustomer(order),
+      loyalty: await this.loyaltyView(
+        userId,
+        {
+          qualifiesThisOrder: order.loyaltyStampGranted,
+          rewardOnThisOrder: order.loyaltyRewardApplied,
+          cycleCompleted: order.loyaltyCycleCompleted,
+        },
+        true,
+      ),
+    };
+  }
+
+  private async loyaltyView(
+    userId: string,
+    flags: { qualifiesThisOrder: boolean; rewardOnThisOrder: boolean; cycleCompleted: boolean },
+    hideWhenInactive: boolean,
+  ) {
+    const { ordersRequired, minOrderAmount, active } = await this.parametersService.loyaltySettings();
+    if (hideWhenInactive && !active) return null;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { loyaltyStamps: true },
+    });
+    const stamps = user?.loyaltyStamps ?? 0;
+    return {
+      stamps,
+      progress: loyaltyCardProgress(stamps, ordersRequired, flags.cycleCompleted),
+      ordersRequired,
+      minOrderAmount,
+      qualifiesThisOrder: flags.qualifiesThisOrder,
+      rewardOnThisOrder: flags.rewardOnThisOrder,
+    };
   }
 
   async cancelForUser(userId: string, id: string) {
@@ -742,33 +814,6 @@ export class OrdersService {
     };
   }
 
-  /**
-   * Progreso de fidelidad para la pantalla de pedido confirmado.
-   * El sello ya está acreditado (si calificó); acá solo armamos el contador visual del ciclo.
-   */
-  private async loyaltyProgressFor(
-    userId: string,
-    qualifiesThisOrder: boolean,
-    rewardOnThisOrder: boolean,
-  ) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { loyaltyStamps: true },
-    });
-    const { ordersRequired, minOrderAmount } = await this.parametersService.loyaltySettings();
-    const stamps = user?.loyaltyStamps ?? 0;
-    const mod = stamps % ordersRequired;
-    const progress = qualifiesThisOrder && mod === 0 && stamps > 0 ? ordersRequired : mod;
-    return {
-      stamps,
-      progress,
-      ordersRequired,
-      minOrderAmount,
-      qualifiesThisOrder,
-      rewardOnThisOrder,
-    };
-  }
-
   private async assertOwnedByUser(userId: string, id: string) {
     const owned = await this.prisma.order.count({ where: { id, userId } });
     if (owned === 0) {
@@ -781,7 +826,7 @@ export class OrdersService {
     if (!current) {
       throw new NotFoundException('Pedido no encontrado');
     }
-    if (!canTransition(current.status, status)) {
+    if (!canTransition(current.status, status, current.fulfillment)) {
       throw new ConflictException('No se puede pasar el pedido a ese estado');
     }
 
@@ -817,7 +862,7 @@ export class OrdersService {
         });
         await tx.order.update({
           where: { id },
-          data: { loyaltyStampGranted: false },
+          data: { loyaltyStampGranted: false, loyaltyCycleCompleted: false, loyaltyRewardApplied: false },
         });
       }
     });

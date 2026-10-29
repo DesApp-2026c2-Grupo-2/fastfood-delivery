@@ -4,6 +4,8 @@ import { EtaSettings } from '../orders/eta';
 import { UpdateParametersDto } from './dto/update-parameters.dto';
 import { PARAMETER_KEYS, PARAMETERS, ParameterValues } from './parameters';
 
+const LOYALTY_ACTIVE_KEY = 'loyalty_campaign_active';
+
 @Injectable()
 export class ParametersService {
   constructor(private readonly prisma: PrismaService) {}
@@ -54,13 +56,30 @@ export class ParametersService {
     ordersRequired: number;
     discountPercent: number;
     minOrderAmount: number;
+    active: boolean;
   }> {
     const values = await this.values();
     return {
       ordersRequired: values.loyalty_orders_required,
       discountPercent: values.loyalty_discount_percent,
       minOrderAmount: values.loyalty_min_order_amount,
+      active: await this.loyaltyCampaignActive(),
     };
+  }
+
+  // Sin fila, la campaña sigue activa: así no se apagan los sellos que ya venían funcionando.
+  async loyaltyCampaignActive() {
+    const row = await this.prisma.parameter.findUnique({ where: { key: LOYALTY_ACTIVE_KEY } });
+    if (!row) return true;
+    return row.value === 'true';
+  }
+
+  async setLoyaltyCampaignActive(active: boolean) {
+    await this.prisma.parameter.upsert({
+      where: { key: LOYALTY_ACTIVE_KEY },
+      update: { value: active ? 'true' : 'false' },
+      create: { key: LOYALTY_ACTIVE_KEY, value: active ? 'true' : 'false' },
+    });
   }
 
   async top3DiscountPercent() {

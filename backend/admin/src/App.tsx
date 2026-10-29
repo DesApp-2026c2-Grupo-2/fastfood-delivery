@@ -4,7 +4,9 @@ import { AdminAdminFormPage } from './pages/admin/AdminAdminFormPage';
 import { AdminAdminsPage } from './pages/admin/AdminAdminsPage';
 import { AdminBranchesPage } from './pages/admin/AdminBranchesPage';
 import { AdminBranchFormPage } from './pages/admin/AdminBranchFormPage';
+import { AdminCampaignsPage } from './pages/admin/AdminCampaignsPage';
 import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage';
+import { AdminCustomerFormPage, AdminCustomersPage } from './pages/admin/AdminCustomersPage';
 import { AdminHomePage } from './pages/admin/AdminHomePage';
 import { AdminLoginPage } from './pages/admin/AdminLoginPage';
 import { AdminOrderDetailPage } from './pages/admin/AdminOrderDetailPage';
@@ -26,6 +28,9 @@ export default function App() {
         <Route path="orders/:id" element={<AdminOrderDetailPage />} />
         <Route path="stock" element={<AdminStockPage />} />
         <Route path="parameters" element={<AdminParametersPage />} />
+        <Route path="customers" element={<AdminCustomersPage />} />
+        <Route path="customers/nuevo" element={<AdminCustomerFormPage />} />
+        <Route path="customers/:id" element={<AdminCustomerFormPage />} />
         <Route path="admins" element={<AdminAdminsPage />} />
         <Route path="admins/nueva" element={<AdminAdminFormPage />} />
         <Route path="admins/:id" element={<AdminAdminFormPage />} />
@@ -38,6 +43,7 @@ export default function App() {
         <Route path="promotions" element={<AdminPromotionsPage />} />
         <Route path="promotions/nueva" element={<AdminPromotionFormPage />} />
         <Route path="promotions/:id" element={<AdminPromotionFormPage />} />
+        <Route path="campaigns" element={<AdminCampaignsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>

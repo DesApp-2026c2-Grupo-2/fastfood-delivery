@@ -1801,6 +1801,27 @@ button.btn-status--delivered {
   color: #166534;
 }
 
+.order-status-marks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pickup-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  background: #ea580c;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1.3;
+  box-shadow: 0 2px 0 #c2410c;
+}
+
 .badge-status--cancelled {
   background: #fee2e2;
   color: #991b1b;

@@ -8,7 +8,7 @@ type NavLinkItem = {
   to: string;
   label: string;
   short: string;
-  icon: 'home' | 'receipt' | 'boxes' | 'bag' | 'tag' | 'percent' | 'store' | 'sliders' | 'users';
+  icon: 'home' | 'receipt' | 'boxes' | 'bag' | 'tag' | 'percent' | 'flag' | 'store' | 'sliders' | 'users';
   end?: boolean;
 };
 
@@ -31,6 +31,7 @@ const groups: { label: string; links: NavLinkItem[] }[] = [
     label: 'Operación',
     links: [
       { to: '/admin/orders', label: 'Pedidos', short: 'Pedidos', icon: 'receipt' as const },
+      { to: '/admin/customers', label: 'Clientes', short: 'Clientes', icon: 'users' as const },
       { to: '/admin/stock', label: 'Stock', short: 'Stock', icon: 'boxes' as const },
       { to: '/admin/reports', label: 'Reportes', short: 'Reportes', icon: 'receipt' as const },
     ],
@@ -41,6 +42,7 @@ const groups: { label: string; links: NavLinkItem[] }[] = [
       { to: '/admin/products', label: 'Productos', short: 'Productos', icon: 'bag' as const },
       { to: '/admin/categories', label: 'Categorías', short: 'Categorías', icon: 'tag' as const },
       { to: '/admin/promotions', label: 'Promociones', short: 'Promos', icon: 'percent' as const },
+      { to: '/admin/campaigns', label: 'Campañas', short: 'Campañas', icon: 'flag' as const },
     ],
   },
   {

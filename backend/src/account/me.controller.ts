@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Patch, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Patch, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { JwtPayload } from '../auth/jwt-payload';
 import { AccountService } from './account.service';
+import { DeleteMeDto } from './dto/delete-me.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 
 type AuthedRequest = Request & { user: JwtPayload };
@@ -21,5 +22,11 @@ export class MeController {
   @Patch()
   updateMe(@Req() req: AuthedRequest, @Body() dto: UpdateMeDto) {
     return this.accountService.updateMe(req.user.sub, dto);
+  }
+
+  @Delete()
+  @HttpCode(204)
+  deleteMe(@Req() req: AuthedRequest, @Body() dto: DeleteMeDto) {
+    return this.accountService.deleteMe(req.user.sub, dto.password);
   }
 }

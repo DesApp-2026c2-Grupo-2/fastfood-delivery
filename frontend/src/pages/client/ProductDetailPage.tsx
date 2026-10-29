@@ -21,6 +21,7 @@ export function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [pairLeft, setPairLeft] = useState(false);
   const [notes, setNotes] = useState('');
   const [notesOpen, setNotesOpen] = useState(false);
   const [lineQuote, setLineQuote] = useState<{
@@ -133,39 +134,54 @@ export function ProductDetailPage() {
     type: matchedQuote?.promotion?.type,
     value: matchedQuote?.promotion?.value,
   });
+  const oneShort = Boolean(product?.twoForOne) && quantity % 2 === 1;
 
-  async function addToCart(event: FormEvent) {
-    event.preventDefault();
+  async function addToCart(event?: FormEvent, quantityOverride?: number) {
+    event?.preventDefault();
     if (!product) return;
+    const nextQuantity = quantityOverride ?? quantity;
     setSaving(true);
     setError('');
     setOk('');
+    setPairLeft(false);
 
     // DEV-17: Las observaciones de cocina van limpias, sin mezclar con los nombres de los extras
     const cleanNotes = notes.trim();
 
     try {
-      if (isCustomer()) {
-        const token = getToken() ?? '';
-        await api<Cart>('/cart/items', {
-          method: 'POST',
-          token,
-          body: JSON.stringify({
-            productId: product.id,
-            quantity,
-            notes: cleanNotes, // Enviamos solo la aclaración real
-            extraIds: selectedExtraIds,
-          }),
-        });
-      } else {
-        // Para invitados, le pasamos las notas limpias
-        addGuestItem(product, quantity, cleanNotes);
-      }
+      const saved = isCustomer()
+        ? await api<Cart>('/cart/items', {
+            method: 'POST',
+            token: getToken() ?? '',
+            body: JSON.stringify({
+              productId: product.id,
+              quantity: nextQuantity,
+              notes: cleanNotes, // Enviamos solo la aclaración real
+              extraIds: selectedExtraIds,
+            }),
+          })
+        : addGuestItem(
+            product,
+            nextQuantity,
+            cleanNotes,
+            availableExtras
+              .filter((extra) => selectedExtraIds.includes(extra.id))
+              .map((extra) => ({
+                id: extra.id,
+                name: extra.name,
+                price: Number(extra.price) || 0,
+                imageUrl: extra.images?.[0]?.url || extra.imageUrl || null,
+              })),
+          );
+      const inCart = saved.items
+        .filter((item) => item.productId === product.id)
+        .reduce((sum, item) => sum + item.quantity, 0);
       await refresh();
+      setPairLeft(Boolean(product.twoForOne) && inCart % 2 === 1);
       setOk(
-        quantity === 1
+        nextQuantity === 1
           ? '¡Sumamos 1 unidad al carrito!'
-          : `¡Sumamos ${quantity} unidades al carrito!`,
+          : `¡Sumamos ${nextQuantity} unidades al carrito!`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo agregar al carrito');
@@ -203,42 +219,48 @@ export function ProductDetailPage() {
         </Link>
       </div>
 
-      {images.length ? (
-        <div className="detail-photo">
-          <div className={images.length > 1 ? 'detail-gallery' : undefined}>
-            {images.map((image) => (
-              <img
-                key={image.id}
-                src={mediaUrl(image.url)}
-                alt={product.name}
-                onError={(event) => {
-                  event.currentTarget.src =
-                    'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240"><rect width="100%" height="100%" fill="%23FFEDD5"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23EA580C" font-family="Nunito,sans-serif" font-size="22">sin fotito</text></svg>';
-                }}
-              />
-            ))}
+      <div className="detail-top">
+        {images.length ? (
+          <div className="detail-photo">
+            <div className={images.length > 1 ? 'detail-gallery' : undefined}>
+              {images.map((image) => (
+                <img
+                  key={image.id}
+                  src={mediaUrl(image.url)}
+                  alt={product.name}
+                  onError={(event) => {
+                    event.currentTarget.src =
+                      'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240"><rect width="100%" height="100%" fill="%23FFEDD5"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23EA580C" font-family="Nunito,sans-serif" font-size="22">sin fotito</text></svg>';
+                  }}
+                />
+              ))}
+            </div>
+            {product.twoForOne ? <PromoBadge /> : null}
           </div>
-          {product.twoForOne ? <PromoBadge /> : null}
+        ) : product.twoForOne ? (
+          <PromoBadge />
+        ) : null}
+
+        <div className="detail-info">
+          <h1>{product.name}</h1>
+          {product.twoForOne ? (
+            <p className="promo-note">
+              Llevá dos y una sale gratis.
+              {availableExtras.length > 0 ? ' Los adicionales se cobran.' : ''}
+            </p>
+          ) : null}
+          <ProductTags product={product} />
+          <p className="price">
+            {formatPrice(unitPriceWithExtras)}
+            {extrasTotalPerUnit > 0 && (
+              <small style={{ fontSize: '0.85rem', color: '#64748b', marginLeft: '0.5rem' }}>
+                (base {formatPrice(product.price)} + {formatPrice(extrasTotalPerUnit)} extras)
+              </small>
+            )}
+          </p>
+          <p>{product.description}</p>
         </div>
-      ) : product.twoForOne ? (
-        <PromoBadge />
-      ) : null}
-
-      <h1>{product.name}</h1>
-      {product.twoForOne ? (
-        <p className="promo-note">Llevá dos y una sale gratis. Los adicionales se cobran.</p>
-      ) : null}
-      <ProductTags product={product} />
-
-      <p className="price">
-        {formatPrice(unitPriceWithExtras)}
-        {extrasTotalPerUnit > 0 && (
-          <small style={{ fontSize: '0.85rem', color: '#64748b', marginLeft: '0.5rem' }}>
-            (base {formatPrice(product.price)} + {formatPrice(extrasTotalPerUnit)} extras)
-          </small>
-        )}
-      </p>
-      <p>{product.description}</p>
+      </div>
 
       <form className="card form" onSubmit={(event) => void addToCart(event)}>
         <h2>Agregar al carrito</h2>
@@ -323,6 +345,19 @@ export function ProductDetailPage() {
           </p>
         ) : null}
 
+        <div className="product-buy">
+        {oneShort && !ok ? (
+          <p className="pair-hint" role="status">
+            <span>
+              Si sumás una más, esa sale gratis.
+              {selectedExtraIds.length > 0 ? ' Los adicionales sí se cobran.' : ''}
+            </span>
+            <button type="button" className="text-action" onClick={() => setQuantity((current) => current + 1)}>
+              Sumar la que sale gratis
+            </button>
+          </p>
+        ) : null}
+
         {lineDiscount > 0 ? (
           <div className="product-line-discount">
             <p>
@@ -374,6 +409,7 @@ export function ProductDetailPage() {
             <span className="add-to-cart-price">{formatPrice(payable)}</span>
           </button>
         </div>
+        </div>
 
         {/* Notificación de éxito con scroll automático */}
         {ok ? (
@@ -412,8 +448,24 @@ export function ProductDetailPage() {
                 {ok}
               </span>
             </div>
+            {pairLeft ? (
+              <p className="pair-hint-follow">
+                Aprovechá el 2x1: si agregás una más, esa no tiene costo.
+                {selectedExtraIds.length > 0 ? ' Los adicionales sí se cobran.' : ''}
+              </p>
+            ) : null}
 
             <div className="cart-added-actions">
+              {pairLeft ? (
+                <button
+                  type="button"
+                  className="cart-added-go"
+                  disabled={saving}
+                  onClick={() => void addToCart(undefined, 1)}
+                >
+                  Agregar la que sale gratis
+                </button>
+              ) : null}
               <Link to="/products" className="cart-added-stay">
                 Seguir comprando
               </Link>

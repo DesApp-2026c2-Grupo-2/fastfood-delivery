@@ -12,6 +12,7 @@
     "prisma:seed": "prisma db seed",
     "db:setup": "prisma migrate deploy && prisma db seed",
     "admin:dev": "npm run dev --prefix admin",
+    "pretest": "tsx test/prepare-test-db.ts",
     "test": "jest --config ./test/jest-e2e.json --runInBand",
     "postinstall": "prisma generate"
   },

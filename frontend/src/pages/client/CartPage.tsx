@@ -4,8 +4,10 @@ import { Link, useLocation } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Cart, CartItem, Product, PromotionQuote } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
-import { hydrateGuestCart, removeGuestItem, updateGuestItem } from '../../cart/guestCart';
+import { guestOrderItem, hydrateGuestCart, removeGuestExtra, removeGuestItem, updateGuestItem } from '../../cart/guestCart';
 import { LineExtras } from '../../components/LineExtras';
+import { PromoBanner } from '../../components/PromoBanner';
+import { PromotionOffers } from '../../components/PromotionOffers';
 import { parseNotesAndExtras } from '../../lib/cart-notes';
 import { mediaUrl } from '../../lib/media';
 import { discountCaption } from '../../lib/discount-label';
@@ -24,6 +26,7 @@ export function CartPage() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState('');
   const [quote, setQuote] = useState<PromotionQuote | null>(null);
+  const [quoteSettled, setQuoteSettled] = useState(false);
   const loggedIn = isCustomer();
 
   async function load() {
@@ -51,19 +54,18 @@ export function CartPage() {
   }, [loggedIn]);
 
   useEffect(() => {
-    if (!cart || cart.items.length === 0) {
+    if (!cart) return;
+    if (cart.items.length === 0) {
       setQuote(null);
+      setQuoteSettled(true);
       return;
     }
     let cancelled = false;
+    setQuoteSettled(false);
     const body = loggedIn
       ? {}
       : {
-          items: cart.items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            notes: item.notes,
-          })),
+          items: cart.items.map(guestOrderItem),
         };
     api<PromotionQuote>('/promotions/quote', {
       method: 'POST',
@@ -75,6 +77,9 @@ export function CartPage() {
       })
       .catch(() => {
         if (!cancelled) setQuote(null);
+      })
+      .finally(() => {
+        if (!cancelled) setQuoteSettled(true);
       });
     return () => {
       cancelled = true;
@@ -94,7 +99,7 @@ export function CartPage() {
         setCart(next);
         void refresh();
       } else {
-        setCart(updateGuestItem(item.productId, quantity, notes));
+        setCart(updateGuestItem(item.id, quantity, notes));
         void refresh();
       }
     } catch (err) {
@@ -116,11 +121,15 @@ export function CartPage() {
     setUpdatingId(item.id);
     setError('');
     try {
-      const next = await api<Cart>(`/cart/items/${item.id}/extras/${extraId}`, {
-        method: 'DELETE',
-        token: getToken() ?? '',
-      });
-      setCart(next);
+      if (loggedIn) {
+        const next = await api<Cart>(`/cart/items/${item.id}/extras/${extraId}`, {
+          method: 'DELETE',
+          token: getToken() ?? '',
+        });
+        setCart(next);
+      } else {
+        setCart(removeGuestExtra(item.id, extraId));
+      }
       void refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo quitar el adicional');
@@ -141,7 +150,7 @@ export function CartPage() {
         setCart(next);
         void refresh();
       } else {
-        setCart(removeGuestItem(item.productId));
+        setCart(removeGuestItem(item.id));
         void refresh();
       }
     } catch (err) {
@@ -153,13 +162,17 @@ export function CartPage() {
 
   const items = cart?.items ?? [];
   const discountLabel = discountCaption({
+    id: quote?.promotion?.id,
     name: quote?.promotion?.name,
     type: quote?.promotion?.type,
     value: quote?.promotion?.value,
   });
 
+  const showBanner = !loading && quoteSettled && !quote?.promotion;
+
   return (
     <section className="stack">
+      {showBanner ? <PromoBanner /> : null}
       <header className="page-head">
         <div>
           <h1>Tu carrito</h1>
@@ -192,20 +205,32 @@ export function CartPage() {
       {!loading && items.length > 0 ? (
         <>
           <ul className="cart-list">
-            {items.map((item) => (
-              <CartLine
-                key={item.id}
-                item={item}
-                allProducts={allProducts}
-                busy={updatingId === item.id}
-                onQuantity={(quantity) => void changeQuantity(item, quantity)}
-                onNotes={(notes) => void saveItem(item, item.quantity, notes)}
-                onRemove={() => void removeItem(item)}
-                onRemoveExtra={(extraId) => void removeExtra(item, extraId)}
-              />
-            ))}
+            {items.map((item) => {
+              const catalogProduct = allProducts.find((product) => product.id === item.productId);
+              const productQty = items
+                .filter((line) => line.productId === item.productId)
+                .reduce((sum, line) => sum + line.quantity, 0);
+              const pairHint =
+                Boolean(catalogProduct?.twoForOne) &&
+                productQty % 2 === 1 &&
+                items.find((line) => line.productId === item.productId)?.id === item.id;
+              return (
+                <CartLine
+                  key={item.id}
+                  item={item}
+                  allProducts={allProducts}
+                  pairHint={pairHint}
+                  busy={updatingId === item.id}
+                  onQuantity={(quantity) => void changeQuantity(item, quantity)}
+                  onNotes={(notes) => void saveItem(item, item.quantity, notes)}
+                  onRemove={() => void removeItem(item)}
+                  onRemoveExtra={(extraId) => void removeExtra(item, extraId)}
+                />
+              );
+            })}
           </ul>
           <div className="card total-card">
+            <PromotionOffers offers={quote?.offers} />
             {quote && quote.discountAmount > 0 ? (
               <>
                 <p className="total-row total-row--detail">
@@ -238,6 +263,7 @@ export function CartPage() {
 function CartLine({
   item,
   allProducts,
+  pairHint,
   busy,
   onQuantity,
   onNotes,
@@ -246,6 +272,7 @@ function CartLine({
 }: {
   item: CartItem;
   allProducts: Product[];
+  pairHint: boolean;
   busy: boolean;
   onQuantity: (quantity: number) => void;
   onNotes: (notes: string) => void;
@@ -404,6 +431,10 @@ function CartLine({
           </button>
         </div>
       </div>
+
+      {pairHint ? (
+        <p className="cart-pair-hint">Si sumás una más, esa sale gratis.</p>
+      ) : null}
 
       <LineExtras
         className="cart-line-extras"

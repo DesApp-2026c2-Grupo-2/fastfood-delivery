@@ -241,6 +241,32 @@ describe('POST /api/orders con retiro o domicilio (HU-23)', () => {
     expect(admin.body).toMatchObject({ fulfillment: 'pickup', address: null });
   });
 
+  it('un retiro no pasa por en camino: de listo va directo a retirado', async () => {
+    await fillCart(ana, [burgerLine()]);
+    const created = await place({ fulfillment: 'pickup', branchId: near.id });
+    expect(created.status).toBe(201);
+
+    const login = await request(server).post('/api/auth/login').send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
+    const token = login.body.accessToken;
+    const setStatus = (status: string) =>
+      request(server).post(`/api/admin/orders/${created.body.id}/status`).set(auth(token)).send({ status });
+
+    for (const status of ['confirmed', 'preparing', 'ready']) {
+      expect((await setStatus(status)).status).toBe(201);
+    }
+
+    const ready = await request(server).get(`/api/admin/orders/${created.body.id}`).set(auth(token));
+    expect(ready.body.status).toBe('ready');
+    expect(ready.body.nextStatuses).toEqual(['delivered']);
+
+    expect((await setStatus('on_the_way')).status).toBe(409);
+
+    const delivered = await setStatus('delivered');
+    expect(delivered.status).toBe(201);
+    expect(delivered.body.status).toBe('delivered');
+    expect(delivered.body.nextStatuses).toEqual([]);
+  });
+
   it('domicilio: guarda la sucursal elegida (no la más cercana) y la dirección', async () => {
     await fillCart(ana, [burgerLine()]);
 

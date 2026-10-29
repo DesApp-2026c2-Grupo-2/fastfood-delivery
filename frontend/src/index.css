@@ -341,6 +341,69 @@ textarea {
   height: 3.2rem;
 }
 
+.promo-offers-block {
+  margin: 0 0 0.85rem;
+}
+
+.promo-offers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.promo-offer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.35rem 0.6rem;
+  align-items: center;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.9rem;
+  border: 2px dashed #d6d3d1;
+  background: #fafaf9;
+  color: var(--muted);
+}
+
+.promo-offer--applied {
+  border-style: solid;
+  border-color: #ea580c;
+  background: #fff7ed;
+  color: inherit;
+  box-shadow: 0 3px 0 #fdba74;
+}
+
+.promo-offer-mark {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  background: #e7e5e4;
+  color: #57534e;
+}
+
+.promo-offer--applied .promo-offer-mark {
+  background: #ea580c;
+  color: #fff;
+}
+
+.promo-offer-name {
+  font-weight: 800;
+  min-width: 0;
+}
+
+.promo-offer strong {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.promo-offers-note {
+  margin: 0.45rem 0 0;
+  font-size: 0.82rem;
+}
+
 .app-shell--admin .main {
   width: min(1100px, 100%);
 }
@@ -488,7 +551,8 @@ button:disabled {
   min-height: 112px;
 }
 
-.promo-badge {
+.promo-badge,
+.pickup-badge {
   display: inline-flex;
   align-items: center;
   padding: 0.12rem 0.45rem;
@@ -500,6 +564,38 @@ button:disabled {
   letter-spacing: 0.03em;
   line-height: 1.3;
   box-shadow: 0 2px 0 #c2410c;
+}
+
+.order-card-side {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-shrink: 0;
+}
+
+.order-card-stamp {
+  width: 2.75rem;
+  height: 2.75rem;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 0.7rem;
+  border: 1.5px solid #fb923c;
+  background: linear-gradient(160deg, #fff7ed 0%, #ffedd5 100%);
+  box-shadow: 1.5px 1.5px 0 #fdba74;
+}
+
+.order-card-stamp__logo {
+  width: 72% !important;
+  height: 72% !important;
+  object-fit: contain;
+}
+
+.order-status-marks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .product-card-media .promo-badge,
@@ -518,6 +614,54 @@ button:disabled {
   color: #c2410c;
   font-weight: 800;
   font-size: 0.92rem;
+}
+
+.detail-top {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.detail-info p:last-child {
+  margin-bottom: 0;
+}
+
+.pair-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #fdba74;
+  border-radius: 12px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.product-buy {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.pair-hint p,
+.pair-hint-follow {
+  margin: 0;
+}
+
+.pair-hint-follow {
+  color: #9a3412;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.cart-pair-hint {
+  margin: 0.55rem 0 0;
+  color: #c2410c;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .product-card img,
@@ -1660,6 +1804,129 @@ h2 {
 
 .legal-card h2:first-child {
   margin-top: 0;
+}
+
+.promo-panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.2rem;
+}
+
+.promo-panel > p {
+  margin: 0;
+}
+
+.promo-board {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.promo-spot {
+  display: grid;
+  grid-template-columns: 5.6rem minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.75rem;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 1.4rem;
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+
+.promo-spot__body {
+  min-width: 0;
+}
+
+.promo-spot h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1.08rem;
+}
+
+.promo-spot p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.promo-spot__until {
+  margin-top: 0.3rem !important;
+  font-size: 0.8rem !important;
+}
+
+.promo-spot__art,
+.promo-spot__mark {
+  position: relative;
+  width: 5.6rem;
+  height: 5.6rem;
+  border-radius: 0.95rem;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.promo-spot__art {
+  background: #fff;
+  border: 1.5px solid #fdba74;
+}
+
+.promo-spot__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.promo-spot__percent {
+  font-family: Fredoka, Nunito, sans-serif;
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: #ea580c;
+  line-height: 1;
+}
+
+.promo-spot__art .promo-badge {
+  position: absolute;
+  top: 0.3rem;
+  left: 0.3rem;
+}
+
+.promo-spot__chip {
+  position: absolute;
+  top: 0.3rem;
+  left: 0.3rem;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  background: #ea580c;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.3;
+  box-shadow: 0 2px 0 #c2410c;
+}
+
+.promo-spot__mark--stamp {
+  border: 1.5px solid #fb923c;
+  background: linear-gradient(160deg, #fff7ed 0%, #ffedd5 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+.promo-spot__logo {
+  width: 72% !important;
+  height: 72% !important;
+  object-fit: contain;
+}
+
+.promo-spot__mark--trophy {
+  border: 1.5px solid #f59e0b;
+  background: linear-gradient(160deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.promo-spot__trophy {
+  width: 70%;
+  height: 70%;
 }
 
 .legal-card p {
@@ -3829,9 +4096,9 @@ a.order-card-total:hover,
 .product-action-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end; /* agrupa hacia la derecha o podés usar flex-start */
+  justify-content: flex-end;
   gap: 1.25rem;
-  margin-top: 1.25rem;
+  margin-top: 0;
   width: 100%;
 }
 
@@ -4259,7 +4526,7 @@ a.order-card-total:hover,
     gap: 8px !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    margin-top: 1.25rem !important;
+    margin-top: 0 !important;
     padding: 0 !important;
   }
 
@@ -4721,6 +4988,28 @@ a.order-card-total:hover,
 .order-confirmed-facts .order-id {
   font-weight: 600;
   color: #57534e;
+}
+
+.order-public-code {
+  font-family: Fredoka, Nunito, sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--accent-dark);
+  line-height: 1.1;
+}
+
+.tracking-code .order-public-code {
+  font-size: 1.35rem;
+  letter-spacing: 0.12em;
+}
+
+.order-card-code {
+  display: block;
+  margin-top: 0.15rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--accent-dark);
 }
 
 @media (min-width: 640px) {
