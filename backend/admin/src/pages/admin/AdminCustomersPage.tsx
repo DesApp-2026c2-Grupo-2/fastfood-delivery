@@ -204,7 +204,9 @@ export function AdminCustomersPage() {
                       <strong>{customer.name}</strong>
                       <p className="table-slug muted">Desde {formatWhen(customer.createdAt)}</p>
                     </td>
-                    <td>{customer.email}</td>
+                    <td className="table-email" title={customer.email}>
+                      {customer.email}
+                    </td>
                     <td>{customer.orderCount}</td>
                     <td className="data-table-price">{formatMoney(customer.totalSpent)}</td>
                     <td>

@@ -10,7 +10,6 @@ import { PromoBanner } from '../../components/PromoBanner';
 import { PromotionOffers } from '../../components/PromotionOffers';
 import { parseNotesAndExtras } from '../../lib/cart-notes';
 import { mediaUrl } from '../../lib/media';
-import { discountCaption } from '../../lib/discount-label';
 import { formatPrice } from '../../lib/money';
 import { useAutoClear } from '../../lib/useAutoClear';
 
@@ -161,12 +160,9 @@ export function CartPage() {
   }
 
   const items = cart?.items ?? [];
-  const discountLabel = discountCaption({
-    id: quote?.promotion?.id,
-    name: quote?.promotion?.name,
-    type: quote?.promotion?.type,
-    value: quote?.promotion?.value,
-  });
+  const offers = quote?.offers ?? [];
+  // Si ya listamos las ofertas arriba, no repetimos el descuento en el resumen.
+  const showDiscountRow = Boolean(quote && quote.discountAmount > 0 && offers.length === 0);
 
   const showBanner = !loading && quoteSettled && !quote?.promotion;
 
@@ -230,20 +226,19 @@ export function CartPage() {
             })}
           </ul>
           <div className="card total-card">
-            <PromotionOffers offers={quote?.offers} />
+            <PromotionOffers offers={offers} />
             {quote && quote.discountAmount > 0 ? (
               <>
                 <p className="total-row total-row--detail">
                   <span>Subtotal</span>
                   <strong>{formatPrice(quote.subtotal)}</strong>
                 </p>
-                <p className="total-row total-row--detail">
-                  <span className="total-discount">
+                {showDiscountRow ? (
+                  <p className="total-row total-row--detail">
                     <span>Descuento</span>
-                    {discountLabel ? <small>{discountLabel}</small> : null}
-                  </span>
-                  <strong>−{formatPrice(quote.discountAmount)}</strong>
-                </p>
+                    <strong>−{formatPrice(quote.discountAmount)}</strong>
+                  </p>
+                ) : null}
               </>
             ) : null}
             <p className="total-row">

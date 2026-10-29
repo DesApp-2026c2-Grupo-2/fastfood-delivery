@@ -49,7 +49,7 @@ export const PARAMETERS = {
   loyalty_orders_required: {
     label: 'Pedidos para premio de fidelidad',
     description:
-      'Cada N pedidos (con monto mínimo) el cliente recibe el descuento de fidelidad. Si cancela, el sello se revierte.',
+      'Cada N pedidos (con monto mínimo) el cliente recibe el descuento de fidelidad. Si cancela, el mordi se revierte.',
     unit: 'pedidos',
     defaultValue: 10,
     min: 1,
@@ -57,8 +57,8 @@ export const PARAMETERS = {
     integer: true,
   },
   loyalty_min_order_amount: {
-    label: 'Monto mínimo por sello',
-    description: 'Subtotal mínimo del pedido (sin envío) para sumar una estampa al confirmar. Se revierte si cancela.',
+    label: 'Monto mínimo por mordi',
+    description: 'Subtotal mínimo del pedido (sin envío) para sumar un mordi al confirmar. Se revierte si cancela.',
     unit: '$',
     defaultValue: 15_000,
     min: 0,
@@ -67,7 +67,7 @@ export const PARAMETERS = {
   },
   loyalty_discount_percent: {
     label: 'Descuento de fidelidad',
-    description: 'Porcentaje de descuento que se aplica al pedido que cumple la meta de sellos.',
+    description: 'Porcentaje de descuento que se aplica al pedido que cumple la meta de mordis.',
     unit: '%',
     defaultValue: 30,
     min: 1,

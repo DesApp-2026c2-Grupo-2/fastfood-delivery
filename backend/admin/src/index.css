@@ -1139,6 +1139,13 @@ h2 {
   font-size: 0.8rem;
 }
 
+.table-email {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .data-table .tag-list {
   margin: 0;
 }
@@ -1660,6 +1667,8 @@ h2 {
 .orders-table th:nth-child(2),
 .orders-table td:nth-child(2) {
   width: 18%;
+  max-width: 0;
+  overflow: hidden;
 }
 
 .orders-table th:nth-child(3),

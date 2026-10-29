@@ -195,7 +195,7 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
               </div>
               <div className="order-card-side">
                 {loyalty && order.loyaltyStampGranted ? (
-                  <span className="order-card-stamp" title="Este pedido sumó un sello" aria-label="Este pedido sumó un sello">
+                  <span className="order-card-stamp" title="Este pedido sumó un mordi" aria-label="Este pedido sumó un mordi">
                     <BrandLogo size={36} className="order-card-stamp__logo" alt="" />
                   </span>
                 ) : null}

@@ -182,7 +182,9 @@ export function AdminAdminsPage() {
                         </p>
                       ) : null}
                     </td>
-                    <td>{admin.email}</td>
+                    <td className="table-email" title={admin.email}>
+                      {admin.email}
+                    </td>
                     <td className="muted">{formatWhen(admin.createdAt)}</td>
                     <td className="data-table-actions">
                       <div className="row">

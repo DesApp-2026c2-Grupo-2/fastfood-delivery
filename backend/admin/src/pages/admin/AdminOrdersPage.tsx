@@ -260,7 +260,11 @@ export function AdminOrdersPage() {
                   </td>
                   <td>
                     <strong>{order.customerName}</strong>
-                    {order.customerEmail ? <p className="table-slug muted">{order.customerEmail}</p> : null}
+                    {order.customerEmail ? (
+                      <p className="table-slug muted table-email" title={order.customerEmail}>
+                        {order.customerEmail}
+                      </p>
+                    ) : null}
                   </td>
                   <td>{order.branch.name}</td>
                   <td>

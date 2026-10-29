@@ -146,11 +146,11 @@ export function PromotionsPage() {
                       <BrandLogo size={52} className="promo-spot__logo" alt="" />
                     </div>
                     <div className="promo-spot__body">
-                      <h3>Sellos</h3>
+                      <h3>Mordis</h3>
                       <p>
                         Cada {offers.loyalty.ordersRequired} pedidos desde{' '}
-                        {formatPrice(offers.loyalty.minOrderAmount)} suma un sello. Al completarlos, el premio de ese
-                        pedido es una sorpresa. Si cancelás el pedido, el sello se revierte.
+                        {formatPrice(offers.loyalty.minOrderAmount)} suma un mordi. Al completarlos, el premio de ese
+                        pedido es una sorpresa. Si cancelás el pedido, el mordi se revierte.
                       </p>
                     </div>
                   </li>

@@ -18,20 +18,20 @@ export function LoyaltyStampsCard({ loyalty, context = 'checkout' }: LoyaltyStam
   if (context === 'profile') {
     message =
       progress === 0
-        ? `Sumá compras de ${formatPrice(minOrderAmount)} o más para ir llenando tus estampas. Si cancelás, la estampa se revierte.`
+        ? `Sumá compras de ${formatPrice(minOrderAmount)} o más para ir llenando tus mordis. Si cancelás, el mordi se revierte.`
         : '¡Estás más cerca de tu premio! Seguí comprando para desbloquearlo.';
   } else if (rewardOnThisOrder) {
     message = '¡Desbloqueaste tu premio en este pedido!';
   } else if (qualifiesThisOrder) {
     message = '¡Estás más cerca de tu premio! Seguí comprando para desbloquearlo.';
   } else {
-    message = `Esta compra no suma estampa (mínimo ${formatPrice(minOrderAmount)}). Seguí comprando para acercarte a tu premio.`;
+    message = `Esta compra no suma mordi (mínimo ${formatPrice(minOrderAmount)}). Seguí comprando para acercarte a tu premio.`;
   }
 
   return (
     <div className="loyalty-stamps" role="status" aria-label={message}>
       <div className="loyalty-stamps__head">
-        <span className="loyalty-stamps__label">Tus estampas</span>
+        <span className="loyalty-stamps__label">Mis mordis</span>
         <strong className="loyalty-stamps__count">
           {progress}/{ordersRequired}
         </strong>
@@ -43,7 +43,7 @@ export function LoyaltyStampsCard({ loyalty, context = 'checkout' }: LoyaltyStam
             <li
               key={index}
               className={filled ? 'loyalty-stamp loyalty-stamp--filled' : 'loyalty-stamp'}
-              aria-label={filled ? `Estampa ${index + 1} conseguida` : `Estampa ${index + 1} pendiente`}
+              aria-label={filled ? `Mordi ${index + 1} conseguido` : `Mordi ${index + 1} pendiente`}
             >
               <BrandLogo size={28} className="loyalty-stamp__logo" alt="" />
             </li>

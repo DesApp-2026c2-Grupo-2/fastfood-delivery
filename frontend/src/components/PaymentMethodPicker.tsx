@@ -24,7 +24,6 @@ export function PaymentMethodPicker({
           </span>
         </label>
       ))}
-      <p className="field-hint">Es una simulación: no se cobra ni se guarda nada.</p>
     </fieldset>
   );
 }

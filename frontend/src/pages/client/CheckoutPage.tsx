@@ -1014,6 +1014,7 @@ function PriceBreakdown({
   discountAmount,
   deliveryFee,
   totalAmount,
+  hideDiscountRow = false,
   promotionId,
   promotionName,
   promotionType,
@@ -1024,12 +1025,15 @@ function PriceBreakdown({
   // null: no es a domicilio, no hay línea de envío.
   deliveryFee: number | null;
   totalAmount: number;
+  // true cuando PromotionOffers ya muestra el descuento aplicado.
+  hideDiscountRow?: boolean;
   promotionId?: string | null;
   promotionName?: string | null;
   promotionType?: 'percent' | 'two_for_one' | null;
   promotionValue?: number | null;
 }) {
   const caption = discountCaption({ id: promotionId, name: promotionName, type: promotionType, value: promotionValue });
+  const showDiscountRow = Boolean(discountAmount) && !hideDiscountRow;
   if (!discountAmount && deliveryFee === null) {
     return (
       <p className="total-row">
@@ -1044,7 +1048,7 @@ function PriceBreakdown({
         <span>Subtotal</span>
         <strong>{formatPrice(subtotal)}</strong>
       </p>
-      {discountAmount ? (
+      {showDiscountRow ? (
         <p className="total-row total-row--detail">
           <span className="total-discount">
             <span>Descuento</span>
@@ -1125,6 +1129,7 @@ function OrderSummary({
         discountAmount={quote?.discountAmount ?? 0}
         deliveryFee={deliveryFee}
         totalAmount={totalAmount}
+        hideDiscountRow={(quote?.offers?.length ?? 0) > 0}
         promotionId={quote?.promotion?.id}
         promotionName={quote?.promotion?.name}
         promotionType={quote?.promotion?.type}

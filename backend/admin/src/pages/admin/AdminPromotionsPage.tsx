@@ -164,7 +164,7 @@ export function AdminPromotionsPage() {
           <h1>Promociones</h1>
           <p className="muted">
             Descuentos del menú: un porcentaje o un 2x1. Si entran varias, al confirmar se aplica solo la que más
-            conviene. Los sellos y el Top 3 están en Campañas.
+            conviene. Los mordis y el Top 3 están en Campañas.
           </p>
         </div>
         <button type="button" disabled={loading} onClick={() => navigate('/admin/promotions/nueva')}>

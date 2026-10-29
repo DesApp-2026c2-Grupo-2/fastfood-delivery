@@ -73,9 +73,9 @@ export function AdminCampaignsPage() {
       const status = await api<LoyaltyCampaign>('/admin/promotions/loyalty-campaign/start', { method: 'POST', token });
       setLoyalty(status);
       fillLoyaltyDraft(status);
-      setOk('Campaña de sellos iniciada. Los pedidos que superen el mínimo vuelven a sumar un sello.');
+      setOk('Campaña de mordis iniciada. Los pedidos que superen el mínimo vuelven a sumar un mordi.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo iniciar la campaña de sellos');
+      setError(err instanceof Error ? err.message : 'No se pudo iniciar la campaña de mordis');
     } finally {
       setBusy(false);
     }
@@ -90,9 +90,9 @@ export function AdminCampaignsPage() {
       setPendingFinishLoyalty(false);
       setLoyalty(status);
       fillLoyaltyDraft(status);
-      setOk('Campaña de sellos finalizada. Los sellos que ya tenían se conservan.');
+      setOk('Campaña de mordis finalizada. Los mordis que ya tenían se conservan.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo finalizar la campaña de sellos');
+      setError(err instanceof Error ? err.message : 'No se pudo finalizar la campaña de mordis');
     } finally {
       setBusy(false);
     }
@@ -136,9 +136,9 @@ export function AdminCampaignsPage() {
       setLoyalty(status);
       fillLoyaltyDraft(status);
       setLoyaltyEditing(false);
-      setOk('Campaña de sellos actualizada. Rige desde el próximo pedido.');
+      setOk('Campaña de mordis actualizada. Rige desde el próximo pedido.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar la campaña de sellos');
+      setError(err instanceof Error ? err.message : 'No se pudo guardar la campaña de mordis');
     } finally {
       setBusy(false);
     }
@@ -231,7 +231,7 @@ export function AdminCampaignsPage() {
         <div>
           <h1>Campañas</h1>
           <p className="muted">
-            Programas para los clientes: sellos y Top 3. No se suman entre sí ni con una promoción del menú: en cada
+            Programas para los clientes: mordis y Top 3. No se suman entre sí ni con una promoción del menú: en cada
             pedido se aplica solo el descuento que más conviene.
           </p>
         </div>
@@ -253,10 +253,10 @@ export function AdminCampaignsPage() {
         <article className="card order-detail-card top3-campaign">
           <div className="top3-campaign-head">
             <div>
-              <h2>Sellos</h2>
+              <h2>Mordis</h2>
               <p className="muted">
-                Cada {loyalty.ordersRequired} pedidos desde {formatMoney(loyalty.minOrderAmount)} suma un sello. Al
-                completarlos, ese pedido tiene {loyalty.discountPercent}% OFF. Si se cancela, el sello se revierte.
+                Cada {loyalty.ordersRequired} pedidos desde {formatMoney(loyalty.minOrderAmount)} suma un mordi. Al
+                completarlos, ese pedido tiene {loyalty.discountPercent}% OFF. Si se cancela, el mordi se revierte.
               </p>
             </div>
             <span className={loyalty.active ? 'badge' : 'badge badge--off'}>
@@ -265,8 +265,8 @@ export function AdminCampaignsPage() {
           </div>
           <p className="muted">
             {loyalty.active
-              ? 'Los pedidos que llegan al mínimo suman un sello.'
-              : 'Finalizada: no suma sellos ni aplica el premio. Los sellos que ya tienen se conservan.'}
+              ? 'Los pedidos que llegan al mínimo suman un mordi.'
+              : 'Finalizada: no suma mordis ni aplica el premio. Los mordis que ya tienen se conservan.'}
           </p>
           {loyaltyEditing ? (
             <form className="form" onSubmit={saveLoyalty} noValidate>
@@ -282,7 +282,7 @@ export function AdminCampaignsPage() {
                 </p>
               </label>
               <label>
-                Costo mínimo para el sello
+                Costo mínimo para el mordi
                 <input
                   value={loyaltyDraft.minOrderAmount}
                   onChange={(event) => setLoyaltyDraft((current) => ({ ...current, minOrderAmount: event.target.value }))}
@@ -294,7 +294,7 @@ export function AdminCampaignsPage() {
                 </p>
               </label>
               <label>
-                Descuento al completar los sellos
+                Descuento al completar los mordis
                 <input
                   value={loyaltyDraft.discountPercent}
                   onChange={(event) => setLoyaltyDraft((current) => ({ ...current, discountPercent: event.target.value }))}
@@ -347,7 +347,7 @@ export function AdminCampaignsPage() {
             </div>
           )}
           {(loyalty.holders ?? []).length === 0 ? (
-            <p className="muted">Ningún cliente tiene sellos.</p>
+            <p className="muted">Ningún cliente tiene mordis.</p>
           ) : (
             <div className="table-wrap">
               <table className="data-table">
@@ -356,7 +356,7 @@ export function AdminCampaignsPage() {
                     <th>#</th>
                     <th>Cliente</th>
                     <th>Email</th>
-                    <th className="data-table-price">Sellos</th>
+                    <th className="data-table-price">Mordis</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -366,7 +366,9 @@ export function AdminCampaignsPage() {
                       <td>
                         <strong>{holder.name}</strong>
                       </td>
-                      <td>{holder.email}</td>
+                      <td className="table-email" title={holder.email}>
+                        {holder.email}
+                      </td>
                       <td className="data-table-price">{holder.stamps}</td>
                     </tr>
                   ))}
@@ -477,7 +479,9 @@ export function AdminCampaignsPage() {
                           <strong>{entry.name}</strong>
                           {index < 3 ? <span className="badge">podio</span> : null}
                         </td>
-                        <td>{entry.email}</td>
+                        <td className="table-email" title={entry.email}>
+                          {entry.email}
+                        </td>
                         <td className="data-table-price">{formatMoney(entry.totalSpent)}</td>
                       </tr>
                     ))}
@@ -491,8 +495,8 @@ export function AdminCampaignsPage() {
 
       {pendingFinishLoyalty && loyalty ? (
         <ConfirmModal
-          title="Finalizar campaña de sellos"
-          message="Los clientes dejan de sumar sellos y el premio no se aplica. Los sellos que ya tienen se conservan. ¿Continuar?"
+          title="Finalizar campaña de mordis"
+          message="Los clientes dejan de sumar mordis y el premio no se aplica. Los mordis que ya tienen se conservan. ¿Continuar?"
           confirmLabel="Finalizar"
           busyLabel="Finalizando…"
           busy={busy}

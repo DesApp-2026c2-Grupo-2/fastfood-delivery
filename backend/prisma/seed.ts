@@ -211,6 +211,15 @@ async function main() {
       categorySlug: 'adicional',
     },
     {
+      name: 'Cebolla',
+      slug: 'cebolla',
+      description: 'Cebolla picada',
+      imageUrl: 'https://i.imgur.com/hWeZR1f.png',
+      price: 500,
+      available: true,
+      categorySlug: 'adicional',
+    },
+    {
       name: 'Gaseosa Cola',
       slug: 'gaseosa-cola',
       description: 'Lata 354ml bien fría.',
