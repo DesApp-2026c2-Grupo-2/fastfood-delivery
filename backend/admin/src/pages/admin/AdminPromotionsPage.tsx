@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import type { Product, Promotion, Top3Campaign } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
 
 type PromoType = 'percent' | 'two_for_one';
 type FormState = {
@@ -95,8 +96,8 @@ export function AdminPromotionsPage() {
   const [campaign, setCampaign] = useState<Top3Campaign | null>(null);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [error, setError] = useState('');
-  const [ok, setOk] = useState((location.state as { notice?: string } | null)?.notice ?? '');
+  const [error, setError] = useTimedNotice();
+  const [ok, setOk] = useSuccessNotice();
   const [loading, setLoading] = useState(true);
   const [campaignBusy, setCampaignBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Promotion | null>(null);
@@ -122,6 +123,8 @@ export function AdminPromotionsPage() {
 
   useEffect(() => {
     void load();
+    const notice = (location.state as { notice?: string } | null)?.notice;
+    if (notice) setOk(notice);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -178,7 +181,7 @@ export function AdminPromotionsPage() {
     setOk('');
     try {
       setCampaign(await api<Top3Campaign>('/admin/promotions/top3-campaign/start', { method: 'POST', token }));
-      setOk('Campaña Top 3 iniciada. El ranking suma pedidos entregados desde ahora.');
+      setOk('Campaña Top 3 iniciada. El ranking suma pedidos desde ahora; si se cancelan, se descuentan.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo iniciar la campaña');
     } finally {
@@ -236,8 +239,9 @@ export function AdminPromotionsPage() {
             <div>
               <h2>Campaña Top 3 compradores</h2>
               <p className="muted">
-                Premia a los 3 clientes con más gasto en pedidos entregados. El descuento ({campaign.discountPercent}%
-                OFF de un solo uso) se configura en Parámetros.
+                Premia a los 3 clientes con más gasto desde el inicio de la campaña. Los pedidos cuentan al
+                confirmarse; si se cancelan, se descuentan. El descuento ({campaign.discountPercent}% OFF de un
+                solo uso) se configura en Parámetros.
               </p>
             </div>
             <span className={campaign.active ? 'badge' : 'badge badge--off'}>
@@ -282,7 +286,7 @@ export function AdminPromotionsPage() {
 
           {campaign.active ? (
             campaign.ranking.length === 0 ? (
-              <p className="muted">Todavía no hay pedidos entregados desde el inicio.</p>
+              <p className="muted">Todavía no hay pedidos desde el inicio de la campaña.</p>
             ) : (
               <div className="table-wrap">
                 <table className="data-table">

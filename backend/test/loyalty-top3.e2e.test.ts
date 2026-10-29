@@ -1,7 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaExceptionFilter } from '../src/common/prisma-exception.filter';
@@ -67,17 +67,6 @@ async function placePickup(customer: Customer, quantity = 1) {
       rewardOnThisOrder: boolean;
     };
   };
-}
-
-function adminSetStatus(orderId: string, status: OrderStatus) {
-  return request(server).post(`/api/admin/orders/${orderId}/status`).set(auth(adminToken)).send({ status });
-}
-
-async function deliver(orderId: string) {
-  for (const status of ['confirmed', 'preparing', 'ready', 'on_the_way', 'delivered'] as OrderStatus[]) {
-    const response = await adminSetStatus(orderId, status);
-    expect(response.status).toBe(201);
-  }
 }
 
 async function stampsOf(userId: string) {
@@ -253,7 +242,7 @@ describe('Fidelización por sellos', () => {
 });
 
 describe('Campaña Top 3 compradores', () => {
-  it('start / ranking / award premia a los 3 con más gasto delivered y limpia premios viejos', async () => {
+  it('start / ranking / award premia a los 3 con más gasto desde el pedido y limpia premios viejos', async () => {
     // Premio de una campaña anterior que no debería sobrevivir al award.
     await prisma.user.update({ where: { id: danny.userId }, data: { hasTopBuyerReward: true } });
 
@@ -268,15 +257,12 @@ describe('Campaña Top 3 compradores', () => {
       .set(auth(adminToken));
     expect(conflict.status).toBe(409);
 
-    // Gasto delivered: ana 30000, beto 20000, cari 10000. danny no compra.
-    const anaOrder = await placePickup(ana, 3);
-    const betoOrder = await placePickup(beto, 2);
+    // Gasto al crear: ana 30000, beto 20000, cari 10000. danny no compra.
+    await placePickup(ana, 3);
+    await placePickup(beto, 2);
     const cariOrder = await placePickup(cari, 1);
-    await deliver(anaOrder.id);
-    await deliver(betoOrder.id);
-    await deliver(cariOrder.id);
 
-    const status = await request(server).get('/api/admin/promotions/top3-campaign').set(auth(adminToken));
+    let status = await request(server).get('/api/admin/promotions/top3-campaign').set(auth(adminToken));
     expect(status.status).toBe(200);
     expect(status.body.ranking.slice(0, 3).map((row: { userId: string }) => row.userId)).toEqual([
       ana.userId,
@@ -284,18 +270,27 @@ describe('Campaña Top 3 compradores', () => {
       cari.userId,
     ]);
 
+    // Si cari cancela, su monto sale del ranking en ese momento.
+    const cancelled = await request(server).post(`/api/orders/${cariOrder.id}/cancel`).set(auth(cari.token));
+    expect(cancelled.status).toBe(200);
+    status = await request(server).get('/api/admin/promotions/top3-campaign').set(auth(adminToken));
+    expect(status.body.ranking.map((row: { userId: string }) => row.userId)).toEqual([
+      ana.userId,
+      beto.userId,
+    ]);
+
     const awarded = await request(server)
       .post('/api/admin/promotions/top3-campaign/award')
       .set(auth(adminToken));
     expect(awarded.status).toBe(201);
-    expect(awarded.body.awardedUsers).toHaveLength(3);
+    expect(awarded.body.awardedUsers).toHaveLength(2);
 
     const after = await request(server).get('/api/admin/promotions/top3-campaign').set(auth(adminToken));
     expect(after.body.active).toBe(false);
 
     expect(await stampsOf(ana.userId)).toMatchObject({ hasTopBuyerReward: true });
     expect(await stampsOf(beto.userId)).toMatchObject({ hasTopBuyerReward: true });
-    expect(await stampsOf(cari.userId)).toMatchObject({ hasTopBuyerReward: true });
+    expect(await stampsOf(cari.userId)).toMatchObject({ hasTopBuyerReward: false });
     expect(await stampsOf(danny.userId)).toMatchObject({ hasTopBuyerReward: false });
   });
 

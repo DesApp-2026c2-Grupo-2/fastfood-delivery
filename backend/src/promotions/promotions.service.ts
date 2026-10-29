@@ -110,7 +110,7 @@ export class PromotionsService {
 
   /**
    * Obtiene el estado actual de la campaña Top Compradores y el ranking
-   * acumulado de pedidos entregados desde que se inició.
+   * acumulado desde que se inició. Suma pedidos desde que se crean; si se cancelan, dejan de contar.
    */
   async getTopBuyerCampaign() {
     const startedParam = await this.prisma.parameter.findUnique({
@@ -127,7 +127,7 @@ export class PromotionsService {
         by: ['userId'],
         where: {
           userId: { not: null },
-          status: OrderStatus.delivered,
+          status: { not: OrderStatus.cancelled },
           createdAt: { gte: startedAt },
         },
         _sum: { totalAmount: true },
