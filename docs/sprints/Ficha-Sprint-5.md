@@ -1,9 +1,9 @@
 # Ficha Sprint 5
 
 **Proyecto:** Pedidos en casas de comidas rápidas (Mordi)  
-**Versión:** 1.1  
+**Versión:** 1.2  
 **Actualizado:** 29/10/2026  
-**Grupo:** 2 · 5 integrantes (Celeste, Carla, Lucas, Nicolas, Rafael)  
+**Grupo:** 2 · 5 integrantes, en el orden de trabajo: Rafael, Nicolas, Lucas, Celeste, Carla  
 **Sprint:** 5 de 5 (el último)  
 **Planning:** 29/10/2026 (misma clase que el review del Sprint 4)  
 **Seguimiento:** 05/11/2026  
@@ -23,12 +23,14 @@ Los IDs siguen los de la ficha 1.0. Esta versión saca lo que ya está construid
 
 ## 1. Objetivo del sprint
 
-Al **lunes 09/11 a la noche** tienen que estar en `main`:
+El equipo trabaja en este orden: **Rafael, Nicolas, Lucas, Celeste, Carla.** El detalle de días e historias está en `Plan-reparto-Sprint-5.md`.
+
+Al **lunes 16/11 a la noche** tienen que estar en `main`, como mínimo:
 
 1. En el admin se puede **asignar el rol** (super admin / solo pedidos) y el menú de “solo pedidos” no muestra el resto.
 2. Los reportes filtran por **fecha y sucursal**, se ven en **gráficos** y se pueden **descargar**.
 
-Si falta una de las dos, el sprint no está cumplido. Del 10 al 16/11 entra el segundo nivel. El 17 y 18/11 son de pruebas y ensayo, no de features.
+Esas dos no se recortan. El resto entra en el mismo plazo, en el orden del plan. El 17 y 18/11 son de pruebas y ensayo, no de features.
 
 El pedido, el stock, la sucursal elegida, las promos del menú, los sellos y el Top 3 **ya andan**. Este sprint no los reabre.
 
@@ -217,10 +219,14 @@ El banner ya no está en el layout general. Falta, si se mantiene esta lista, mo
 
 ### Review (19/11)
 
-1. Super admin: crea un admin “solo pedidos”. Ese usuario entra y solo ve Pedidos.
-2. Reportes: filtro por esta semana y por una sucursal, gráfico de pedidos por día, descarga del CSV.
-3. Recorrido corto de lo que ya está, para la demo: un pedido de retiro con código `MOR…`, el medio de pago en el checkout, la tarjeta de sellos y la campaña del Top 3.
-4. Lo que haya entrado del segundo nivel.
+En el orden en que se construyó:
+
+1. Rafael: dirección con provincia y CP, nosotros, contacto y el mapa.
+2. Nicolas: un producto con sus adicionales.
+3. Lucas: envío gratis, un reclamo sobre un pedido entregado y el banner en el detalle.
+4. Celeste: reportes de esta semana y de una sucursal, gráfico y CSV.
+5. Carla: un admin “solo pedidos”, el inicio con el gráfico y una sucursal con horario.
+6. Recorrido corto de lo que ya está: un pedido de retiro con código `MOR…`, el medio de pago en el checkout, la tarjeta de sellos y la campaña del Top 3.
 
 ### Presentación final (27/11)
 
@@ -271,24 +277,23 @@ Cambios de modelo que faltan: `ProductExtra`, `Address.postalCode`, `Address.pro
 
 ---
 
-## 7. Reparto que queda
+## 7. Reparto
 
-La tabla de la ficha 1.0 (código, pago, sellos, baja) ya no aplica: eso está hecho. Propuesta para lo que falta:
+El desglose por días está en `Plan-reparto-Sprint-5.md`. Orden de trabajo: Rafael, Nicolas, Lucas, Celeste, Carla. Cada uno cierra sus historias enteras.
 
-| Dueño | Núcleo (al 09/11) | Segundo nivel (10–16/11) |
-|---|---|---|
-| **Carla** | HU-24, menú según rol | HU-33, HU-36 en el admin |
-| **Celeste** | HU-28, API y pantalla | RF-RPT que sobre |
-| **Lucas** | | HU-31, DEV-26 |
-| **Rafael** | | HU-35, HU-34, HU-37, HU-36 en el cliente |
-| **Nicolas** | Tests de HU-28 | HU-30 |
-| **Cristian** | Carpeta, 12/11. No codea | |
+| Orden | Quién | Historias | Puntos | En `main` |
+|---|---|---|---|---|
+| 1 | **Rafael** | HU-34, HU-35 | 6 | mié 4/11 |
+| 2 | **Nicolas** | HU-30 | 5 | vie 6/11 |
+| 3 | **Lucas** | HU-31, HU-36, DEV-26 | 5 | mar 10/11 |
+| 4 | **Celeste** | HU-28 | 8 | vie 13/11 |
+| 5 | **Carla** | HU-24, HU-33, HU-37 | 6 | lun 16/11 |
+| — | **Cristian** | Carpeta. No codea | — | mié 12/11 |
 
 | Fecha | Qué |
 |---|---|
-| **05/11** | Seguimiento: HU-24 en la pantalla, reportes con filtros |
-| **09/11 noche** | Núcleo en `main` |
-| **12/11** | Carpeta |
+| **05/11** | Seguimiento: lo de Rafael, y adicionales en curso |
+| **12/11** | Carpeta, con lo mergeado el martes 11 a la noche |
 | **16/11 noche** | Corte de features |
 | **17–18/11** | Pruebas y ensayo |
 | **19/11** | Review |
@@ -348,9 +353,9 @@ Hecho y no se replanifica:
   pago simulado en el checkout, banner en catálogo y carrito, detalle sin sesión,
   retiro diferenciado, confirmación en vivo, página pública de promociones.
 
-Núcleo que falta: rol en la pantalla del admin (HU-24), reportes con filtros, gráficos y CSV (HU-28).
-Segundo nivel: envío gratis, adicionales por producto, dashboard, CP y provincia,
-  horarios de la sucursal (nuevo), nosotros/contacto/mapa, incidencias, banner en el detalle.
+Orden: Rafael (HU-34, HU-35), Nicolas (HU-30), Lucas (HU-31, HU-36, DEV-26),
+  Celeste (HU-28), Carla (HU-24, HU-33, HU-37). Cada uno cierra lo suyo entero.
+No se recortan el rol ni los reportes.
 Fuera: combos, cupón, pasarela, alertas de stock, recorrido, Extensión 2.
 
 Review: 19/11. Carpeta: 12/11. Final: 27/11.
@@ -362,3 +367,4 @@ Review: 19/11. Carpeta: 12/11. Final: 27/11.
 |---|---|---|
 | 1.0 | 29/10/2026 | Borrador para la planning: núcleo, segundo nivel y fuera |
 | 1.1 | 29/10/2026 | Se sacaron las tareas ya hechas (sellos, Top 3, código, clientes, envío por km, baja, pago simulado, banner, retiro, confirmación en vivo). Se agregó el horario de la sucursal, que no estaba. El núcleo que queda es el rol en la pantalla y los reportes. |
+| 1.2 | 29/10/2026 | El reparto queda en orden: Rafael, Nicolas, Lucas, Celeste, Carla. El detalle está en `Plan-reparto-Sprint-5.md`. |
