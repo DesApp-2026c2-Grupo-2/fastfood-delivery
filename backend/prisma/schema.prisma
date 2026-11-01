@@ -122,6 +122,10 @@ model Branch {
   id           String   @id @default(cuid())
   name         String
   address      String
+  // Opcionales: las sucursales cargadas antes de pedirlos quedan vacías.
+  city         String?
+  province     String?
+  postalCode   String?
   latitude     Decimal  @db.Decimal(10, 7)
   longitude    Decimal  @db.Decimal(10, 7)
   openingHours String
@@ -166,6 +170,10 @@ model Address {
   // Nombre corto para reconocer la dirección ("Casa", "Trabajo"). Vacío si no tiene.
   alias     String   @default("")
   street    String
+  // Opcionales: las direcciones cargadas antes de pedirlos quedan vacías.
+  city       String?
+  province   String?
+  postalCode String?
   latitude  Decimal  @db.Decimal(10, 7)
   longitude Decimal  @db.Decimal(10, 7)
   isDefault Boolean  @default(false)
