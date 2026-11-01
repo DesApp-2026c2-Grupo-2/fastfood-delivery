@@ -1,27 +1,87 @@
 import { api } from '../api/client';
+import { type AddressParts, normalizePostalCode } from './address';
 
 export type GeocodeCandidate = {
   latitude: number;
   longitude: number;
   displayName: string;
   name?: string;
+  road?: string;
   houseNumber?: string;
   postcode?: string;
   locality?: string;
+  city?: string;
+  province?: string;
 };
 
 export type GeocodeResult = GeocodeCandidate & {
   candidates?: GeocodeCandidate[];
 };
 
-/** POST /api/geocode: hasta 5 candidatos de Nominatim (Argentina). Si no encuentra nada, el API responde 400. */
-export async function searchAddress(street: string): Promise<GeocodeCandidate[]> {
+/**
+ * POST /api/geocode: hasta 5 candidatos de Nominatim (Argentina). Con ciudad, provincia o CP el API
+ * busca estructurado y, si no encuentra, en texto libre. Si no encuentra nada, responde 400.
+ */
+export async function searchAddress(address: AddressParts): Promise<GeocodeCandidate[]> {
   const result = await api<GeocodeResult>('/geocode', {
     method: 'POST',
-    body: JSON.stringify({ address: street }),
+    body: JSON.stringify({
+      street: address.street.trim(),
+      ...(address.city.trim() ? { city: address.city.trim() } : {}),
+      ...(address.province ? { province: address.province } : {}),
+      ...(address.postalCode.trim() ? { postalCode: address.postalCode.trim() } : {}),
+    }),
   });
   if (result.candidates?.length) return result.candidates;
   return [{ latitude: result.latitude, longitude: result.longitude, displayName: result.displayName }];
+}
+
+/** POST /api/geocode/reverse: la dirección que hay en ese punto. 400 si no hay ninguna. */
+export function reverseGeocode(latitude: number, longitude: number): Promise<GeocodeCandidate> {
+  return api<GeocodeCandidate>('/geocode/reverse', {
+    method: 'POST',
+    body: JSON.stringify({ latitude, longitude }),
+  });
+}
+
+/** Los campos del formulario que se pueden sacar de un candidato. Solo trae los que vinieron. */
+export function candidateParts(candidate: GeocodeCandidate): Partial<AddressParts> {
+  const road = candidate.road?.trim() || candidate.name?.trim() || '';
+  const street = [road, candidate.houseNumber?.trim()].filter(Boolean).join(' ');
+  const parts: Partial<AddressParts> = {};
+  if (street) parts.street = street;
+  if (candidate.city?.trim()) parts.city = candidate.city.trim();
+  if (candidate.province) parts.province = candidate.province;
+  const postalCode = normalizePostalCode(candidate.postcode);
+  if (postalCode) parts.postalCode = postalCode;
+  return parts;
+}
+
+function plain(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+/**
+ * Lo que se copia al formulario cuando el pin se marca a mano o con la ubicación: ciudad, provincia y CP
+ * siguen al punto. La calle también, salvo que el punto no traiga número y la escrita sea la misma calle,
+ * para no perder la altura que ya estaba cargada. Sin calle en el punto, la escrita queda como está.
+ */
+export function pinParts(current: AddressParts, found: GeocodeCandidate): Partial<AddressParts> {
+  const parts = candidateParts(found);
+  delete parts.street;
+  const road = found.road?.trim() ?? '';
+  const number = found.houseNumber?.trim() ?? '';
+  if (!road) return parts;
+  if (number) {
+    parts.street = `${road} ${number}`;
+    return parts;
+  }
+  const lastWord = plain(road).split(/\s+/).pop() ?? '';
+  if (!lastWord || !plain(current.street).includes(lastWord)) parts.street = road;
+  return parts;
 }
 
 /** Título corto y detalle de un candidato, para listarlo como opción. */

@@ -67,6 +67,10 @@ export type Address = {
   id: string;
   alias: string;
   street: string;
+  // Vacíos en las direcciones cargadas antes de pedirlos.
+  city: string | null;
+  province: string | null;
+  postalCode: string | null;
   latitude: number | string;
   longitude: number | string;
   isDefault: boolean;
@@ -159,11 +163,17 @@ export type Order = {
     id: string;
     name: string;
     address: string;
+    city?: string | null;
+    province?: string | null;
+    postalCode?: string | null;
   };
   address: {
     id: string;
     alias?: string;
     street: string;
+    city?: string | null;
+    province?: string | null;
+    postalCode?: string | null;
   } | null;
   items: OrderItem[];
 };
@@ -224,6 +234,9 @@ export type AvailableBranch = {
   id: string;
   name: string;
   address: string;
+  city?: string | null;
+  province?: string | null;
+  postalCode?: string | null;
   phone: string;
   openingHours: string;
   latitude: number;
@@ -282,6 +295,9 @@ export type CheckoutBranch = {
   id: string;
   name: string;
   address: string;
+  city?: string | null;
+  province?: string | null;
+  postalCode?: string | null;
   phone: string;
   openingHours: string;
   latitude: number;

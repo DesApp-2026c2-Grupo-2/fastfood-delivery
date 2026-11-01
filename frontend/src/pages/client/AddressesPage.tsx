@@ -3,14 +3,21 @@ import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-route
 import { api } from '../../api/client';
 import type { Address } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
+import { AddressFields } from '../../components/AddressFields';
 import { AddressLocationPicker } from '../../components/AddressLocationPicker';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import {
+  type AddressParts,
+  addressPartsError,
+  emptyAddressParts,
+  formatAddress,
+  normalizePostalCode,
+} from '../../lib/address';
 import { useAutoClear } from '../../lib/useAutoClear';
 
-type FormState = {
+type FormState = AddressParts & {
   id?: string;
   alias: string;
-  street: string;
   latitude: string;
   longitude: string;
   isDefault: boolean;
@@ -20,11 +27,15 @@ const ALIAS_MAX = 40;
 
 const emptyForm: FormState = {
   alias: '',
-  street: '',
+  ...emptyAddressParts,
   latitude: '',
   longitude: '',
   isDefault: false,
 };
+
+function formParts(form: FormState): AddressParts {
+  return { street: form.street, city: form.city, province: form.province, postalCode: form.postalCode };
+}
 
 function addressTitle(address: { alias?: string; street: string }) {
   const alias = address.alias?.trim();
@@ -101,6 +112,9 @@ function AddressesContent({ token }: { token: string }) {
       id: address.id,
       alias: address.alias ?? '',
       street: address.street,
+      city: address.city ?? '',
+      province: address.province ?? '',
+      postalCode: address.postalCode ?? '',
       latitude: String(toNumber(address.latitude)),
       longitude: String(toNumber(address.longitude)),
       isDefault: address.isDefault,
@@ -146,8 +160,9 @@ function AddressesContent({ token }: { token: string }) {
       setError(`El alias no puede superar los ${ALIAS_MAX} caracteres.`);
       return;
     }
-    if (!form.street.trim()) {
-      setError('Completá la dirección.');
+    const partsError = addressPartsError(formParts(form));
+    if (partsError) {
+      setError(partsError);
       return;
     }
     if (!form.latitude.trim() || !form.longitude.trim()) {
@@ -166,6 +181,9 @@ function AddressesContent({ token }: { token: string }) {
     const payload = {
       alias,
       street: form.street.trim(),
+      city: form.city.trim(),
+      province: form.province,
+      postalCode: normalizePostalCode(form.postalCode),
       latitude,
       longitude,
       isDefault: form.isDefault,
@@ -293,23 +311,19 @@ function AddressesContent({ token }: { token: string }) {
             <p className="field-hint">Opcional. Sirve para reconocerla en el checkout.</p>
           </label>
 
-          <label>
-            Calle y número
-            <input
-              value={form.street}
-              onChange={(event) => setForm((current) => current && { ...current, street: event.target.value })}
-              required
-              maxLength={200}
-              placeholder="Av. Rivadavia 5000, CABA"
-            />
-          </label>
+          <AddressFields
+            value={formParts(form)}
+            onChange={(patch) => setForm((current) => current && { ...current, ...patch })}
+            disabled={saving}
+          />
 
           <AddressLocationPicker
             key={form.id ?? 'new'}
-            street={form.street}
+            address={formParts(form)}
             latitude={form.latitude}
             longitude={form.longitude}
             onChange={(latitude, longitude) => setForm((current) => current && { ...current, latitude, longitude })}
+            onAddressFound={(patch) => setForm((current) => current && { ...current, ...patch })}
             locateOnMount={!form.id}
             disabled={saving}
           />
@@ -354,7 +368,9 @@ function AddressesContent({ token }: { token: string }) {
                   <strong>{addressTitle(address)}</strong>
                   {address.isDefault ? <span className="checkout-pill">Principal</span> : null}
                 </div>
-                {address.alias?.trim() ? <p className="checkout-choice-meta">{address.street}</p> : null}
+                {address.alias?.trim() || address.city || address.province || address.postalCode ? (
+                  <p className="checkout-choice-meta">{formatAddress(address)}</p>
+                ) : null}
               </div>
               <div className="address-card-actions">
                 {!address.isDefault ? (
