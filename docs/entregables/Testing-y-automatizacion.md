@@ -1,8 +1,8 @@
 # Testing y automatización
 
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
-**Versión:** 1.0  
-**Actualizado:** 07/10/2026  
+**Versión:** 1.1  
+**Actualizado:** 01/11/2026  
 **Estado:** al cierre del Sprint 3 hay tests de backend del flujo de pedido, del stock y de la cuenta. No hay tests de frontend ni un pipeline que los corra en cada pull request.
 
 ---
@@ -34,12 +34,13 @@ Los de punta a punta usan la base real. Conviene correrlos sobre una base de des
 | `stock.e2e.test.ts` | Carga de stock, reserva al confirmar, 409 sin stock, liberar al cancelar, descontar al entregar | HU-17, HU-18 |
 | `parameters-branches.e2e.test.ts` | Parámetros, sucursales dentro del radio, asignación al confirmar y catálogo de estados | HU-19 |
 | `address-alias.e2e.test.ts` | Alias de una dirección | HU-06 |
+| `address-province.e2e.test.ts` | Ciudad, provincia y CP en la dirección propia, en el detalle del cliente del admin y en la sucursal: alta, edición, borrado, CPA en mayúsculas y 400 con provincia o CP inválidos. La dirección del invitado con esos campos se prueba en `fulfillment.e2e.test.ts` | HU-34 |
 
 ### Sin base (funciones puras)
 
 | Archivo | Qué cubre |
 |---|---|
-| `geocode.test.ts` | Armado de la consulta a Nominatim y el redondeo de coordenadas |
+| `geocode.test.ts` | Armado de la consulta a Nominatim (libre, estructurada e inversa), el paso a texto libre si la estructurada no encuentra, la provincia llevada a las 24 y el redondeo de coordenadas |
 | `admin-rules.test.ts` | Ajuste masivo de stock (sumar, restar, poner en 0, tope) y los textos de demora del admin |
 
 Esos dos no reemplazan una prueba de punta a punta: fijan reglas que la pantalla usa.
@@ -78,4 +79,5 @@ Un pipeline en el repositorio queda como mejora del Sprint 5, junto con el cierr
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.1 | 01/11/2026 | `address-province.e2e.test.ts` y geocode estructurado e inverso (HU-34) |
 | 1.0 | 07/10/2026 | Inventario de tests al cierre del Sprint 3 y huecos que quedan |
