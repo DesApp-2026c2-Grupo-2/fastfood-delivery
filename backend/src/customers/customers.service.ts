@@ -89,7 +89,15 @@ export class CustomersService {
       this.prisma.address.findMany({
         where: { userId: id },
         orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-        select: { id: true, alias: true, street: true, isDefault: true },
+        select: {
+          id: true,
+          alias: true,
+          street: true,
+          city: true,
+          province: true,
+          postalCode: true,
+          isDefault: true,
+        },
       }),
       this.prisma.order.findMany({
         where: { userId: id },

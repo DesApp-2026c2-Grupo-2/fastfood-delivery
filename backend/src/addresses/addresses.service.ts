@@ -51,6 +51,9 @@ export class AddressesService {
           userId,
           alias: dto.alias?.trim() ?? '',
           street: dto.street.trim(),
+          city: dto.city ?? null,
+          province: dto.province ?? null,
+          postalCode: dto.postalCode ?? null,
           latitude: new Prisma.Decimal(dto.latitude),
           longitude: new Prisma.Decimal(dto.longitude),
           isDefault: shouldDefault,
@@ -75,6 +78,9 @@ export class AddressesService {
         data: {
           ...(dto.alias !== undefined ? { alias: dto.alias.trim() } : {}),
           ...(dto.street !== undefined ? { street: dto.street.trim() } : {}),
+          ...(dto.city !== undefined ? { city: dto.city } : {}),
+          ...(dto.province !== undefined ? { province: dto.province } : {}),
+          ...(dto.postalCode !== undefined ? { postalCode: dto.postalCode } : {}),
           ...(dto.latitude !== undefined
             ? { latitude: new Prisma.Decimal(dto.latitude) }
             : {}),

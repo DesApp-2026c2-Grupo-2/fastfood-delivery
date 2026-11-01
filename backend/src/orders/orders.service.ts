@@ -222,6 +222,17 @@ function serializeItems(items: OrderWithRelations['items']) {
   });
 }
 
+function serializeAddress(address: NonNullable<OrderWithRelations['address']>) {
+  return {
+    id: address.id,
+    alias: address.alias,
+    street: address.street,
+    city: address.city,
+    province: address.province,
+    postalCode: address.postalCode,
+  };
+}
+
 function serialize(order: OrderWithRelations) {
   return {
     id: order.id,
@@ -233,12 +244,13 @@ function serialize(order: OrderWithRelations) {
       id: order.branch.id,
       name: order.branch.name,
       address: order.branch.address,
+      city: order.branch.city,
+      province: order.branch.province,
+      postalCode: order.branch.postalCode,
     },
     fulfillment: order.fulfillment,
     // En retiro no hay dirección.
-    address: order.address
-      ? { id: order.address.id, alias: order.address.alias, street: order.address.street }
-      : null,
+    address: order.address ? serializeAddress(order.address) : null,
     guestName: order.guestName,
     guestEmail: order.guestEmail,
     items: serializeItems(order.items),
@@ -262,12 +274,13 @@ function serializeAdmin(order: OrderAdminDetail) {
       id: order.branch.id,
       name: order.branch.name,
       address: order.branch.address,
+      city: order.branch.city,
+      province: order.branch.province,
+      postalCode: order.branch.postalCode,
     },
     fulfillment: order.fulfillment,
     // En retiro no hay dirección.
-    address: order.address
-      ? { id: order.address.id, alias: order.address.alias, street: order.address.street }
-      : null,
+    address: order.address ? serializeAddress(order.address) : null,
     items: serializeItems(order.items),
     history: order.statusHistory.map((event) => ({
       id: event.id,
@@ -460,6 +473,9 @@ export class OrdersService {
         ? await tx.address.create({
             data: {
               street: (dto.street as string).trim(),
+              city: dto.city ?? null,
+              province: dto.province ?? null,
+              postalCode: dto.postalCode ?? null,
               latitude: dto.latitude as number,
               longitude: dto.longitude as number,
               isDefault: true,
@@ -544,6 +560,9 @@ export class OrdersService {
         id: branch.id,
         name: branch.name,
         address: branch.address,
+        city: branch.city,
+        province: branch.province,
+        postalCode: branch.postalCode,
         phone: branch.phone,
         openingHours: branch.openingHours,
         latitude: Number(branch.latitude),

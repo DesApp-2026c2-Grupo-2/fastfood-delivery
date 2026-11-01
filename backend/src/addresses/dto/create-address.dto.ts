@@ -9,6 +9,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { CityField, PostalCodeField, ProvinceField } from './address-fields';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -25,6 +26,15 @@ export class CreateAddressDto {
   @IsNotEmpty()
   @MaxLength(200)
   street!: string;
+
+  @CityField()
+  city?: string | null;
+
+  @ProvinceField()
+  province?: string | null;
+
+  @PostalCodeField()
+  postalCode?: string | null;
 
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 7 })

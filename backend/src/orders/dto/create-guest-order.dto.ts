@@ -16,6 +16,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
+import { CityField, PostalCodeField, ProvinceField } from '../../addresses/dto/address-fields';
 import { ExtraIds } from '../../extras/extra-ids.decorator';
 
 export class GuestOrderItemDto {
@@ -60,6 +61,15 @@ export class CreateGuestOrderDto {
   @IsNotEmpty()
   @MaxLength(200)
   street?: string;
+
+  @CityField()
+  city?: string | null;
+
+  @ProvinceField()
+  province?: string | null;
+
+  @PostalCodeField()
+  postalCode?: string | null;
 
   @ValidateIf((order: CreateGuestOrderDto) => order.fulfillment === Fulfillment.delivery)
   @Type(() => Number)
