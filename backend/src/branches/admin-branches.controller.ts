@@ -14,7 +14,7 @@ import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BranchesService } from './branches.service';
 import { CreateBranchDto } from './dto/create-branch.dto';
-import { GeocodeAddressDto } from './dto/geocode-address.dto';
+import { GeocodeAddressDto, geocodeQuery } from './dto/geocode-address.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
 
 @Controller('admin/branches')
@@ -30,7 +30,7 @@ export class AdminBranchesController {
   @Post('geocode')
   @HttpCode(HttpStatus.OK)
   geocode(@Body() dto: GeocodeAddressDto) {
-    return this.branchesService.geocode(dto.address);
+    return this.branchesService.geocode(geocodeQuery(dto));
   }
 
   @Get(':id')
