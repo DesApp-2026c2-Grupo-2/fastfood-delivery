@@ -6,6 +6,7 @@ import { orderStatusLabel, type AdminOrderDetail, type OrderStatus } from '../..
 import { getToken } from '../../auth/session';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { OrderCode } from '../../components/OrderCode';
+import { formatAddress, formatBranchAddress } from '../../lib/address';
 import { mediaUrl } from '../../lib/media';
 import { orderTimingText } from '../../lib/order-timing';
 import { useTimedNotice } from '../../lib/success-notice';
@@ -183,7 +184,7 @@ export function AdminOrderDetailPage() {
         <p>
           Sucursal: <strong>{order.branch.name}</strong>
           <br />
-          <span className="muted">{order.branch.address}</span>
+          <span className="muted">{formatBranchAddress(order.branch)}</span>
         </p>
         <p>
           {order.address ? (
@@ -191,7 +192,7 @@ export function AdminOrderDetailPage() {
               Dirección:{' '}
               <strong>
                 {order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}
-                {order.address.street}
+                {formatAddress(order.address)}
               </strong>
             </>
           ) : (

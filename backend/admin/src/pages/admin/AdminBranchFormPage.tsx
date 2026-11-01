@@ -1,28 +1,23 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Branch } from '../../api/types';
 import { getToken } from '../../auth/session';
+import { AddressFields } from '../../components/AddressFields';
 import { BranchPinMap } from '../../components/BranchPinMap';
+import { type AddressParts, addressPartsError, normalizePostalCode } from '../../lib/address';
+import {
+  addressLines,
+  candidateDetails,
+  type GeocodeCandidate,
+  pinParts,
+  reverseGeocode,
+  searchBranchAddress,
+} from '../../lib/geocode';
 import { formatCoordinate, requestDevicePosition } from '../../lib/geolocation';
 
-type GeocodeCandidate = {
-  latitude: number;
-  longitude: number;
-  displayName: string;
-  name?: string;
-  houseNumber?: string;
-  postcode?: string;
-  locality?: string;
-};
-
-type GeocodeResult = GeocodeCandidate & {
-  candidates?: GeocodeCandidate[];
-};
-
-type FormState = {
+type FormState = AddressParts & {
   name: string;
-  address: string;
   latitude: string;
   longitude: string;
   openingHours: string;
@@ -32,7 +27,10 @@ type FormState = {
 
 const emptyForm: FormState = {
   name: '',
-  address: '',
+  street: '',
+  city: '',
+  province: '',
+  postalCode: '',
   latitude: '',
   longitude: '',
   openingHours: 'Lun-Dom 10:00-23:00',
@@ -56,27 +54,33 @@ function samePin(candidate: GeocodeCandidate, latitude: string, longitude: strin
   return formatCoordinate(candidate.latitude) === latitude && formatCoordinate(candidate.longitude) === longitude;
 }
 
-function addressLines(candidate: GeocodeCandidate) {
-  const parts = candidate.displayName
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
-  const title = candidate.houseNumber
-    ? [candidate.houseNumber, ...parts.slice(0, 2)].join(', ')
-    : parts.slice(0, 2).join(', ') || candidate.displayName;
-  const place = parts.slice(2, 5).join(' · ');
-  const postcode =
-    candidate.postcode && !`${title} ${place}`.includes(candidate.postcode) ? candidate.postcode : '';
-  return {
-    title,
-    detail: [place, postcode].filter(Boolean).join(' · '),
-  };
+function formParts(form: FormState): AddressParts {
+  return { street: form.street, city: form.city, province: form.province, postalCode: form.postalCode };
+}
+
+/**
+ * La dirección como la escribió el admin: ciudad, provincia y CP que completó el mapa y no se tocaron quedan
+ * vacíos, porque pueden ser de otro lugar que la calle buscada.
+ */
+function typedAddress(parts: AddressParts, autoFilled: Partial<AddressParts>): AddressParts {
+  const result = { ...parts };
+  for (const key of ['city', 'province', 'postalCode'] as const) {
+    if (parts[key].trim() === autoFilled[key]) result[key] = '';
+  }
+  return result;
+}
+
+function onlyStreet(parts: AddressParts) {
+  return !parts.city.trim() && !parts.province && !parts.postalCode.trim();
 }
 
 function branchToForm(branch: Branch): FormState {
   return {
     name: branch.name,
-    address: branch.address,
+    street: branch.address,
+    city: branch.city ?? '',
+    province: branch.province ?? '',
+    postalCode: branch.postalCode ?? '',
     latitude: String(toNumber(branch.latitude)),
     longitude: String(toNumber(branch.longitude)),
     openingHours: branch.openingHours,
@@ -98,6 +102,14 @@ export function AdminBranchFormPage() {
   const [locating, setLocating] = useState(false);
   const [locationHint, setLocationHint] = useState('');
   const [candidates, setCandidates] = useState<GeocodeCandidate[]>([]);
+  // Sugerencias sin elegir: la lista se muestra aunque haya una sola y el pin todavía no se movió.
+  const [mustChoose, setMustChoose] = useState(false);
+  const formRef = useRef(form);
+  formRef.current = form;
+  // Lo que completó el mapa: elegir otro candidato lo reemplaza, lo escrito a mano no se pisa.
+  const autoFilledRef = useRef<Partial<AddressParts>>({});
+  // Si el pin se mueve de nuevo antes de que vuelva la dirección, solo cuenta el último punto.
+  const pinRequestRef = useRef(0);
 
   useEffect(() => {
     if (!id) return;
@@ -122,55 +134,101 @@ export function AdminBranchFormPage() {
     };
   }, [id, token]);
 
-  function applyCandidate(candidate: GeocodeCandidate, hint: string) {
-    setForm((current) => ({
-      ...current,
-      latitude: formatCoordinate(candidate.latitude),
-      longitude: formatCoordinate(candidate.longitude),
-    }));
-    setLocationHint(hint);
+  function clearCandidates() {
+    setCandidates([]);
+    setMustChoose(false);
   }
 
-  function placePin(latitude: number, longitude: number) {
+  function fill(patch: Partial<AddressParts>) {
+    if (Object.keys(patch).length === 0) return;
+    autoFilledRef.current = { ...autoFilledRef.current, ...patch };
+    setForm((current) => ({ ...current, ...patch }));
+  }
+
+  function setPin(latitude: number, longitude: number) {
     setForm((current) => ({
       ...current,
       latitude: formatCoordinate(latitude),
       longitude: formatCoordinate(longitude),
     }));
+  }
+
+  function applyCandidate(candidate: GeocodeCandidate, hint: string) {
+    pinRequestRef.current += 1;
+    setPin(candidate.latitude, candidate.longitude);
+    const current = formRef.current;
+    const details = candidateDetails(candidate);
+    const patch: Partial<AddressParts> = {};
+    for (const key of Object.keys(details) as (keyof AddressParts)[]) {
+      const value = current[key].trim();
+      if (!value || value === autoFilledRef.current[key]) patch[key] = details[key];
+    }
+    fill(patch);
+    setMustChoose(false);
+    setLocationHint(hint);
+  }
+
+  /** Lee la dirección del punto y la copia al formulario. `stale`: el pin ya se movió a otro lado. */
+  async function fillFromPin(latitude: number, longitude: number): Promise<'ok' | 'failed' | 'stale'> {
+    const request = ++pinRequestRef.current;
+    try {
+      const found = await reverseGeocode(latitude, longitude);
+      if (request !== pinRequestRef.current) return 'stale';
+      fill(pinParts(formParts(formRef.current), found));
+      return 'ok';
+    } catch {
+      return request === pinRequestRef.current ? 'failed' : 'stale';
+    }
+  }
+
+  async function placePin(latitude: number, longitude: number) {
+    setPin(latitude, longitude);
+    clearCandidates();
     setError('');
-    setLocationHint('Punto marcado en el mapa. Esas coordenadas se guardan con la sucursal.');
+    setLocationHint('Punto marcado. Buscando la dirección de ese punto…');
+    const result = await fillFromPin(latitude, longitude);
+    if (result === 'stale') return;
+    setLocationHint(
+      result === 'ok'
+        ? 'Completamos la dirección con el punto del mapa. Revisá la calle y el número.'
+        : 'Punto marcado. No pudimos leer la dirección de ese punto: completala a mano.',
+    );
   }
 
   async function searchCoordinates() {
-    const address = form.address.trim();
-    if (!address) {
-      setError('Escribí la dirección para buscar las coordenadas.');
+    const parts = typedAddress(formParts(form), autoFilledRef.current);
+    if (!parts.street.trim()) {
+      setError('Escribí la calle y el número para buscar las coordenadas.');
       setLocationHint('');
       return;
     }
 
+    const suggestOnly = onlyStreet(parts);
     setGeocoding(true);
     setError('');
     setLocationHint('');
     try {
-      const result = await api<GeocodeResult>('/admin/branches/geocode', {
-        method: 'POST',
-        token,
-        body: JSON.stringify({ address }),
-      });
-      const list = result.candidates?.length
-        ? result.candidates
-        : [{ latitude: result.latitude, longitude: result.longitude, displayName: result.displayName }];
-      const first = list[0];
+      const list = await searchBranchAddress(parts, token);
       setCandidates(list);
+      if (suggestOnly) {
+        setMustChoose(true);
+        setLocationHint(
+          `${
+            list.length > 1
+              ? `Hay ${list.length} direcciones posibles. Elegí la del local y completamos ciudad, provincia y CP.`
+              : 'Encontramos esta dirección. Si es la del local, elegila y completamos ciudad, provincia y CP.'
+          } Si no está, escribí la ciudad o la provincia y buscá de nuevo.`,
+        );
+        return;
+      }
       applyCandidate(
-        first,
+        list[0],
         list.length > 1
           ? `Hay ${list.length} coincidencias. Tocá la que corresponde al local.`
           : 'Encontramos la dirección. Si el pin no cae justo, movelo en el mapa.',
       );
     } catch (err) {
-      setCandidates([]);
+      clearCandidates();
       setError(err instanceof Error ? err.message : 'No se pudo buscar la dirección');
     } finally {
       setGeocoding(false);
@@ -181,15 +239,17 @@ export function AdminBranchFormPage() {
     setLocating(true);
     setError('');
     setLocationHint('');
-    setCandidates([]);
+    clearCandidates();
     try {
       const position = await requestDevicePosition();
-      setForm((current) => ({
-        ...current,
-        latitude: formatCoordinate(position.latitude),
-        longitude: formatCoordinate(position.longitude),
-      }));
-      setLocationHint('Ubicación del dispositivo cargada. Podés ajustarla si hace falta.');
+      setPin(position.latitude, position.longitude);
+      const result = await fillFromPin(position.latitude, position.longitude);
+      if (result === 'stale') return;
+      setLocationHint(
+        result === 'ok'
+          ? 'Completamos la dirección con tu ubicación. Revisala y, si el pin no es exacto, movelo en el mapa.'
+          : 'Ubicación cargada. No pudimos leer la dirección de ese punto: completala a mano.',
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No pudimos obtener tu ubicación; cargala a mano.');
     } finally {
@@ -201,8 +261,13 @@ export function AdminBranchFormPage() {
     event.preventDefault();
     const latitude = Number(form.latitude);
     const longitude = Number(form.longitude);
-    if (!form.name.trim() || !form.address.trim()) {
-      setError('Completá nombre y dirección.');
+    if (!form.name.trim()) {
+      setError('Completá el nombre.');
+      return;
+    }
+    const addressError = addressPartsError(formParts(form));
+    if (addressError) {
+      setError(addressError);
       return;
     }
     if (!form.openingHours.trim()) {
@@ -224,7 +289,10 @@ export function AdminBranchFormPage() {
 
     const payload = {
       name: form.name.trim(),
-      address: form.address.trim(),
+      address: form.street.trim(),
+      city: form.city.trim(),
+      province: form.province,
+      postalCode: normalizePostalCode(form.postalCode),
       latitude,
       longitude,
       openingHours: form.openingHours.trim(),
@@ -269,13 +337,16 @@ export function AdminBranchFormPage() {
     );
   }
 
+  const busy = geocoding || locating || saving;
+
   return (
     <section className="stack">
       <header className="page-head">
         <div>
           <h1>{id ? 'Editar sucursal' : 'Crear sucursal'}</h1>
           <p className="muted">
-            Buscá la dirección para mover el pin, o marcalo en el mapa. Lo que queda en el pin es lo que se guarda.
+            Buscá la dirección o marcá el punto en el mapa: completamos calle, ciudad, provincia y CP. Lo que queda en
+            el pin es lo que se guarda.
           </p>
         </div>
       </header>
@@ -298,36 +369,28 @@ export function AdminBranchFormPage() {
                 placeholder="Mordi Centro"
               />
             </label>
-            <label>
-              Dirección
-              <input
-                value={form.address}
-                onChange={(event) => {
-                  setForm((current) => ({ ...current, address: event.target.value }));
-                  setCandidates([]);
-                }}
-                maxLength={200}
-                placeholder="Av. Corrientes 1234, CABA"
-              />
-            </label>
+            <AddressFields
+              value={formParts(form)}
+              onChange={(patch) => {
+                setForm((current) => ({ ...current, ...patch }));
+                if (patch.street !== undefined) clearCandidates();
+              }}
+              disabled={saving}
+            />
             <p className="field-hint">
-              Buscar coordenadas usa la dirección de arriba. Si aparece más de un punto, elegí uno de la lista.
+              Con solo la calle y el número, la búsqueda sugiere direcciones: elegí la del local. Con ciudad, provincia o
+              CP busca más preciso.
             </p>
             <div className="row">
               <button
                 type="button"
                 className="secondary"
-                disabled={geocoding || locating || saving || !form.address.trim()}
+                disabled={busy || !form.street.trim()}
                 onClick={() => void searchCoordinates()}
               >
-                {geocoding ? 'Buscando…' : 'Buscar coordenadas'}
+                {geocoding ? 'Buscando…' : 'Buscar en el mapa'}
               </button>
-              <button
-                type="button"
-                className="secondary"
-                disabled={geocoding || locating || saving}
-                onClick={() => void useDeviceLocation()}
-              >
+              <button type="button" className="secondary" disabled={busy} onClick={() => void useDeviceLocation()}>
                 {locating ? 'Obteniendo ubicación…' : 'Usar mi ubicación'}
               </button>
             </div>
@@ -336,11 +399,11 @@ export function AdminBranchFormPage() {
                 {locationHint}
               </p>
             ) : null}
-            {candidates.length > 1 ? (
+            {candidates.length > 1 || (mustChoose && candidates.length > 0) ? (
               <fieldset className="geocode-options">
                 <legend>Elegí la dirección</legend>
                 {candidates.map((candidate, index) => {
-                  const selected = samePin(candidate, form.latitude, form.longitude);
+                  const selected = !mustChoose && samePin(candidate, form.latitude, form.longitude);
                   const lines = addressLines(candidate);
                   return (
                     <button
@@ -365,11 +428,11 @@ export function AdminBranchFormPage() {
             <BranchPinMap
               latitude={coordinateOrNull(form.latitude, -90, 90)}
               longitude={coordinateOrNull(form.longitude, -180, 180)}
-              onMove={placePin}
+              onMove={(latitude, longitude) => void placePin(latitude, longitude)}
             />
             <p className="field-hint">
-              Si la búsqueda no encuentra la calle, hacé clic en el mapa o arrastrá el pin. Latitud y longitud siguen
-              al pin.
+              Si la búsqueda no encuentra la calle, hacé clic en el mapa o arrastrá el pin. Latitud, longitud y la
+              dirección siguen al pin.
             </p>
           </div>
           <div className="branch-form-col">
@@ -420,7 +483,7 @@ export function AdminBranchFormPage() {
               Sucursal activa (puede recibir pedidos nuevos)
             </label>
             <div className="row">
-              <button type="submit" disabled={saving || geocoding || locating}>
+              <button type="submit" disabled={busy}>
                 {saving ? 'Guardando…' : id ? 'Guardar cambios' : 'Crear sucursal'}
               </button>
               <button type="button" className="secondary" onClick={() => navigate('/admin/branches')}>

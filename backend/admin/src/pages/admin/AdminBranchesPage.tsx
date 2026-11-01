@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import type { Branch } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import { formatBranchAddress } from '../../lib/address';
 import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
 
 const PAGE_SIZE = 20;
@@ -52,7 +53,7 @@ export function AdminBranchesPage() {
     return branches.filter(
       (branch) =>
         branch.name.toLowerCase().includes(needle) ||
-        branch.address.toLowerCase().includes(needle) ||
+        formatBranchAddress(branch).toLowerCase().includes(needle) ||
         branch.phone.toLowerCase().includes(needle),
     );
   }, [branches, query]);
@@ -149,7 +150,7 @@ export function AdminBranchesPage() {
                     <span className="muted">{branch.phone}</span>
                   </td>
                   <td>
-                    {branch.address}
+                    {formatBranchAddress(branch)}
                     <br />
                     <span className="muted">
                       {toNumber(branch.latitude).toFixed(4)}, {toNumber(branch.longitude).toFixed(4)}
@@ -181,7 +182,7 @@ export function AdminBranchesPage() {
                 </span>
               </div>
               <p className="muted">{branch.phone}</p>
-              <p>{branch.address}</p>
+              <p>{formatBranchAddress(branch)}</p>
               <p className="muted">
                 {toNumber(branch.latitude).toFixed(4)}, {toNumber(branch.longitude).toFixed(4)}
               </p>

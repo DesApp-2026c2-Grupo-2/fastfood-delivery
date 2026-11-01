@@ -11,6 +11,7 @@ import {
 import { getToken } from '../../auth/session';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { SvgIcon } from '../../icons/SvgIcon';
+import { formatAddress } from '../../lib/address';
 import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
 
 function formatWhen(iso: string | null) {
@@ -522,7 +523,7 @@ export function AdminCustomerFormPage() {
               {detail.addresses.map((address) => (
                 <li key={address.id}>
                   {address.alias ? `${address.alias}: ` : ''}
-                  {address.street}
+                  {formatAddress(address)}
                   {address.isDefault ? ' · predeterminada' : ''}
                 </li>
               ))}
