@@ -373,6 +373,41 @@ describe('POST /api/orders/guest con retiro o domicilio (HU-23)', () => {
     expect(response.status).toBe(201);
     expect(response.body.branch.id).toBe(mid.id);
     expect(response.body.address.street).toBe('Av. San Martín 100, Mendoza');
+    expect(response.body.address).toMatchObject({ city: null, province: null, postalCode: null });
+  });
+
+  it('domicilio guarda ciudad, provincia y código postal (HU-34)', async () => {
+    const response = await guest({
+      fulfillment: 'delivery',
+      branchId: mid.id,
+      street: 'Av. San Martín 100',
+      city: ' Mendoza ',
+      province: 'Mendoza',
+      postalCode: 'm5500abc',
+      ...HOME,
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.body.address).toMatchObject({
+      street: 'Av. San Martín 100',
+      city: 'Mendoza',
+      province: 'Mendoza',
+      postalCode: 'M5500ABC',
+    });
+    const stored = await prisma.address.findUniqueOrThrow({ where: { id: response.body.address.id } });
+    expect(stored).toMatchObject({ city: 'Mendoza', province: 'Mendoza', postalCode: 'M5500ABC' });
+  });
+
+  it('domicilio con una provincia fuera de la lista responde 400', async () => {
+    const response = await guest({
+      fulfillment: 'delivery',
+      branchId: mid.id,
+      street: 'Av. San Martín 100',
+      province: 'Mendocita',
+      ...HOME,
+    });
+
+    expect(response.status).toBe(400);
   });
 
   it('domicilio fuera del radio responde 400 y no crea el pedido ni la dirección', async () => {
@@ -524,5 +559,17 @@ describe('POST /api/geocode (DEV-20)', () => {
   it('es público pero valida el cuerpo antes de consultar', async () => {
     expect((await request(server).post('/api/geocode').send({})).status).toBe(400);
     expect((await request(server).post('/api/geocode').send({ address: '   ' })).status).toBe(400);
+    expect((await request(server).post('/api/geocode').send({ street: '  ', city: 'Mendoza' })).status).toBe(400);
+  });
+});
+
+describe('POST /api/geocode/reverse', () => {
+  it('es público pero valida las coordenadas antes de consultar', async () => {
+    const reverse = (body: object) => request(server).post('/api/geocode/reverse').send(body);
+
+    expect((await reverse({})).status).toBe(400);
+    expect((await reverse({ latitude: 91, longitude: -58.4 })).status).toBe(400);
+    expect((await reverse({ latitude: -34.6, longitude: -181 })).status).toBe(400);
+    expect((await reverse({ latitude: 'norte', longitude: -58.4 })).status).toBe(400);
   });
 });
