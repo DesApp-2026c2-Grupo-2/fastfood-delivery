@@ -1,8 +1,8 @@
 # Diseño de APIs
 
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
-**Versión:** 1.1  
-**Actualizado:** 15/10/2026  
+**Versión:** 1.2  
+**Actualizado:** 01/11/2026  
 **Fuente:** controladores de `backend/src/`  
 **Estado:** contrato en uso al cierre del Sprint 3. Promociones y reportes no tienen rutas todavía.
 
@@ -41,6 +41,8 @@ El JWT viaja en `Authorization: Bearer <token>`.
 | GET | `/api/products/:id` | No | Detalle. 404 si no está disponible. Incluye `extras` |
 | GET | `/api/branches/available` | Opcional | Sucursales activas dentro del radio |
 | GET | `/api/branches` | Opcional | Todas las sucursales activas. Ubicación opcional para la distancia |
+| POST | `/api/geocode` | No | Dirección → hasta 5 candidatos (Nominatim, Argentina) |
+| POST | `/api/geocode/reverse` | No | Coordenadas → calle, ciudad, provincia y CP |
 | GET | `/api/me` | JWT | Perfil |
 | PATCH | `/api/me` | JWT | Nombre y/o contraseña. El email no se acepta |
 | GET, POST | `/api/me/addresses` | Cliente | Direcciones propias |
@@ -70,6 +72,30 @@ Responde `{ radiusKm, branches }`. Cada sucursal trae nombre, dirección, teléf
 `GET /api/branches` lista todas las activas, también las que no llegan a la ubicación. Las inactivas no aparecen. Acepta los mismos `addressId` o `lat` + `lng` que `/available`, pero son opcionales.
 
 Responde `{ radiusKm, branches }` con los campos de `/available` más `withinRadius`. Con ubicación, de la más cercana a la más lejana. Sin ubicación, por nombre, y `distanceKm` y `withinRadius` vienen `null`. Una ubicación a medias (`lat` sin `lng`) responde 400; `addressId` sin sesión, 401.
+
+En las dos listas, en las sucursales del checkout y en la sucursal de un pedido, `address` es la calle y el número. Al lado vienen `city`, `province` y `postalCode`, que pueden ser `null` en las sucursales cargadas antes de existir esos campos.
+
+### Dirección con ciudad, provincia y CP (HU-34)
+
+`POST` y `PATCH /api/me/addresses`, y la `address` de `POST /api/orders/guest`, aceptan además de `street`, `latitude` y `longitude`:
+
+| Campo | Regla |
+|---|---|
+| `city` | Texto, hasta 80 caracteres |
+| `province` | Una de las 24 (`Buenos Aires`, `Ciudad Autónoma de Buenos Aires`, `Córdoba`…). Otra cosa: 400 |
+| `postalCode` | 4 números (`1425`) o CPA (`C1425ABC`). Se guarda sin espacios y en mayúsculas. Otra cosa: 400 |
+
+Los tres son opcionales: las direcciones anteriores quedan con `null`. Vacío equivale a `null` y, en el `PATCH`, borra lo que había. Las respuestas de direcciones y de pedidos devuelven los tres.
+
+### Geocodificación
+
+`POST /api/geocode` acepta la búsqueda libre `{ address }` o los campos separados `{ street, city?, province?, postalCode? }`. Si además de la calle viene ciudad, provincia o CP, consulta a Nominatim en forma estructurada y, si no encuentra nada, repite la búsqueda como texto libre. Con la calle sola va directo al texto libre, y la pantalla muestra los candidatos para elegir en lugar de completar.
+
+Responde 200 con `{ latitude, longitude, displayName, candidates }`, hasta 5 candidatos. Cada candidato trae además `road`, `houseNumber`, `city`, `province` y `postcode`, para completar el formulario. `province` es una de las 24, o vacía si Nominatim trae otra cosa. Sin resultados: 400. Nominatim caído o lento: 502.
+
+`POST /api/geocode/reverse` con `{ latitude, longitude }` devuelve un solo resultado con los mismos campos. Lo usan “Usar mi ubicación” y el pin del mapa para completar calle, ciudad, provincia y CP.
+
+Las consultas a Nominatim salen de a una por segundo, sin importar quién las pida.
 
 ### Recuperar contraseña
 
@@ -150,8 +176,8 @@ Todas piden JWT de admin.
 | CRUD | `/api/admin/categories` | ABM. Borrar con productos: 409 |
 | CRUD | `/api/admin/products` | ABM. Imagen por URL |
 | POST | `/api/admin/uploads` | Sube hasta 8 imágenes (jpeg, png, webp, gif) |
-| CRUD | `/api/admin/branches` | ABM de sucursales |
-| POST | `/api/admin/branches/geocode` | Texto de dirección → lat/lng (Nominatim, Argentina) |
+| CRUD | `/api/admin/branches` | ABM de sucursales. Acepta `city`, `province` y `postalCode`, con las reglas de la dirección |
+| POST | `/api/admin/branches/geocode` | El mismo cuerpo y la misma respuesta que `/api/geocode` |
 | GET | `/api/admin/branches/:branchId/stock` | Stock de todos los productos en esa sucursal |
 | PUT | `/api/admin/branches/:branchId/stock/:productId` | Body `{ "available": 20 }`. No se edita `reserved` |
 | GET, POST | `/api/admin/admins` | Listado y alta |
@@ -197,5 +223,6 @@ Los reportes extra del Sprint 5 no tienen ruta definida todavía.
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.2 | 01/11/2026 | Ciudad, provincia y CP en direcciones y sucursales. Geocode estructurado y `POST /api/geocode/reverse` (HU-34) |
 | 1.1 | 15/10/2026 | Alta de `GET /api/branches`: todas las sucursales activas (DEV-22) |
 | 1.0 | 07/10/2026 | Mapa de la API al cierre del Sprint 3 |

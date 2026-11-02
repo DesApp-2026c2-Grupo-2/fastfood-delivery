@@ -4,11 +4,13 @@ import { SessionProvider } from './auth/SessionContext';
 import { CartProvider } from './cart/CartContext';
 import { ClientLayout } from './layouts/ClientLayout';
 import { TermsPage } from './pages/client/TermsPage';
+import { AboutPage } from './pages/client/AboutPage';
 import { AccountPage } from './pages/client/AccountPage';
 import { AddressesPage } from './pages/client/AddressesPage';
 import { BranchesPage } from './pages/client/BranchesPage';
 import { CartPage } from './pages/client/CartPage';
 import { CheckoutPage } from './pages/client/CheckoutPage';
+import { ContactPage } from './pages/client/ContactPage';
 import { ForgotPasswordPage } from './pages/client/ForgotPasswordPage';
 import { LoginPage } from './pages/client/LoginPage';
 import { OrderDetailPage } from './pages/client/OrderDetailPage';
@@ -34,6 +36,8 @@ export default function App() {
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/terminos" element={<TermsPage />} />
             <Route path="/promociones" element={<PromotionsPage />} />
+            <Route path="/nosotros" element={<AboutPage />} />
+            <Route path="/contacto" element={<ContactPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/checkout/pedido/:orderId" element={<CheckoutPage />} />

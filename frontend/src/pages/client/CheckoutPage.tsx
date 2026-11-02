@@ -25,7 +25,16 @@ import { discountCaption } from '../../lib/discount-label';
 import { formatDateTime, formatPrice } from '../../lib/money';
 import { mediaUrl } from '../../lib/media';
 import { orderStatusHint, orderStatusLabel } from '../../lib/order-status';
+import { AddressFields } from '../../components/AddressFields';
 import { AddressLocationPicker } from '../../components/AddressLocationPicker';
+import {
+  type AddressParts,
+  addressPartsError,
+  emptyAddressParts,
+  formatAddress,
+  formatBranchAddress,
+  normalizePostalCode,
+} from '../../lib/address';
 import { PaymentMethodPicker } from '../../components/PaymentMethodPicker';
 import { paymentLabel, type PaymentMethod } from '../../lib/payment';
 import { TransferInfo } from '../../components/TransferInfo';
@@ -33,7 +42,7 @@ import { TransferInfo } from '../../components/TransferInfo';
 type GuestFormErrors = {
   name?: string;
   email?: string;
-  street?: string;
+  address?: string;
   latitude?: string;
   longitude?: string;
 };
@@ -109,7 +118,7 @@ export function CheckoutPage() {
   const [addressId, setAddressId] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [street, setStreet] = useState('');
+  const [guestAddress, setGuestAddress] = useState<AddressParts>(emptyAddressParts);
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [fulfillment, setFulfillment] = useState<Fulfillment>('delivery');
@@ -460,12 +469,13 @@ export function CheckoutPage() {
     }
 
     if (fulfillment === 'delivery') {
-      if (!street.trim()) {
-        nextErrors.latitude = 'Marcá la ubicación: buscá la dirección o tocá el mapa.';
+      const addressError = addressPartsError(guestAddress);
+      if (addressError) {
+        nextErrors.address = addressError;
       }
 
       if (!latitude.trim()) {
-        nextErrors.latitude = 'Ingresá la latitud.';
+        nextErrors.latitude = 'Marcá la ubicación: buscá la dirección o tocá el mapa.';
       } else if (parseCoordinate(latitude, -90, 90) === null) {
         nextErrors.latitude = 'Latitud inválida (-90 a 90).';
       }
@@ -506,7 +516,10 @@ export function CheckoutPage() {
           branchId,
           ...(fulfillment === 'delivery'
             ? {
-                street: street.trim(),
+                street: guestAddress.street.trim(),
+                city: guestAddress.city.trim(),
+                province: guestAddress.province,
+                postalCode: normalizePostalCode(guestAddress.postalCode),
                 latitude: Number(latitude),
                 longitude: Number(longitude),
               }
@@ -586,8 +599,8 @@ export function CheckoutPage() {
                 <dt>{order.address ? 'Entrega' : 'Retiro'}</dt>
                 <dd>
                   {order.address
-                    ? `${order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}${order.address.street}`
-                    : order.branch.address}
+                    ? `${order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}${formatAddress(order.address)}`
+                    : formatBranchAddress(order.branch)}
                 </dd>
               </div>
               <div>
@@ -752,8 +765,8 @@ export function CheckoutPage() {
                           {address.alias?.trim() || address.street}
                           {address.isDefault ? <span className="checkout-pill">Principal</span> : null}
                         </span>
-                        {address.alias?.trim() ? (
-                          <span className="checkout-choice-meta">{address.street}</span>
+                        {address.alias?.trim() || address.city || address.province || address.postalCode ? (
+                          <span className="checkout-choice-meta">{formatAddress(address)}</span>
                         ) : null}
                       </span>
                     </label>
@@ -836,31 +849,31 @@ export function CheckoutPage() {
           {fulfillment === 'delivery' ? (
             <div className="checkout-block">
               <h2>Dirección de entrega</h2>
-              <label>
-                Dirección
-                <input
-                  value={street}
-                  onChange={(event) => {
-                    setStreet(event.target.value);
-                    if (guestErrors.street) setGuestErrors((prev) => ({ ...prev, street: undefined }));
-                  }}
-                  maxLength={200}
-                  placeholder="Av. Rivadavia 5000, CABA"
-                />
-                {guestErrors.street ? (
-                  <small className="error" role="alert">
-                    {guestErrors.street}
-                  </small>
-                ) : null}
-              </label>
+              <AddressFields
+                value={guestAddress}
+                onChange={(patch) => {
+                  setGuestAddress((current) => ({ ...current, ...patch }));
+                  if (guestErrors.address) setGuestErrors((prev) => ({ ...prev, address: undefined }));
+                }}
+                disabled={saving}
+              />
+              {guestErrors.address ? (
+                <small className="error" role="alert">
+                  {guestErrors.address}
+                </small>
+              ) : null}
               <AddressLocationPicker
-                street={street}
+                address={guestAddress}
                 latitude={latitude}
                 longitude={longitude}
                 onChange={(lat, lng) => {
                   setLatitude(lat);
                   setLongitude(lng);
                   setGuestErrors((prev) => ({ ...prev, latitude: undefined, longitude: undefined }));
+                }}
+                onAddressFound={(patch) => {
+                  setGuestAddress((current) => ({ ...current, ...patch }));
+                  setGuestErrors((prev) => ({ ...prev, address: undefined }));
                 }}
                 locateOnMount={false}
                 disabled={saving}
@@ -994,7 +1007,7 @@ function BranchPicker({
                 </span>
               ) : null}
             </span>
-            <span className="checkout-choice-meta">{branch.address}</span>
+            <span className="checkout-choice-meta">{formatBranchAddress(branch)}</span>
             {branch.canFulfill ? (
               <small className="branch-stock branch-stock--ok">Tiene stock de todo tu pedido</small>
             ) : (

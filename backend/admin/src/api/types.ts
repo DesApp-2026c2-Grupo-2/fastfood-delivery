@@ -123,8 +123,22 @@ export type AdminOrderDetail = AdminOrderListItem & {
   user: { id: string; name: string; email: string } | null;
   guestName: string | null;
   guestEmail: string | null;
-  branch: { id: string; name: string; address: string };
-  address: { id: string; alias?: string; street: string } | null;
+  branch: {
+    id: string;
+    name: string;
+    address: string;
+    city?: string | null;
+    province?: string | null;
+    postalCode?: string | null;
+  };
+  address: {
+    id: string;
+    alias?: string;
+    street: string;
+    city?: string | null;
+    province?: string | null;
+    postalCode?: string | null;
+  } | null;
   items: {
     id: string;
     productId: string;
@@ -243,7 +257,15 @@ export type AdminCustomerList = {
 };
 
 export type AdminCustomerDetail = AdminCustomer & {
-  addresses: { id: string; alias: string; street: string; isDefault: boolean }[];
+  addresses: {
+    id: string;
+    alias: string;
+    street: string;
+    city: string | null;
+    province: string | null;
+    postalCode: string | null;
+    isDefault: boolean;
+  }[];
   recentOrders: {
     id: string;
     status: OrderStatus;
@@ -266,6 +288,9 @@ export type Branch = {
   id: string;
   name: string;
   address: string;
+  city: string | null;
+  province: string | null;
+  postalCode: string | null;
   latitude: number | string;
   longitude: number | string;
   openingHours: string;

@@ -9,6 +9,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { CityField, PostalCodeField, ProvinceField } from '../../addresses/dto/address-fields';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -27,6 +28,15 @@ export class UpdateBranchDto {
   @IsNotEmpty()
   @MaxLength(200)
   address?: string;
+
+  @CityField()
+  city?: string | null;
+
+  @ProvinceField()
+  province?: string | null;
+
+  @PostalCodeField()
+  postalCode?: string | null;
 
   @IsOptional()
   @Type(() => Number)

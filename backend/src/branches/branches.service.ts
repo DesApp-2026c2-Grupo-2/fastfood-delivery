@@ -14,9 +14,30 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AvailableBranchesQueryDto } from './dto/available-branches-query.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
-import { GeocodeNotFoundError, GeocodeUnavailableError, geocodeAddress } from './geocode';
+import {
+  GeocodeNotFoundError,
+  GeocodeQuery,
+  GeocodeUnavailableError,
+  geocodeAddress,
+  reverseGeocode,
+} from './geocode';
 
 export type CoveringBranch = { branch: Branch; distanceKm: number };
+
+function geocodeHttpError(error: unknown): unknown {
+  if (error instanceof GeocodeNotFoundError) return new BadRequestException(error.message);
+  if (error instanceof GeocodeUnavailableError) return new BadGatewayException(error.message);
+  return error;
+}
+
+function branchAddress(branch: Branch) {
+  return {
+    address: branch.address,
+    city: branch.city,
+    province: branch.province,
+    postalCode: branch.postalCode,
+  };
+}
 
 @Injectable()
 export class BranchesService {
@@ -118,7 +139,7 @@ export class BranchesService {
       branches: branches.map(({ branch, distanceKm }) => ({
         id: branch.id,
         name: branch.name,
-        address: branch.address,
+        ...branchAddress(branch),
         phone: branch.phone,
         openingHours: branch.openingHours,
         latitude: Number(branch.latitude),
@@ -141,7 +162,7 @@ export class BranchesService {
       branches: branches.map(({ branch, distanceKm, withinRadius }) => ({
         id: branch.id,
         name: branch.name,
-        address: branch.address,
+        ...branchAddress(branch),
         phone: branch.phone,
         openingHours: branch.openingHours,
         latitude: Number(branch.latitude),
@@ -162,18 +183,20 @@ export class BranchesService {
    * Hasta 5 candidatos (DEV-20). `latitude`, `longitude` y `displayName` repiten el primero, así quien
    * lea un solo resultado sigue funcionando; `candidates` es la lista completa para elegir.
    */
-  async geocode(address: string) {
+  async geocode(query: GeocodeQuery) {
     try {
-      const candidates = await geocodeAddress(address);
+      const candidates = await geocodeAddress(query);
       return { ...candidates[0], candidates };
     } catch (error) {
-      if (error instanceof GeocodeNotFoundError) {
-        throw new BadRequestException(error.message);
-      }
-      if (error instanceof GeocodeUnavailableError) {
-        throw new BadGatewayException(error.message);
-      }
-      throw error;
+      throw geocodeHttpError(error);
+    }
+  }
+
+  async reverseGeocode(latitude: number, longitude: number) {
+    try {
+      return await reverseGeocode(latitude, longitude);
+    } catch (error) {
+      throw geocodeHttpError(error);
     }
   }
 
@@ -190,6 +213,9 @@ export class BranchesService {
       data: {
         name: dto.name.trim(),
         address: dto.address.trim(),
+        city: dto.city ?? null,
+        province: dto.province ?? null,
+        postalCode: dto.postalCode ?? null,
         latitude: new Prisma.Decimal(dto.latitude),
         longitude: new Prisma.Decimal(dto.longitude),
         openingHours: dto.openingHours.trim(),
@@ -206,6 +232,9 @@ export class BranchesService {
       data: {
         ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
         ...(dto.address !== undefined ? { address: dto.address.trim() } : {}),
+        ...(dto.city !== undefined ? { city: dto.city } : {}),
+        ...(dto.province !== undefined ? { province: dto.province } : {}),
+        ...(dto.postalCode !== undefined ? { postalCode: dto.postalCode } : {}),
         ...(dto.latitude !== undefined
           ? { latitude: new Prisma.Decimal(dto.latitude) }
           : {}),

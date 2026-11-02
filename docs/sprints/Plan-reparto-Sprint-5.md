@@ -1,8 +1,8 @@
 # Plan de reparto — Sprint 5
 
 **Proyecto:** Mordi (pedidos en casas de comidas rápidas)  
-**Versión:** 1.1  
-**Actualizado:** 29/10/2026  
+**Versión:** 1.2  
+**Actualizado:** 01/11/2026  
 **Equipo, en el orden en que se trabaja:** Rafael, Nicolas, Lucas, Celeste, Carla. Cristian lleva la carpeta y no codea.  
 **Sprint:** 5 de 5  
 **Seguimiento:** jueves 05/11/2026  
@@ -73,18 +73,25 @@ Rama: `feat/rafael-direccion-mapa`
 
 **HU-34**
 
-- [ ] `postalCode` y `province` en `Address`. Las direcciones viejas quedan vacías.
+- [x] `postalCode` y `province` en `Address`. Las direcciones viejas quedan vacías.
 - [ ] Migración en `main` el **lunes 2 a la noche**.
-- [ ] El formulario de la cuenta y el del invitado piden calle y número, ciudad, provincia (las 24) y CP.
-- [ ] El geocode busca estructurado y, si no encuentra, usa la búsqueda libre de hoy. El pin sigue igual.
-- [ ] Test: la query del geocode sale estructurada.
+- [x] El formulario de la cuenta y el del invitado piden calle y número, ciudad, provincia (las 24) y CP.
+- [x] El geocode busca estructurado y, si no encuentra, usa la búsqueda libre de hoy. El pin sigue igual.
+- [x] Test: la query del geocode sale estructurada.
+
+Además de la ficha:
+
+- `city` también en `Address`, como campo propio.
+- `city`, `province` y `postalCode` en `Branch`, en una segunda migración. El alta y la edición de sucursal en el admin piden los cuatro campos, como la dirección del cliente.
+- `POST /api/geocode/reverse`: “Usar mi ubicación” y el pin del mapa completan calle, ciudad, provincia y CP.
+- Con la calle sola, “Buscar en el mapa” muestra candidatos para elegir y no completa nada.
 
 **HU-35**
 
-- [ ] `/nosotros`: misión, visión y valores. Texto fijo.
-- [ ] `/contacto`: mail, teléfono y horario de cada sucursal activa. Link `mailto:`. El horario es el texto de hoy; si más adelante hay franjas, se muestran esas.
-- [ ] `/branches`: mapa con un marcador por sucursal activa. Al tocarlo, nombre, dirección y horario.
-- [ ] Links en el pie, al lado de Términos y Promociones.
+- [x] `/nosotros`: misión, visión y valores. Texto fijo.
+- [x] `/contacto`: mail, teléfono y horario de cada sucursal activa. Link `mailto:`. El horario es el texto de hoy; si más adelante hay franjas, se muestran esas.
+- [x] `/branches`: mapa con un marcador por sucursal activa. Al tocarlo, nombre, dirección y horario.
+- [x] Links en el pie, al lado de Términos y Promociones.
 - [ ] Merge de las dos historias el **miércoles 4 a la noche**.
 
 ### Nicolas — segundo
@@ -204,3 +211,4 @@ No se demuestra un combo, un cupón ni un pago real. Lo que no esté en `main` e
 |---|---|---|
 | 1.0 | 29/10/2026 | Reparto de las historias abiertas |
 | 1.1 | 29/10/2026 | El equipo trabaja en orden: Rafael, Nicolas, Lucas, Celeste, Carla. Cada uno cierra sus historias enteras |
+| 1.2 | 01/11/2026 | Rafael cerró HU-34 y HU-35 en su rama. Faltan la migración y el merge en `main` |

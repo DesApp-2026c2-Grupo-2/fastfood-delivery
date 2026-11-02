@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import { isStatusBehind, useOrderStatusEvents, type OrderStatusChangedEvent } from '../../api/order-events';
 import type { OrderDetail, OrderStatus, Product } from '../../api/types';
 import { getToken, getUserId } from '../../auth/session';
+import { formatAddress, formatBranchAddress } from '../../lib/address';
 import { discountCaption } from '../../lib/discount-label';
 import { formatDateTime, formatPrice } from '../../lib/money';
 import { orderStatusLabel } from '../../lib/order-status';
@@ -265,7 +266,7 @@ export function OrderDetailPage() {
             <span className="banner-sublabel">Sucursal asignada</span>
             <strong className="branch-meta-name">{order.branch.name}</strong>
             {order.branch.address ? (
-              <span className="branch-meta-address">{order.branch.address}</span>
+              <span className="branch-meta-address">{formatBranchAddress(order.branch)}</span>
             ) : null}
           </div>
         </div>
@@ -307,8 +308,8 @@ export function OrderDetailPage() {
             <dt>{order.address ? 'Entrega' : 'Retiro'}</dt>
             <dd>
               {order.address
-                ? `${order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}${order.address.street}`
-                : order.branch.address}
+                ? `${order.address.alias?.trim() ? `${order.address.alias.trim()} · ` : ''}${formatAddress(order.address)}`
+                : formatBranchAddress(order.branch)}
             </dd>
           </div>
           <div>

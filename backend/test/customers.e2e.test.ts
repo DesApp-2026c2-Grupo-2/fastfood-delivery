@@ -172,7 +172,15 @@ describe('GET /api/admin/customers/:id', () => {
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ id: customer.id, email: customer.email, orderCount: 1, totalSpent: 1200 });
     expect(response.body.addresses).toEqual([
-      { id: expect.any(String), alias: 'Casa', street: 'Av. E2E 1', isDefault: true },
+      {
+        id: expect.any(String),
+        alias: 'Casa',
+        street: 'Av. E2E 1',
+        city: null,
+        province: null,
+        postalCode: null,
+        isDefault: true,
+      },
     ]);
     expect(response.body.recentOrders).toEqual([
       {

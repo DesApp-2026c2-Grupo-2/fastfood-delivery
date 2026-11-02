@@ -1,8 +1,8 @@
 # Modelo de datos
 
 **Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
-**Versión:** 1.0  
-**Actualizado:** 07/10/2026  
+**Versión:** 1.1  
+**Actualizado:** 01/11/2026  
 **Fuente:** `backend/prisma/schema.prisma`  
 **Notación:** Crow’s Foot (modelo lógico), alineado a lo que está en la base al cierre del Sprint 3
 
@@ -33,6 +33,9 @@ erDiagram
         String userId FK "nullable"
         String alias
         String street
+        String city "nullable"
+        String province "nullable"
+        String postalCode "nullable"
         Decimal latitude
         Decimal longitude
         Boolean isDefault
@@ -83,6 +86,9 @@ erDiagram
         String id PK
         String name
         String address
+        String city "nullable"
+        String province "nullable"
+        String postalCode "nullable"
         Decimal latitude
         Decimal longitude
         String openingHours
@@ -207,7 +213,9 @@ erDiagram
 
 **Recuperar contraseña.** `PasswordResetToken` guarda el hash del token, no el token. `usedAt` nulo significa que todavía no se usó.
 
-**Dirección.** `alias` es el nombre corto (“Casa”, “Trabajo”). Puede ir vacío.
+**Dirección.** `alias` es el nombre corto (“Casa”, “Trabajo”). Puede ir vacío. `street` es la calle y el número. `city`, `province` y `postalCode` entran con HU-34 y son nulos en las direcciones anteriores. `province` es una de las 23 provincias o la Ciudad Autónoma de Buenos Aires, con el nombre completo. `postalCode` son 4 números o el CPA de 8 caracteres, en mayúsculas.
+
+**Dirección de la sucursal.** `Branch.address` es la calle y el número. `city`, `province` y `postalCode` siguen las mismas reglas que en `Address` y también son nulos en las sucursales cargadas antes.
 
 ## Qué no está en el modelo
 
@@ -217,4 +225,5 @@ Promoción, descuento del pedido, cupón y cualquier tabla de reportes. El Sprin
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.1 | 01/11/2026 | Ciudad, provincia y CP en `Address` y en `Branch` (HU-34) |
 | 1.0 | 07/10/2026 | Modelo de carpeta al cierre del Sprint 3: stock, parámetros, token de reset, historial de estados, hora estimada y alias |

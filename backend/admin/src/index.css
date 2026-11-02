@@ -1045,6 +1045,31 @@ h2 {
   }
 }
 
+.address-fields {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.address-fields-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 7.5rem;
+  gap: 0.75rem;
+}
+
+.address-fields select {
+  width: 100%;
+}
+
+@media (max-width: 719px) {
+  .address-fields-row {
+    grid-template-columns: minmax(0, 1fr) 7.5rem;
+  }
+
+  .address-fields-row > label:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
 .stack:has(> .product-form) > .error[role='alert'],
 .stack:has(> .product-form) > .success[role='status'] {
   max-width: 36rem;

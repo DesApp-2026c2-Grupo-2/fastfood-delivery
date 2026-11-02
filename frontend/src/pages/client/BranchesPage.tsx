@@ -8,6 +8,8 @@ import type {
   AvailableBranchesResponse,
 } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
+import { BranchesMap, type MapOrigin } from '../../components/BranchesMap';
+import { formatBranchAddress } from '../../lib/address';
 import { type DevicePosition, requestDevicePosition } from '../../lib/geolocation';
 
 function formatDistance(km: number): string {
@@ -27,9 +29,25 @@ export function BranchesPage() {
   const [allError, setAllError] = useState('');
   const [allLoading, setAllLoading] = useState(false);
   const allRequest = useRef(0);
+  const [origin, setOrigin] = useState<MapOrigin | null>(null);
+  const [focusedId, setFocusedId] = useState('');
+  const [focusRequest, setFocusRequest] = useState(0);
+  const mapWrapRef = useRef<HTMLDivElement>(null);
 
-  // Si el cliente cambia de ubicación rápido, solo cuenta la última respuesta.
-  async function loadAll(query: string, auth = false) {
+  function showOnMap(branchId: string) {
+    setFocusedId(branchId);
+    setFocusRequest((n) => n + 1);
+    mapWrapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function selectFromMap(branchId: string) {
+    setFocusedId(branchId);
+    document.getElementById(`branch-${branchId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // Si el cliente cambia de ubicación rápido, solo cuenta la última respuesta. El punto del mapa cambia
+  // junto con la respuesta, así el encuadre usa la cobertura de esa ubicación y no la anterior.
+  async function loadAll(query: string, auth = false, nextOrigin: MapOrigin | null = null) {
     const request = ++allRequest.current;
     setAllLoading(true);
     try {
@@ -39,6 +57,7 @@ export function BranchesPage() {
       );
       if (request !== allRequest.current) return;
       setAll(response);
+      setOrigin(nextOrigin);
       setAllError('');
     } catch (err) {
       if (request !== allRequest.current) return;
@@ -48,10 +67,10 @@ export function BranchesPage() {
     }
   }
 
-  async function search(query: string, auth = false) {
+  async function search(query: string, auth: boolean, nextOrigin: MapOrigin | null) {
     setLoading(true);
     setError('');
-    void loadAll(query, auth);
+    void loadAll(query, auth, nextOrigin);
     try {
       setResult(
         await api<AvailableBranchesResponse>(`/branches/available?${query}`, auth ? { token } : {}),
@@ -64,13 +83,20 @@ export function BranchesPage() {
     }
   }
 
-  function searchByAddress(id: string) {
+  function searchByAddress(id: string, list: Address[] = addresses) {
     setAddressId(id);
-    void search(new URLSearchParams({ addressId: id }).toString(), true);
+    setFocusedId('');
+    const address = list.find((item) => item.id === id);
+    void search(
+      new URLSearchParams({ addressId: id }).toString(),
+      true,
+      address ? { latitude: Number(address.latitude), longitude: Number(address.longitude) } : null,
+    );
   }
 
   async function searchByDevice() {
     setAddressId('');
+    setFocusedId('');
     setLoading(true);
     setError('');
     let position: DevicePosition;
@@ -91,6 +117,8 @@ export function BranchesPage() {
         lat: String(position.latitude),
         lng: String(position.longitude),
       }).toString(),
+      false,
+      { latitude: position.latitude, longitude: position.longitude },
     );
   }
 
@@ -105,7 +133,7 @@ export function BranchesPage() {
         if (cancelled) return;
         setAddresses(list);
         const preferred = list.find((address) => address.isDefault) ?? list[0];
-        if (preferred) searchByAddress(preferred.id);
+        if (preferred) searchByAddress(preferred.id, list);
         else void loadAll('');
       })
       .catch((err: unknown) => {
@@ -204,6 +232,38 @@ export function BranchesPage() {
         </div>
       ) : null}
 
+      {all && all.branches.length > 0 ? (
+        <div ref={mapWrapRef} className="branches-map-wrap">
+          <BranchesMap
+            branches={all.branches}
+            origin={origin}
+            radiusKm={all.radiusKm}
+            focusedId={focusedId}
+            focusRequest={focusRequest}
+            onSelect={selectFromMap}
+          />
+          <ul className="branches-map-legend" aria-label="Referencias del mapa">
+            {origin ? (
+              <>
+                <li>
+                  <span className="legend-dot legend-dot--origin" aria-hidden="true" /> Tu punto
+                </li>
+                <li>
+                  <span className="legend-dot legend-dot--near" aria-hidden="true" /> Te cubre
+                </li>
+                <li>
+                  <span className="legend-dot legend-dot--far" aria-hidden="true" /> Fuera de tu zona
+                </li>
+              </>
+            ) : (
+              <li>
+                <span className="legend-dot legend-dot--neutral" aria-hidden="true" /> Sucursal
+              </li>
+            )}
+          </ul>
+        </div>
+      ) : null}
+
       {covering.length > 0 ? (
         <BranchGroup
           title="Te cubren"
@@ -214,7 +274,13 @@ export function BranchesPage() {
           }
         >
           {covering.map((branch, index) => (
-            <BranchSpot key={branch.id} branch={branch} nearest={index === 0} />
+            <BranchSpot
+              key={branch.id}
+              branch={branch}
+              nearest={index === 0}
+              focused={focusedId === branch.id}
+              onShow={showOnMap}
+            />
           ))}
         </BranchGroup>
       ) : null}
@@ -222,7 +288,7 @@ export function BranchesPage() {
       {farther.length > 0 ? (
         <BranchGroup title="Más lejos" hint="Abiertas, pero fuera de la zona de envío">
           {farther.map((branch) => (
-            <BranchSpot key={branch.id} branch={branch} />
+            <BranchSpot key={branch.id} branch={branch} focused={focusedId === branch.id} onShow={showOnMap} />
           ))}
         </BranchGroup>
       ) : null}
@@ -230,7 +296,7 @@ export function BranchesPage() {
       {withoutPlace.length > 0 ? (
         <BranchGroup title="Abiertas ahora">
           {withoutPlace.map((branch) => (
-            <BranchSpot key={branch.id} branch={branch} />
+            <BranchSpot key={branch.id} branch={branch} focused={focusedId === branch.id} onShow={showOnMap} />
           ))}
         </BranchGroup>
       ) : null}
@@ -260,17 +326,30 @@ function BranchGroup({
   );
 }
 
-function BranchSpot({ branch, nearest = false }: { branch: ActiveBranch; nearest?: boolean }) {
+function BranchSpot({
+  branch,
+  nearest = false,
+  focused,
+  onShow,
+}: {
+  branch: ActiveBranch;
+  nearest?: boolean;
+  focused: boolean;
+  onShow: (branchId: string) => void;
+}) {
   const far = branch.withinRadius === false;
+  const className = ['branch-spot', nearest ? 'is-near' : far ? 'is-far' : '', focused ? 'is-focused' : '']
+    .filter(Boolean)
+    .join(' ');
   return (
-    <li className={nearest ? 'branch-spot is-near' : far ? 'branch-spot is-far' : 'branch-spot'}>
+    <li id={`branch-${branch.id}`} className={className}>
       <div className="branch-spot-top">
         <strong>{branch.name}</strong>
         {branch.distanceKm !== null ? (
           <span className="branch-distance">{formatDistance(branch.distanceKm)}</span>
         ) : null}
       </div>
-      <p className="branch-spot-address">{branch.address}</p>
+      <p className="branch-spot-address">{formatBranchAddress(branch)}</p>
       <p className="branch-spot-meta">
         <span>{branch.openingHours}</span>
         <a href={`tel:${branch.phone.replace(/\s/g, '')}`}>{branch.phone}</a>
@@ -278,6 +357,9 @@ function BranchSpot({ branch, nearest = false }: { branch: ActiveBranch; nearest
       {nearest ? <span className="badge">La más cercana</span> : null}
       {!nearest && branch.withinRadius === true ? <span className="badge">Te cubre</span> : null}
       {far ? <span className="badge badge--off">Fuera de tu zona</span> : null}
+      <button type="button" className="text-action branch-spot-show" onClick={() => onShow(branch.id)}>
+        Ver en el mapa
+      </button>
     </li>
   );
 }

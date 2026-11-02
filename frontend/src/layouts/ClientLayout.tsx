@@ -102,6 +102,8 @@ export function ClientLayout() {
       <footer className="site-footer">
         <Link to="/terminos">Términos y condiciones</Link>
         <Link to="/promociones">Promociones</Link>
+        <Link to="/nosotros">Nosotros</Link>
+        <Link to="/contacto">Contacto</Link>
       </footer>
       <BottomNav count={count} customer={customer} userName={user?.name} />
     </div>
