@@ -7,6 +7,8 @@ import { PrismaService } from '../prisma/prisma.service';
 export const EXTRAS_CATEGORY_SLUG = 'adicional';
 
 export type ExtraOption = { id: string; name: string; price: number };
+// En el detalle del producto el cliente muestra la foto de cada adicional, como en el carrito.
+export type ExtraListing = ExtraOption & { imageUrl: string | null };
 export type AdminExtraOption = ExtraOption & { available: boolean; offered: boolean };
 
 const isExtraCategory = { categories: { some: { slug: EXTRAS_CATEGORY_SLUG } } };
@@ -25,12 +27,23 @@ export class ExtrasService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Adicionales que se pueden elegir en un producto: los marcados y disponibles. Vacío si no ofrece ninguno. */
-  async listFor(productId: string): Promise<ExtraOption[]> {
+  async listFor(productId: string): Promise<ExtraListing[]> {
     const rows = await this.prisma.productExtra.findMany({
       where: { productId, extra: { available: true, ...isExtraCategory } },
-      select: { extra: { select: { id: true, name: true, price: true } } },
+      select: {
+        extra: {
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            images: { orderBy: { sortOrder: 'asc' }, take: 1, select: { url: true } },
+          },
+        },
+      },
     });
-    return rows.map(({ extra }) => toOption(extra)).sort(byName);
+    return rows
+      .map(({ extra }) => ({ ...toOption(extra), imageUrl: extra.images[0]?.url ?? null }))
+      .sort(byName);
   }
 
   /** Ids de los adicionales marcados en un producto, estén o no disponibles. */
@@ -128,11 +141,12 @@ export class ExtrasService {
   /** Reemplaza los adicionales que ofrece un producto. Una lista vacía deja de ofrecer adicionales. */
   async setOffered(productId: string, extraIds: string[]): Promise<AdminExtraOption[]> {
     const host = await this.findHost(productId);
-    if (host.categories.some((category) => category.slug === EXTRAS_CATEGORY_SLUG)) {
+    const ids = [...new Set(extraIds)];
+    // Vaciar la lista sí se puede: un producto que pasó a ser adicional deja de ofrecer los que tenía.
+    if (ids.length > 0 && host.categories.some((category) => category.slug === EXTRAS_CATEGORY_SLUG)) {
       throw new BadRequestException('Un adicional no ofrece adicionales');
     }
 
-    const ids = [...new Set(extraIds)];
     const found = await this.prisma.product.findMany({
       where: { id: { in: ids } },
       select: { id: true, name: true, categories: { select: { slug: true } } },

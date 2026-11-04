@@ -2,7 +2,7 @@ import { useCart } from '../../cart/CartContext';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
-import type { Cart, Product, PromotionQuote } from '../../api/types';
+import type { Cart, Product, ProductExtraOption, PromotionQuote } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
 import { addGuestItem } from '../../cart/guestCart';
 import { ProductTags, PromoBadge } from '../../components/ProductTags';
@@ -14,7 +14,7 @@ export function ProductDetailPage() {
   const { id } = useParams();
   const { refresh } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
-  const [availableExtras, setAvailableExtras] = useState<Product[]>([]);
+  const [availableExtras, setAvailableExtras] = useState<ProductExtraOption[]>([]);
   const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
@@ -48,26 +48,8 @@ export function ProductDetailPage() {
         const data = await api<Product>(`/products/${id}`);
         if (!cancelled) {
           setProduct(data);
-
-          // Verificar si es hamburguesa para habilitar los adicionales
-          const isBurger =
-            data.slug?.includes('hamburguesa') ||
-            data.name?.toLowerCase().includes('hamburguesa') ||
-            data.categories?.some((c) => c.slug === 'hamburguesas');
-
-          if (isBurger) {
-            try {
-              const allProducts = await api<Product[]>('/products');
-              const extras = allProducts.filter(
-                (p) =>
-                  p.categories?.some((c) => c.slug === 'adicional') ||
-                  p.category?.name?.toLowerCase() === 'adicional',
-              );
-              if (!cancelled) setAvailableExtras(extras);
-            } catch {
-              // Si falla la consulta de extras, permite seguir comprando el producto base
-            }
-          }
+          // HU-30: el API ya trae los adicionales que el admin marcó en este producto (y están disponibles).
+          setAvailableExtras(data.extras ?? []);
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'No se encontró el producto');
@@ -170,7 +152,7 @@ export function ProductDetailPage() {
                 id: extra.id,
                 name: extra.name,
                 price: Number(extra.price) || 0,
-                imageUrl: extra.images?.[0]?.url || extra.imageUrl || null,
+                imageUrl: extra.imageUrl,
               })),
           );
       const inCart = saved.items
@@ -272,7 +254,7 @@ export function ProductDetailPage() {
             <div className="extras-grid">
               {availableExtras.map((extra) => {
                 const isSelected = selectedExtraIds.includes(extra.id);
-                const extraImg = extra.images?.[0]?.url || extra.imageUrl;
+                const extraImg = extra.imageUrl;
 
                 return (
                   <div

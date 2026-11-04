@@ -1,7 +1,7 @@
 import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, uploadImages } from '../../api/client';
-import type { Category, Product } from '../../api/types';
+import type { Category, Product, ProductExtraOption } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { ProductTags, productCategories } from '../../components/ProductTags';
@@ -19,6 +19,8 @@ type FormState = {
   available: boolean;
   categoryIds: string[];
   existingImageUrls: string[];
+  // Adicionales que ofrece el producto (HU-30).
+  extraIds: string[];
 };
 
 type AvailabilityFilter = 'all' | 'available' | 'hidden';
@@ -32,9 +34,12 @@ const emptyForm: FormState = {
   available: true,
   categoryIds: [],
   existingImageUrls: [],
+  extraIds: [],
 };
 
 const MAX_IMAGES = 8;
+// Los adicionales son los productos de esta categoría. Se busca por slug, como en el backend.
+const EXTRAS_CATEGORY_SLUG = 'adicional';
 const PAGE_SIZE = 20;
 
 function formatPrice(price: number) {
@@ -49,6 +54,10 @@ function categoryNames(product: Product) {
 
 function coverUrl(product: Product) {
   return mediaUrl(product.images?.[0]?.url || product.imageUrl);
+}
+
+function sameIds(a: string[], b: string[]) {
+  return a.length === b.length && a.every((id) => b.includes(id));
 }
 
 export function AdminProductsPage() {
@@ -70,6 +79,9 @@ export function AdminProductsPage() {
   const [saving, setSaving] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Los adicionales que el producto ofrecía al abrir la edición. null mientras cargan o si no se pudieron leer.
+  const [savedExtraIds, setSavedExtraIds] = useState<string[] | null>(null);
+  const [extrasLoading, setExtrasLoading] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -121,6 +133,21 @@ export function AdminProductsPage() {
     });
   }, [products, query, filterCategory, availability]);
 
+  const extrasCategoryId = categories.find((category) => category.slug === EXTRAS_CATEGORY_SLUG)?.id;
+  const extraCandidates = useMemo(
+    () =>
+      products
+        .filter(
+          (product) =>
+            product.id !== form.id &&
+            productCategories(product).some((category) => category.slug === EXTRAS_CATEGORY_SLUG),
+        )
+        .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })),
+    [products, form.id],
+  );
+  // Un adicional no ofrece adicionales: la sección no se muestra.
+  const formIsExtra = Boolean(extrasCategoryId && form.categoryIds.includes(extrasCategoryId));
+
   const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
   const pageItems = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -129,6 +156,21 @@ export function AdminProductsPage() {
     setForm(emptyForm);
     setNewFiles([]);
     setSlugLocked(false);
+    setSavedExtraIds(null);
+  }
+
+  async function loadExtras(productId: string) {
+    setExtrasLoading(true);
+    try {
+      const options = await api<ProductExtraOption[]>(`/admin/products/${productId}/extras`, { token });
+      const offered = options.filter((option) => option.offered).map((option) => option.id);
+      setSavedExtraIds(offered);
+      setForm((current) => (current.id === productId ? { ...current, extraIds: offered } : current));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudieron cargar los adicionales');
+    } finally {
+      setExtrasLoading(false);
+    }
   }
 
   function goToList() {
@@ -159,12 +201,15 @@ export function AdminProductsPage() {
         : product.imageUrl
           ? [product.imageUrl]
           : [],
+      extraIds: [],
     });
     setNewFiles([]);
     setSlugLocked(true);
+    setSavedExtraIds(null);
     setError('');
     setOk('');
     setScreen('form');
+    void loadExtras(product.id);
   }
 
   function onNameChange(name: string) {
@@ -186,6 +231,31 @@ export function AdminProductsPage() {
         ? current.categoryIds.filter((id) => id !== categoryId)
         : [...current.categoryIds, categoryId];
       return { ...current, categoryIds: selected };
+    });
+  }
+
+  function toggleExtra(extraId: string) {
+    setForm((current) => ({
+      ...current,
+      extraIds: current.extraIds.includes(extraId)
+        ? current.extraIds.filter((id) => id !== extraId)
+        : [...current.extraIds, extraId],
+    }));
+  }
+
+  /**
+   * Guarda los adicionales después del producto. En la edición solo si cambiaron, y nunca si no se
+   * pudieron leer (no pisa lo que había). Si el producto pasó a ser un adicional, se vacían.
+   */
+  async function saveExtras(productId: string) {
+    const candidateIds = extraCandidates.map((extra) => extra.id);
+    const wanted = formIsExtra ? [] : form.extraIds.filter((id) => candidateIds.includes(id));
+    const before = form.id ? savedExtraIds : [];
+    if (before === null || sameIds(wanted, before)) return;
+    await api(`/admin/products/${productId}/extras`, {
+      method: 'PUT',
+      token,
+      body: JSON.stringify({ extraIds: wanted }),
     });
   }
 
@@ -244,27 +314,39 @@ export function AdminProductsPage() {
         categoryIds: form.categoryIds,
         imageUrls: [...form.existingImageUrls, ...uploaded],
       };
+      let productId: string;
       if (form.id) {
         await api(`/admin/products/${form.id}`, {
           method: 'PATCH',
           token,
           body: JSON.stringify(payload),
         });
+        productId = form.id;
         setOk(
           payload.available
             ? `Producto “${payload.name}” actualizado.`
             : `Producto “${payload.name}” actualizado. No se muestra en el catálogo del cliente.`,
         );
       } else {
-        await api('/admin/products', {
+        const created = await api<Product>('/admin/products', {
           method: 'POST',
           token,
           body: JSON.stringify(payload),
         });
+        productId = created.id;
         setOk(
           payload.available
             ? `Producto “${payload.name}” creado.`
             : `Producto “${payload.name}” creado. Como no está disponible, el cliente no lo ve.`,
+        );
+      }
+      try {
+        await saveExtras(productId);
+      } catch (err) {
+        // El producto ya quedó guardado: se vuelve al listado igual, con el aviso.
+        setOk('');
+        setError(
+          `“${payload.name}” se guardó, pero no sus adicionales: ${err instanceof Error ? err.message : 'error'}`,
         );
       }
       resetForm();
@@ -389,6 +471,59 @@ export function AdminProductsPage() {
             </div>
             <p className="field-hint">Tocá una o más. Quedan como tags del producto.</p>
           </fieldset>
+          {formIsExtra ? null : (
+            <fieldset className="tag-fieldset">
+              <legend>Adicionales que se ofrecen</legend>
+              {extrasLoading ? (
+                <p className="muted">Cargando adicionales…</p>
+              ) : extraCandidates.length === 0 ? (
+                <p className="field-hint">
+                  Todavía no hay adicionales. Son los productos con la categoría Adicional.
+                </p>
+              ) : (
+                <>
+                  <div className="tag-picker" role="group" aria-label="Adicionales que se ofrecen">
+                    {extraCandidates.map((extra) => {
+                      const selected = form.extraIds.includes(extra.id);
+                      return (
+                        <button
+                          key={extra.id}
+                          type="button"
+                          className={selected ? 'tag-choice is-on' : 'tag-choice'}
+                          aria-pressed={selected}
+                          onClick={() => toggleExtra(extra.id)}
+                        >
+                          <SvgIcon name={selected ? 'check' : 'tag'} className="tag-choice-icon" />
+                          {extra.name} · {formatPrice(extra.price)}
+                          {extra.available ? null : <span className="tag-choice-note">no disponible</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="row">
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => setForm((current) => ({ ...current, extraIds: extraCandidates.map((extra) => extra.id) }))}
+                    >
+                      Marcar todos
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => setForm((current) => ({ ...current, extraIds: [] }))}
+                    >
+                      Ninguno
+                    </button>
+                  </div>
+                  <p className="field-hint">
+                    El cliente elige entre los marcados que estén disponibles. Sin ninguno marcado, el producto no ofrece
+                    adicionales.
+                  </p>
+                </>
+              )}
+            </fieldset>
+          )}
           <label>
             Precio (ARS)
             <input

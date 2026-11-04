@@ -206,15 +206,16 @@ describe('GET /api/products/:id', () => {
     const extras = response.body.extras as { id: string; name: string; price: number }[];
     expect(extras).toEqual(
       expect.arrayContaining([
-        { id: bacon.id, name: bacon.name, price: 2000 },
-        { id: cheddar.id, name: cheddar.name, price: 1500 },
+        // Los adicionales de prueba no tienen foto.
+        { id: bacon.id, name: bacon.name, price: 2000, imageUrl: null },
+        { id: cheddar.id, name: cheddar.name, price: 1500, imageUrl: null },
       ]),
     );
     expect(extras.map((extra) => extra.id)).not.toContain(gone.id);
     expect(extras.map((extra) => extra.id)).not.toContain(burger.id);
   });
 
-  it('un producto que no es hamburguesa no ofrece adicionales', async () => {
+  it('un producto sin adicionales marcados no ofrece ninguno', async () => {
     const response = await request(server).get(`/api/products/${drink.id}`);
 
     expect(response.status).toBe(200);

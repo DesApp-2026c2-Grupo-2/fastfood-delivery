@@ -38,6 +38,15 @@ export type Product = {
   updatedAt?: string;
 };
 
+// GET y PUT /admin/products/:id/extras (HU-30): todos los adicionales, con `offered` en los que el producto ofrece.
+export type ProductExtraOption = {
+  id: string;
+  name: string;
+  price: number;
+  available: boolean;
+  offered: boolean;
+};
+
 export type LoginResponse = {
   accessToken: string;
   user: User;

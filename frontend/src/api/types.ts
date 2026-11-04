@@ -50,6 +50,15 @@ export type Product = {
   category?: Category;
   createdAt?: string;
   updatedAt?: string;
+  // Solo en GET /products/:id: los adicionales que el admin marcó en este producto y están disponibles (HU-30).
+  extras?: ProductExtraOption[];
+};
+
+export type ProductExtraOption = {
+  id: string;
+  name: string;
+  price: number;
+  imageUrl: string | null;
 };
 
 export type LoginResponse = {
