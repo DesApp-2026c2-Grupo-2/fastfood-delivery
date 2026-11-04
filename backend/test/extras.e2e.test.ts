@@ -25,10 +25,19 @@ let bacon: { id: string; name: string };
 let cheddar: { id: string; name: string };
 let gone: { id: string; name: string };
 let lower: { id: string; name: string };
+let unmarked: { id: string; name: string };
 let drink: { id: string; name: string };
 let otherCategoryId: string;
+let adminToken: string;
+
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@rapido.local';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin123!';
 
 const bearer = () => ({ Authorization: `Bearer ${token}` });
+const adminBearer = () => ({ Authorization: `Bearer ${adminToken}` });
+
+/** Los adicionales que la hamburguesa ofrece al empezar cada test. `unmarked` queda afuera. */
+const markedOnBurger = () => [bacon, cheddar, gone, lower].map((extra) => extra.id);
 
 async function createProduct(name: string, price: string, categoryId: string, available = true) {
   return prisma.product.create({
@@ -85,6 +94,7 @@ beforeAll(async () => {
   cheddar = await createProduct('E2E Cheddar', '1500.00', adicional.id);
   gone = await createProduct('E2E Agotado', '1000.00', adicional.id, false);
   lower = await createProduct('a-e2e minuscula', '500.00', adicional.id);
+  unmarked = await createProduct('E2E Sin Marcar', '800.00', adicional.id);
   drink = await createProduct('E2E Gaseosa', '1500.00', other.id);
 
   let branch = await prisma.branch.findFirst({ where: { active: true } });
@@ -106,7 +116,7 @@ beforeAll(async () => {
   const activeBranches = await prisma.branch.findMany({ where: { active: true }, select: { id: true } });
   await prisma.stock.createMany({
     data: activeBranches.flatMap((active) =>
-      [burger, bacon, cheddar, gone, lower, drink].map((product) => ({
+      [burger, bacon, cheddar, gone, lower, unmarked, drink].map((product) => ({
         branchId: active.id,
         productId: product.id,
         available: 1000,
@@ -130,16 +140,27 @@ beforeAll(async () => {
   // Desde HU-23 el cliente elige la sucursal: la que cubre la dirección de cada pedido.
   branchId = await coveringBranchId(server, -34.61, -58.42);
   guestBranchId = await coveringBranchId(server, -34.59, -58.39);
+
+  const admin = await request(server)
+    .post('/api/auth/login')
+    .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
+  expect(admin.status).toBe(201);
+  adminToken = admin.body.accessToken;
 }, 60_000);
 
 beforeEach(async () => {
   await prisma.cartItem.deleteMany({ where: { cart: { userId } } });
   await prisma.product.updateMany({ where: { id: bacon.id }, data: { available: true, price: 2000 } });
+  // Cada test arranca con la hamburguesa ofreciendo los mismos adicionales y la gaseosa, ninguno.
+  await prisma.productExtra.deleteMany({ where: { productId: { in: [burger.id, drink.id] } } });
+  await prisma.productExtra.createMany({
+    data: markedOnBurger().map((extraId) => ({ productId: burger.id, extraId })),
+  });
 });
 
 afterAll(async () => {
   try {
-    const productIds = [burger, bacon, cheddar, gone, lower, drink]
+    const productIds = [burger, bacon, cheddar, gone, lower, unmarked, drink]
       .filter(Boolean)
       .map((product) => product.id);
     if (productIds.length > 0) {
@@ -438,5 +459,140 @@ describe('POST /api/orders/guest con adicionales', () => {
 
     expect(response.status).toBe(400);
     expect(String(response.body.message)).toContain('no admite adicionales');
+  });
+});
+
+describe('adicionales marcados en cada producto (HU-30)', () => {
+  it('el detalle y GET /api/products/:id/extras solo listan los marcados', async () => {
+    const detail = await request(server).get(`/api/products/${burger.id}`);
+    const listed = await request(server).get(`/api/products/${burger.id}/extras`);
+
+    expect(listed.status).toBe(200);
+    expect(listed.body).toEqual(detail.body.extras);
+    const ids = (listed.body as { id: string }[]).map((extra) => extra.id);
+    expect(ids).toEqual(expect.arrayContaining([bacon.id, cheddar.id, lower.id]));
+    expect(ids).not.toContain(unmarked.id);
+    // Marcado pero no disponible: no se ofrece.
+    expect(ids).not.toContain(gone.id);
+  });
+
+  it('un adicional no marcado no se puede agregar al carrito: 400', async () => {
+    const response = await addToCart({ productId: burger.id, quantity: 1, extraIds: [bacon.id, unmarked.id] });
+
+    expect(response.status).toBe(400);
+    expect(String(response.body.message)).toContain(`"${unmarked.name}" no se ofrece en "${burger.name}"`);
+    const cart = await request(server).get('/api/cart').set(bearer());
+    expect(cart.body.items).toHaveLength(0);
+  });
+
+  it('un adicional no marcado tampoco entra en un pedido de invitado: 400', async () => {
+    const response = await request(server)
+      .post('/api/orders/guest')
+      .send({
+        name: 'Invitado HU-30',
+        email: `guest.hu30.${stamp}@rapido.local`,
+        fulfillment: 'delivery',
+        branchId: guestBranchId,
+        street: 'Av. Santa Fe 1200, CABA',
+        latitude: -34.59,
+        longitude: -58.39,
+        items: [{ productId: burger.id, quantity: 1, extraIds: [unmarked.id] }],
+      });
+
+    expect(response.status).toBe(400);
+    expect(String(response.body.message)).toContain('no se ofrece en');
+  });
+
+  it('si el admin lo desmarca después de agregarlo, el pedido no se confirma: 400', async () => {
+    const added = await addToCart({ productId: burger.id, quantity: 1, extraIds: [cheddar.id] });
+    expect(added.status).toBe(201);
+
+    const unmark = await request(server)
+      .put(`/api/admin/products/${burger.id}/extras`)
+      .set(adminBearer())
+      .send({ extraIds: [bacon.id, gone.id, lower.id] });
+    expect(unmark.status).toBe(200);
+
+    const response = await request(server).post('/api/orders').set(bearer()).send({ fulfillment: 'delivery', branchId, addressId });
+
+    expect(response.status).toBe(400);
+    expect(String(response.body.message)).toContain(`"${cheddar.name}" ya no se ofrece en "${burger.name}"`);
+  });
+
+  it('el admin ve todos los adicionales con los marcados y los reemplaza con PUT', async () => {
+    const before = await request(server).get(`/api/admin/products/${burger.id}/extras`).set(adminBearer());
+
+    expect(before.status).toBe(200);
+    type Row = { id: string; offered: boolean };
+    const offered = (rows: Row[]) => rows.filter((row) => row.offered).map((row) => row.id).sort();
+    const mine = (rows: Row[]) =>
+      rows.filter((row) => [bacon, cheddar, gone, lower, unmarked].some((extra) => extra.id === row.id));
+    expect(mine(before.body)).toHaveLength(5);
+    expect(offered(mine(before.body))).toEqual(markedOnBurger().sort());
+    expect(before.body.find((row: { id: string }) => row.id === gone.id)).toMatchObject({ available: false, offered: true });
+    // Una gaseosa no es un adicional: no aparece en la lista.
+    expect(before.body.map((row: { id: string }) => row.id)).not.toContain(drink.id);
+
+    const put = await request(server)
+      .put(`/api/admin/products/${burger.id}/extras`)
+      .set(adminBearer())
+      .send({ extraIds: [unmarked.id] });
+
+    expect(put.status).toBe(200);
+    expect(offered(put.body)).toEqual([unmarked.id]);
+    const detail = await request(server).get(`/api/products/${burger.id}`);
+    expect(detail.body.extras.map((extra: { id: string }) => extra.id)).toEqual([unmarked.id]);
+    expect((await addToCart({ productId: burger.id, quantity: 1, extraIds: [unmarked.id] })).status).toBe(201);
+    expect((await addToCart({ productId: burger.id, quantity: 1, extraIds: [bacon.id] })).status).toBe(400);
+  });
+
+  it('cualquier producto puede ofrecer adicionales si se le marcan, y una lista vacía no ofrece ninguno', async () => {
+    const marked = await request(server)
+      .put(`/api/admin/products/${drink.id}/extras`)
+      .set(adminBearer())
+      .send({ extraIds: [bacon.id] });
+    expect(marked.status).toBe(200);
+    expect((await addToCart({ productId: drink.id, quantity: 1, extraIds: [bacon.id] })).status).toBe(201);
+
+    const cleared = await request(server)
+      .put(`/api/admin/products/${burger.id}/extras`)
+      .set(adminBearer())
+      .send({ extraIds: [] });
+    expect(cleared.status).toBe(200);
+    const detail = await request(server).get(`/api/products/${burger.id}`);
+    expect(detail.body.extras).toEqual([]);
+    const rejected = await addToCart({ productId: burger.id, quantity: 1, extraIds: [bacon.id] });
+    expect(rejected.status).toBe(400);
+    expect(String(rejected.body.message)).toContain('no admite adicionales');
+  });
+
+  it.each([
+    ['un id que no existe', () => burger.id, () => ['no-existe'], 'Adicional no encontrado'],
+    ['un producto que no es un adicional', () => burger.id, () => [drink.id], 'no es un adicional'],
+    ['marcar adicionales en un adicional', () => bacon.id, () => [cheddar.id], 'Un adicional no ofrece adicionales'],
+  ])('PUT rechaza %s con 400', async (_label, productId, extraIds, message) => {
+    const response = await request(server)
+      .put(`/api/admin/products/${productId()}/extras`)
+      .set(adminBearer())
+      .send({ extraIds: extraIds() });
+
+    expect(response.status).toBe(400);
+    expect(String(response.body.message)).toContain(message);
+    // No cambió nada.
+    expect(await prisma.productExtra.count({ where: { productId: burger.id } })).toBe(markedOnBurger().length);
+  });
+
+  it('PUT sin sesión de admin responde 401 y con un producto que no existe, 404', async () => {
+    const anonymous = await request(server).put(`/api/admin/products/${burger.id}/extras`).send({ extraIds: [] });
+    expect(anonymous.status).toBe(401);
+
+    const customer = await request(server).put(`/api/admin/products/${burger.id}/extras`).set(bearer()).send({ extraIds: [] });
+    expect(customer.status).toBe(403);
+
+    const missing = await request(server)
+      .put('/api/admin/products/no-existe/extras')
+      .set(adminBearer())
+      .send({ extraIds: [] });
+    expect(missing.status).toBe(404);
   });
 });

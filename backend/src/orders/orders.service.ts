@@ -91,6 +91,7 @@ function pricing(order: {
   deliveryFee: Prisma.Decimal;
   totalAmount: Prisma.Decimal;
   promotionName: string | null;
+  promotion: { type: 'percent' | 'two_for_one'; value: number } | null;
 }) {
   return {
     subtotal: Number(order.subtotal),
@@ -98,6 +99,10 @@ function pricing(order: {
     deliveryFee: Number(order.deliveryFee),
     totalAmount: Number(order.totalAmount),
     promotionName: order.promotionName,
+    // El cliente arma la leyenda del descuento con esto ("20% · Nombre", "2x1 · Nombre").
+    // Las promos de fidelidad y Top 3 no tienen fila en Promotion: quedan en null.
+    promotionType: order.promotion?.type ?? null,
+    promotionValue: order.promotion?.value ?? null,
   };
 }
 
@@ -779,8 +784,15 @@ export class OrdersService {
       }
 
       const extraIds: string[] = [];
+      const offered = item.extras.length > 0 ? await this.extrasService.offeredIds(item.product.id) : new Set<string>();
       for (const { extra } of item.extras) {
-        if (extra.available) {
+        if (!offered.has(extra.id)) {
+          skipped.push({
+            kind: 'extra',
+            name: extra.name,
+            message: `"${extra.name}" ya no se ofrece en "${item.product.name}": se agregó sin ese adicional`,
+          });
+        } else if (extra.available) {
           extraIds.push(extra.id);
         } else {
           skipped.push({
@@ -961,6 +973,9 @@ export class OrdersService {
     if (unavailableExtra) {
       throw new BadRequestException(`"${unavailableExtra.extra.name}" ya no está disponible`);
     }
+    await this.extrasService.assertOffered(
+      cart.items.map((item) => ({ product: item.product, extras: item.extras.map(({ extra }) => extra) })),
+    );
     return cart;
   }
 }

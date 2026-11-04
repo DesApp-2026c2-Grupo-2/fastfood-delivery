@@ -100,6 +100,9 @@ model Product {
   // Cuando el producto se usa como adicional de otro (categoría "Adicional").
   cartItemExtras  CartItemExtra[]
   orderItemExtras OrderItemExtra[]
+  // Adicionales que ofrece este producto, y productos que ofrecen a este como adicional (HU-30).
+  offeredExtras   ProductExtra[]   @relation("ProductExtraHost")
+  offeredIn       ProductExtra[]   @relation("ProductExtraOption")
   stock           Stock[]
   promotions      Promotion[]
   createdAt       DateTime         @default(now())
@@ -116,6 +119,18 @@ model ProductImage {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
+}
+
+// Adicional que se ofrece en un producto (HU-30). Lo marca el admin. Sin filas, el producto no ofrece adicionales.
+// El adicional es un producto de la categoría "Adicional".
+model ProductExtra {
+  productId String
+  extraId   String
+  product   Product @relation("ProductExtraHost", fields: [productId], references: [id], onDelete: Cascade)
+  extra     Product @relation("ProductExtraOption", fields: [extraId], references: [id], onDelete: Cascade)
+
+  @@id([productId, extraId])
+  @@index([extraId])
 }
 
 model Branch {
