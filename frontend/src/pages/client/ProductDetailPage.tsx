@@ -6,6 +6,7 @@ import type { Cart, Product, ProductExtraOption, PromotionQuote } from '../../ap
 import { getToken, isCustomer } from '../../auth/session';
 import { addGuestItem } from '../../cart/guestCart';
 import { ProductTags, PromoBadge } from '../../components/ProductTags';
+import { PromoBanner } from '../../components/PromoBanner';
 import { mediaUrl } from '../../lib/media';
 import { discountCaption } from '../../lib/discount-label';
 import { formatPrice } from '../../lib/money';
@@ -200,6 +201,8 @@ export function ProductDetailPage() {
           ← volvamos al menú
         </Link>
       </div>
+
+      <PromoBanner />
 
       <div className="detail-top">
         {images.length ? (
