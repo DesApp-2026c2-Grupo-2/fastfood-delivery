@@ -66,4 +66,11 @@ export class UpdateParametersDto {
   @Min(PARAMETERS.top3_discount_percent.min)
   @Max(PARAMETERS.top3_discount_percent.max)
   top3_discount_percent?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(PARAMETERS.free_delivery_min_subtotal.min)
+  @Max(PARAMETERS.free_delivery_min_subtotal.max)
+  free_delivery_min_subtotal?: number;
 }

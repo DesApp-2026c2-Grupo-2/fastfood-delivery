@@ -361,7 +361,7 @@ export class OrdersService {
       createdAt,
       userId,
     );
-    const deliveryFee = await this.deliveryFeesService.feeFor(dto.fulfillment, distanceKm);
+    const deliveryFee = await this.deliveryFeesService.feeFor(dto.fulfillment, distanceKm, price.totalAmount);
     const estimatedDeliveryAt = estimateDeliveryAt(
       createdAt,
       cart.items.reduce((sum, item) => sum + item.quantity, 0),
@@ -463,7 +463,7 @@ export class OrdersService {
     );
     const createdAt = new Date();
     const price = await this.promotionsService.apply(linesSubtotal(lines), promotionLines(lines), createdAt);
-    const deliveryFee = await this.deliveryFeesService.feeFor(dto.fulfillment, distanceKm);
+    const deliveryFee = await this.deliveryFeesService.feeFor(dto.fulfillment, distanceKm, price.totalAmount);
     const estimatedDeliveryAt = estimateDeliveryAt(
       createdAt,
       lines.reduce((sum, line) => sum + line.quantity, 0),
@@ -537,7 +537,8 @@ export class OrdersService {
    * Domicilio: solo activas dentro del radio de la dirección. Retiro: todas las activas.
    */
   async listBranchesForCheckout(dto: CheckoutBranchesDto, user?: JwtPayload) {
-    const units = stockLines(await this.checkoutLines(dto, user));
+    const lines = await this.checkoutLines(dto, user);
+    const units = stockLines(lines);
 
     const hasOrigin = dto.addressId !== undefined || dto.latitude !== undefined || dto.longitude !== undefined;
     const origin = hasOrigin
@@ -558,6 +559,20 @@ export class OrdersService {
       units,
     );
     const pricePerKm = dto.fulfillment === Fulfillment.delivery ? await this.deliveryFeesService.pricePerKm() : 0;
+    // Envío gratis (HU-31): se evalúa sobre el subtotal ya descontado, igual que al confirmar.
+    const freeDelivery =
+      dto.fulfillment === Fulfillment.delivery
+        ? await this.deliveryFeesService.freeDeliveryProgress(
+            (
+              await this.promotionsService.apply(
+                linesSubtotal(lines),
+                promotionLines(lines),
+                new Date(),
+                user?.sub,
+              )
+            ).totalAmount,
+          )
+        : null;
 
     const rows = offered.map(({ branch, distanceKm, withinRadius }) => {
       const missing = shortages.get(branch.id) ?? [];
@@ -575,7 +590,8 @@ export class OrdersService {
         distanceKm: distanceKm === null ? null : Math.round(distanceKm * 100) / 100,
         withinRadius,
         // Lo que se cobraría de envío desde esta sucursal. En domicilio siempre hay distancia; retiro, 0.
-        deliveryFee: distanceKm === null ? 0 : feeForDistance(pricePerKm, distanceKm),
+        deliveryFee:
+          distanceKm === null || freeDelivery?.qualifies ? 0 : feeForDistance(pricePerKm, distanceKm),
         canFulfill: missing.length === 0,
         missing: missing.map((line) => ({
           productId: line.productId,
@@ -587,7 +603,7 @@ export class OrdersService {
     });
     rows.sort((a, b) => Number(b.canFulfill) - Number(a.canFulfill));
 
-    return { fulfillment: dto.fulfillment, radiusKm, branches: rows };
+    return { fulfillment: dto.fulfillment, radiusKm, freeDelivery, branches: rows };
   }
 
   /**
