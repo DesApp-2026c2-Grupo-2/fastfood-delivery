@@ -1365,6 +1365,13 @@ h2 {
   display: block;
 }
 
+/* Aclaración dentro de un tag, por ejemplo un adicional marcado que no está disponible (HU-30). */
+.tag-choice-note {
+  font-size: 0.75rem;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
 .file-field {
   display: grid;
   gap: 0.4rem;

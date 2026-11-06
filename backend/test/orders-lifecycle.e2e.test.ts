@@ -141,6 +141,8 @@ beforeAll(async () => {
 
   burger = await createProduct('E2E Pedidos Hamburguesa', '20000.00', hamburguesas.id);
   bacon = await createProduct('E2E Pedidos Bacon', '2000.00', adicional.id);
+  // La hamburguesa ofrece el bacon (HU-30).
+  await prisma.productExtra.create({ data: { productId: burger.id, extraId: bacon.id } });
   drink = await createProduct('E2E Pedidos Gaseosa', '1500.00', other.id);
 
   let branch = await prisma.branch.findFirst({ where: { active: true } });
@@ -211,6 +213,7 @@ describe('GET /api/orders', () => {
     expect(ids.indexOf(second)).toBeLessThan(ids.indexOf(first));
     expect(response.body.find((order: { id: string }) => order.id === first)).toEqual({
       id: first,
+      code: expect.stringMatching(/^[A-Z]{3}\d{6}$/),
       status: 'pending',
       fulfillment: 'delivery',
       subtotal: 1500,

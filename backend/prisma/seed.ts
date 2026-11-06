@@ -388,8 +388,31 @@ async function main() {
 
   console.log('Categorías y productos de prueba cargados.');
 
+  await seedProductExtras();
   await seedStock();
   await seedDelayedOrders(testCustomerId);
+}
+
+/**
+ * Cada hamburguesa ofrece todos los adicionales (HU-30), como la migración. No toca las que ya
+ * tienen adicionales marcados: eso lo decidió el admin.
+ */
+async function seedProductExtras() {
+  const burgers = await prisma.product.findMany({
+    where: { categories: { some: { slug: 'hamburguesas' } }, offeredExtras: { none: {} } },
+    select: { id: true },
+  });
+  const extras = await prisma.product.findMany({
+    where: { categories: { some: { slug: 'adicional' } } },
+    select: { id: true },
+  });
+  const { count } = await prisma.productExtra.createMany({
+    data: burgers.flatMap((burger) =>
+      extras.filter((extra) => extra.id !== burger.id).map((extra) => ({ productId: burger.id, extraId: extra.id })),
+    ),
+    skipDuplicates: true,
+  });
+  console.log(`Adicionales marcados en ${burgers.length} hamburguesas: ${count} filas nuevas.`);
 }
 
 const DEMO_STOCK = 100;

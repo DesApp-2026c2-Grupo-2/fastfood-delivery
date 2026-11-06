@@ -132,6 +132,8 @@ beforeAll(async () => {
   categoryIds = [hamburguesas.id, adicional.id];
   burger = await createProduct('E2E Retiro Hamburguesa', '20000.00', hamburguesas.id);
   bacon = await createProduct('E2E Retiro Bacon', '2000.00', adicional.id);
+  // La hamburguesa ofrece el bacon (HU-30).
+  await prisma.productExtra.create({ data: { productId: burger.id, extraId: bacon.id } });
 
   near = await createBranch('Sucursal E2E Retiro Cerca', NEAR);
   mid = await createBranch('Sucursal E2E Retiro Media', MID);

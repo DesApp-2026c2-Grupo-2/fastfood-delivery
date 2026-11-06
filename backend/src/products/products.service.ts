@@ -86,6 +86,14 @@ export class ProductsService {
     };
   }
 
+  async findPublicExtras(id: string) {
+    const product = await this.prisma.product.findFirst({ where: { id, available: true }, select: { id: true } });
+    if (!product) {
+      throw new NotFoundException('Producto no encontrado');
+    }
+    return this.extrasService.listFor(product.id);
+  }
+
   async findAllAdmin(categoryId?: string) {
     const products = await this.prisma.product.findMany({
       where: categoryId ? { categories: { some: { id: categoryId } } } : {},

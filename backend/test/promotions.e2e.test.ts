@@ -96,6 +96,8 @@ beforeAll(async () => {
     },
     select: { id: true, name: true },
   });
+  // La hamburguesa ofrece el bacon (HU-30).
+  await prisma.productExtra.create({ data: { productId: burger.id, extraId: bacon.id } });
   branch = await prisma.branch.create({
     data: {
       name: `Sucursal E2E Promo ${stamp}`,

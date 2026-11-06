@@ -14,4 +14,10 @@ export class ProductsController {
   findOne(@Param('id') id: string) {
     return this.productsService.findPublicById(id);
   }
+
+  /** Los adicionales que se pueden elegir en el producto (HU-30). El detalle también los trae en `extras`. */
+  @Get(':id/extras')
+  findExtras(@Param('id') id: string) {
+    return this.productsService.findPublicExtras(id);
+  }
 }
