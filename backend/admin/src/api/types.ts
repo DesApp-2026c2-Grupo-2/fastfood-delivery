@@ -308,3 +308,31 @@ export type Branch = {
   createdAt: string;
   updatedAt: string;
 };
+
+// HU-36: GET /admin/incidents. Las abiertas vienen primero.
+export type IncidentReason = 'missing_item' | 'wrong_order' | 'late' | 'cold' | 'other';
+export type IncidentStatus = 'open' | 'resolved';
+
+export const INCIDENT_REASON_LABEL: Record<IncidentReason, string> = {
+  missing_item: 'Faltó algo',
+  wrong_order: 'Pedido equivocado',
+  late: 'Llegó tarde',
+  cold: 'Llegó frío',
+  other: 'Otro',
+};
+
+export type AdminIncident = {
+  id: string;
+  reason: IncidentReason;
+  message: string;
+  status: IncidentStatus;
+  createdAt: string;
+  resolvedAt: string | null;
+  orderId: string;
+  orderCode: string;
+  fulfillment: Fulfillment;
+  totalAmount: number;
+  branch: { id: string; name: string };
+  customerName: string;
+  customerEmail: string;
+};
