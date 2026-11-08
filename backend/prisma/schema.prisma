@@ -35,6 +35,21 @@ enum Fulfillment {
   pickup
 }
 
+// Reclamo sobre un pedido entregado o retirado (HU-36).
+enum IncidentReason {
+  missing_item
+  wrong_order
+  late
+  cold
+  other
+}
+
+// open va primero: ordenar por estado deja las abiertas arriba.
+enum IncidentStatus {
+  open
+  resolved
+}
+
 // Tipo de promoción (HU-20, HU-21). El porcentual descuenta el pedido; el 2x1, un producto.
 enum PromotionType {
   percent
@@ -59,6 +74,7 @@ model User {
   cart         Cart?
   orders       Order[]
   statusChanges OrderStatusHistory[]
+  incidents     Incident[]
   passwordResetTokens PasswordResetToken[]
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
@@ -277,6 +293,7 @@ model Order {
   address     Address?    @relation(fields: [addressId], references: [id], onDelete: Restrict)
   items       OrderItem[]
   statusHistory OrderStatusHistory[]
+  incident      Incident?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -350,4 +367,21 @@ model OrderStatusHistory {
 
   @@index([orderId])
   @@index([changedByUserId])
+}
+
+// Un reclamo por pedido (orderId único). Solo lo puede crear el dueño de un pedido entregado o retirado.
+model Incident {
+  id         String         @id @default(cuid())
+  orderId    String         @unique
+  userId     String
+  reason     IncidentReason
+  message    String         @default("")
+  status     IncidentStatus @default(open)
+  createdAt  DateTime       @default(now())
+  resolvedAt DateTime?
+  order      Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user       User           @relation(fields: [userId], references: [id])
+
+  @@index([status])
+  @@index([userId])
 }
