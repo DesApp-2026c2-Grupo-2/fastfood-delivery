@@ -9,6 +9,7 @@ import { CartModule } from './cart/cart.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CustomersModule } from './customers/customers.module';
 import { DeliveryFeesModule } from './delivery-fees/delivery-fees.module';
+import { IncidentsModule } from './incidents/incidents.module';
 import { OrdersModule } from './orders/orders.module';
 import { ParametersModule } from './parameters/parameters.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -34,6 +35,7 @@ import { ReportsModule } from './reports/reports.module';
     CategoriesModule,
     CustomersModule,
     DeliveryFeesModule,
+    IncidentsModule,
     OrdersModule,
     ParametersModule,
     ProductsModule,

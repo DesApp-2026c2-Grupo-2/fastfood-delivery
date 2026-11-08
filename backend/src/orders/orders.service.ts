@@ -10,6 +10,7 @@ import { ParametersService } from '../parameters/parameters.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { loyaltyCardProgress, LOYALTY_REWARD_ID, TOP3_REWARD_ID } from '../promotions/campaign-rewards';
 import { PromotionLine, PromotionsService } from '../promotions/promotions.service';
+import { serializeIncident } from '../incidents/serialize-incident';
 import { stockLines } from '../stock/stock-lines';
 import { StockService } from '../stock/stock.service';
 import { CheckoutBranchesDto } from './dto/checkout-branches.dto';
@@ -301,6 +302,7 @@ function serializeAdmin(order: OrderAdminDetail) {
 const customerDetailInclude = {
   ...withRelations,
   statusHistory: { orderBy: { changedAt: 'asc' as const } },
+  incident: true,
 };
 
 type OrderCustomerDetail = Prisma.OrderGetPayload<{ include: typeof customerDetailInclude }>;
@@ -315,6 +317,9 @@ function serializeCustomer(order: OrderCustomerDetail) {
     })),
     ...deliveryTiming(order),
     canCancel: canTransition(order.status, OrderStatus.cancelled, order.fulfillment),
+    // HU-36: un reclamo por pedido, solo si se entregó o retiró.
+    incident: order.incident ? serializeIncident(order.incident) : null,
+    canReportIncident: order.status === OrderStatus.delivered && !order.incident,
   };
 }
 
