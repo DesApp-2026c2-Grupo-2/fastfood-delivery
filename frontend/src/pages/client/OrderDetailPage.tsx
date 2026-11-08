@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import { isStatusBehind, useOrderStatusEvents, type OrderStatusChangedEvent } from '../../api/order-events';
-import type { OrderDetail, OrderStatus, Product } from '../../api/types';
-import { getToken, getUserId } from '../../auth/session';
+import { INCIDENT_REASONS, type Incident, type IncidentReason, type OrderDetail, type OrderStatus, type Product } from '../../api/types';import { getToken, getUserId } from '../../auth/session';
 import { formatAddress, formatBranchAddress } from '../../lib/address';
 import { discountCaption } from '../../lib/discount-label';
 import { formatDateTime, formatPrice } from '../../lib/money';
@@ -44,6 +43,11 @@ export function OrderDetailPage() {
   const [cancelling, setCancelling] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelError, setCancelError] = useState('');
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<IncidentReason>('missing_item');
+  const [reportMessage, setReportMessage] = useState('');
+  const [reporting, setReporting] = useState(false);
+  const [reportError, setReportError] = useState('');
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -135,6 +139,32 @@ export function OrderDetailPage() {
       setCancelError(err instanceof Error ? err.message : 'No se pudo cancelar el pedido');
     } finally {
       setCancelling(false);
+    }
+  }
+
+  async function handleReport(event: FormEvent) {
+    event.preventDefault();
+    if (!id) return;
+    const text = reportMessage.trim();
+    if (reportReason === 'other' && !text) {
+      setReportError('Contanos qué pasó.');
+      return;
+    }
+    setReporting(true);
+    setReportError('');
+    try {
+      const incident = await api<Incident>(`/orders/${id}/incident`, {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ reason: reportReason, message: text }),
+      });
+      setOrder((current) => (current ? { ...current, incident, canReportIncident: false } : current));
+      setReportOpen(false);
+      setReportMessage('');
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : 'No se pudo enviar el reclamo');
+    } finally {
+      setReporting(false);
     }
   }
 
@@ -433,6 +463,83 @@ export function OrderDetailPage() {
             if (!cancelling) setConfirmCancel(false);
           }}
         />
+      ) : null}
+            {/* HU-36: reportar un problema con un pedido entregado o retirado */}
+      {order.incident ? (
+        <div className="tracking-card">
+          <h2>Tu reclamo</h2>
+          <p>
+            <strong>{INCIDENT_REASONS.find((item) => item.value === order.incident?.reason)?.label}</strong>
+            {order.incident.status === 'resolved' ? (
+              <span className="badge" style={{ marginLeft: '0.5rem' }}>Resuelto</span>
+            ) : (
+              <span className="badge badge-delay" style={{ marginLeft: '0.5rem' }}>En revisión</span>
+            )}
+          </p>
+          {order.incident.message ? <p className="muted">{order.incident.message}</p> : null}
+          <small className="muted">Enviado el {formatDateTime(order.incident.createdAt)}</small>
+        </div>
+      ) : order.canReportIncident ? (
+        reportOpen ? (
+          <form className="card form" onSubmit={(event) => void handleReport(event)} noValidate>
+            <h2>Tuve un problema</h2>
+            <label>
+              ¿Qué pasó?
+              <select
+                value={reportReason}
+                onChange={(event) => {
+                  setReportReason(event.target.value as IncidentReason);
+                  setReportError('');
+                }}
+                disabled={reporting}
+              >
+                {INCIDENT_REASONS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Comentario {reportReason === 'other' ? '' : '(opcional)'}
+              <textarea
+                value={reportMessage}
+                onChange={(event) => setReportMessage(event.target.value)}
+                maxLength={500}
+                rows={3}
+                disabled={reporting}
+                placeholder="Contanos un poco más"
+              />
+            </label>
+            {reportError ? (
+              <p className="error" role="alert">
+                {reportError}
+              </p>
+            ) : null}
+            <div className="row">
+              <button type="submit" disabled={reporting}>
+                {reporting ? 'Enviando…' : 'Enviar reclamo'}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={reporting}
+                onClick={() => {
+                  setReportOpen(false);
+                  setReportError('');
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="cancel-wrapper">
+            <button type="button" className="secondary" onClick={() => setReportOpen(true)}>
+              Tuve un problema
+            </button>
+          </div>
+        )
       ) : null}
     </section>
   );
