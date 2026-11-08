@@ -2510,6 +2510,16 @@ a.order-card-total:hover,
   color: #9a3412;
 }
 
+.free-delivery-note {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+.free-delivery-note--ok {
+  color: #166534;
+  font-weight: 600;
+}
+
 @media (min-width: 800px) {
   .admin-home-links {
     grid-template-columns: 1fr 1fr;

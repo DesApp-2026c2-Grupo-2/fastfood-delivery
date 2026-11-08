@@ -321,9 +321,18 @@ export type CheckoutBranch = {
   missing: CheckoutBranchMissing[];
 };
 
+export type FreeDeliveryProgress = {
+  minSubtotal: number;
+  qualifies: boolean;
+  // Lo que falta para llegar al mínimo; 0 si ya llegó.
+  missing: number;
+};
+
 export type CheckoutBranchesResponse = {
   fulfillment: Fulfillment;
   radiusKm: number;
+  // null si el envío gratis está desactivado o el pedido es de retiro.
+  freeDelivery?: FreeDeliveryProgress | null;
   branches: CheckoutBranch[];
 };
 
