@@ -336,3 +336,38 @@ export type AdminIncident = {
   customerName: string;
   customerEmail: string;
 };
+
+export type ProductReportItem = {
+  id: string;
+  name: string;
+  branchName?: string;
+  unitsSold?: number;
+  totalRevenue?: number;
+  stock?: number;
+};
+
+export type ProductReports = {
+  topSelling: ProductReportItem[];
+  leastSelling: ProductReportItem[];
+  outOfStock: ProductReportItem[];
+  topRevenue: ProductReportItem[];
+};
+
+export type OrderReports = {
+  branches: { id: string; name: string }[];
+  ordersByDay: { date: string; count: number }[];
+  ordersByStatus: { status: OrderStatus; label: string; count: number }[];
+  ordersByBranch: { branchId: string; branchName: string; count: number }[];
+  cancelled: { count: number; percent: number };
+  averageDeliveryMinutes: number | null;
+  salesByBranch: { branchId: string; branchName: string; totalAmount: number }[];
+  productsByBranch: {
+    branchId: string;
+    branchName: string;
+    productId: string;
+    productName: string;
+    unitsSold: number;
+  }[];
+  topCustomers: { userId: string; name: string; email: string; orderCount: number }[];
+  topPromotions: { promotionName: string; orderCount: number; totalDiscount: number }[];
+};
