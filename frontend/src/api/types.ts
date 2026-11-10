@@ -236,6 +236,8 @@ export type OrderDetail = Order & {
   estimatedDeliveryAt?: string | null;
   delayMinutes?: number | null;
   canCancel?: boolean;
+  incident?: Incident | null;
+  canReportIncident?: boolean;
 };
 
 // Sucursales disponibles (HU-19): GET /branches/available
@@ -319,8 +321,37 @@ export type CheckoutBranch = {
   missing: CheckoutBranchMissing[];
 };
 
+export type FreeDeliveryProgress = {
+  minSubtotal: number;
+  qualifies: boolean;
+  // Lo que falta para llegar al mínimo; 0 si ya llegó.
+  missing: number;
+};
+
 export type CheckoutBranchesResponse = {
   fulfillment: Fulfillment;
   radiusKm: number;
+  // null si el envío gratis está desactivado o el pedido es de retiro.
+  freeDelivery?: FreeDeliveryProgress | null;
   branches: CheckoutBranch[];
 };
+
+// HU-36: reclamo sobre un pedido entregado o retirado.
+export type IncidentReason = 'missing_item' | 'wrong_order' | 'late' | 'cold' | 'other';
+
+export type Incident = {
+  id: string;
+  reason: IncidentReason;
+  message: string;
+  status: 'open' | 'resolved';
+  createdAt: string;
+  resolvedAt: string | null;
+};
+
+export const INCIDENT_REASONS: { value: IncidentReason; label: string }[] = [
+  { value: 'missing_item', label: 'Faltó algo' },
+  { value: 'wrong_order', label: 'Pedido equivocado' },
+  { value: 'late', label: 'Llegó tarde' },
+  { value: 'cold', label: 'Llegó frío' },
+  { value: 'other', label: 'Otro' },
+];

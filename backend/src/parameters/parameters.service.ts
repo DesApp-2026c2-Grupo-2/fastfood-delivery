@@ -43,6 +43,10 @@ export class ParametersService {
     return (await this.values()).delivery_price_per_km;
   }
 
+  async freeDeliveryMinSubtotal() {
+    return (await this.values()).free_delivery_min_subtotal;
+  }
+
   async etaSettings(): Promise<EtaSettings> {
     const values = await this.values();
     return {

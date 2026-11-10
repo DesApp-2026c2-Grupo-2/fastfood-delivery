@@ -8,6 +8,7 @@ import { AdminCampaignsPage } from './pages/admin/AdminCampaignsPage';
 import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage';
 import { AdminCustomerFormPage, AdminCustomersPage } from './pages/admin/AdminCustomersPage';
 import { AdminHomePage } from './pages/admin/AdminHomePage';
+import { AdminIncidentsPage } from './pages/admin/AdminIncidentsPage';
 import { AdminLoginPage } from './pages/admin/AdminLoginPage';
 import { AdminOrderDetailPage } from './pages/admin/AdminOrderDetailPage';
 import { AdminOrdersPage } from './pages/admin/AdminOrdersPage';
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="branches/nueva" element={<AdminBranchFormPage />} />
         <Route path="branches/:id" element={<AdminBranchFormPage />} />
         <Route path="reports" element={<AdminReportsPage />} />
+        <Route path="incidents" element={<AdminIncidentsPage />} />
         <Route path="promotions" element={<AdminPromotionsPage />} />
         <Route path="promotions/nueva" element={<AdminPromotionFormPage />} />
         <Route path="promotions/:id" element={<AdminPromotionFormPage />} />

@@ -34,6 +34,7 @@ const groups: { label: string; links: NavLinkItem[] }[] = [
       { to: '/admin/customers', label: 'Clientes', short: 'Clientes', icon: 'users' as const },
       { to: '/admin/stock', label: 'Stock', short: 'Stock', icon: 'boxes' as const },
       { to: '/admin/reports', label: 'Reportes', short: 'Reportes', icon: 'receipt' as const },
+      { to: '/admin/incidents', label: 'Reclamos', short: 'Reclamos', icon: 'flag' as const },
     ],
   },
   {

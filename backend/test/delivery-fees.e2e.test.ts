@@ -5,7 +5,7 @@ import { Parameter, Prisma } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaExceptionFilter } from '../src/common/prisma-exception.filter';
-import { feeForDistance } from '../src/delivery-fees/delivery-fees.service';
+import { feeForDistance, qualifiesForFreeDelivery } from '../src/delivery-fees/delivery-fees.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@rapido.local';
@@ -18,8 +18,7 @@ const HOME = { latitude: -32.8895, longitude: -68.8458 };
 const NEAR = { latitude: -32.8995, longitude: -68.8458 };
 const MID = { latitude: -32.8895, longitude: -68.8114 };
 
-const PARAMETER_KEYS = ['coverage_radius_km', 'delivery_price_per_km'];
-
+const PARAMETER_KEYS = ['coverage_radius_km', 'delivery_price_per_km', 'free_delivery_min_subtotal'];
 let app: NestExpressApplication;
 let server: ReturnType<NestExpressApplication['getHttpServer']>;
 let prisma: PrismaService;
@@ -55,6 +54,14 @@ const patchPricePerKm = (value: unknown) =>
 
 async function setPricePerKm(price: number) {
   expect((await patchPricePerKm(price)).status).toBe(200);
+}
+
+async function setFreeDeliveryMin(value: number) {
+  const response = await request(server)
+    .patch('/api/admin/parameters')
+    .set(admin())
+    .send({ free_delivery_min_subtotal: value });
+  expect(response.status).toBe(200);
 }
 
 async function fillCart() {
@@ -200,6 +207,7 @@ describe('Precio por km en /api/admin/parameters', () => {
 describe('Envío en el pedido', () => {
   beforeEach(async () => {
     await setPricePerKm(1000);
+    await setFreeDeliveryMin(0);
   });
 
   it('domicilio cobra precio por km × distancia y lo suma al total; queda congelado', async () => {
@@ -287,5 +295,133 @@ describe('Envío en el pedido', () => {
       .set(auth(ana.token))
       .send({ fulfillment: 'pickup', addressId: ana.addressId });
     expect(mine(pickup.body.branches).map((branch) => branch.deliveryFee)).toEqual([0, 0]);
+  });
+});
+
+describe('qualifiesForFreeDelivery', () => {
+  it('llega justo al mínimo: gratis; un peso menos: no', () => {
+    expect(qualifiesForFreeDelivery(10000, 10000)).toBe(true);
+    expect(qualifiesForFreeDelivery(10000, 9999)).toBe(false);
+    expect(qualifiesForFreeDelivery(10000, 9999.99)).toBe(false);
+  });
+
+  it('con mínimo 0 está desactivado', () => {
+    expect(qualifiesForFreeDelivery(0, 0)).toBe(false);
+    expect(qualifiesForFreeDelivery(0, 1_000_000)).toBe(false);
+  });
+});
+
+describe('Envío gratis desde un monto (HU-31)', () => {
+  // El pedido de prueba cuesta 10000 y el envío a NEAR 1200.
+  beforeEach(async () => {
+    await setPricePerKm(1000);
+    await setFreeDeliveryMin(0);
+  });
+
+  it('el parámetro se lista y se valida', async () => {
+    await setFreeDeliveryMin(15000);
+    const list = await request(server).get('/api/admin/parameters').set(admin());
+    expect(list.body.find((parameter: { key: string }) => parameter.key === 'free_delivery_min_subtotal')).toMatchObject({
+      unit: '$',
+      value: 15000,
+      min: 0,
+    });
+
+    const negative = await request(server).patch('/api/admin/parameters').set(admin()).send({ free_delivery_min_subtotal: -1 });
+    expect(negative.status).toBe(400);
+  });
+
+  it('justo en el mínimo el envío es gratis', async () => {
+    await setFreeDeliveryMin(10000);
+    await fillCart();
+    const response = await placeDelivery(near.id);
+
+    expect(response.status).toBe(201);
+    expect(response.body).toMatchObject({ subtotal: 10000, deliveryFee: 0, totalAmount: 10000 });
+  });
+
+  it('un peso menos del mínimo, se cobra', async () => {
+    await setFreeDeliveryMin(10001);
+    await fillCart();
+    const response = await placeDelivery(near.id);
+
+    expect(response.status).toBe(201);
+    expect(response.body).toMatchObject({ deliveryFee: 1200, totalAmount: 11200 });
+  });
+
+  it('se evalúa sobre el subtotal ya descontado', async () => {
+    const promo = await request(server)
+      .post('/api/admin/promotions')
+      .set(admin())
+      .send({ name: `Promo E2E Envio Gratis ${stamp}`, value: 10 });
+    expect(promo.status).toBe(201);
+    createdPromotionIds.push(promo.body.id);
+
+    try {
+      // 10000 con 10% = 9000: con mínimo 10000 no llega, con 9000 sí.
+      await setFreeDeliveryMin(10000);
+      await fillCart();
+      expect((await placeDelivery(near.id)).body).toMatchObject({
+        discountAmount: 1000,
+        deliveryFee: 1200,
+        totalAmount: 10200,
+      });
+
+      await setFreeDeliveryMin(9000);
+      await fillCart();
+      expect((await placeDelivery(near.id)).body).toMatchObject({
+        discountAmount: 1000,
+        deliveryFee: 0,
+        totalAmount: 9000,
+      });
+    } finally {
+      await prisma.promotion.update({ where: { id: promo.body.id }, data: { active: false } });
+    }
+  });
+
+  it('el invitado también tiene envío gratis', async () => {
+    await setFreeDeliveryMin(10000);
+    const response = await request(server)
+      .post('/api/orders/guest')
+      .send({
+        name: 'Invitado Envio Gratis',
+        email: `guest.free-delivery.e2e.${stamp}@rapido.local`,
+        items: [{ productId: burger.id, quantity: 1 }],
+        fulfillment: 'delivery',
+        branchId: near.id,
+        street: 'Av. San Martín 100, Mendoza',
+        ...HOME,
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body).toMatchObject({ deliveryFee: 0, totalAmount: 10000 });
+  });
+
+  it('el checkout informa cuánto falta, o que ya es gratis', async () => {
+    await fillCart();
+    const checkout = (fulfillment: 'delivery' | 'pickup') =>
+      request(server)
+        .post('/api/branches/checkout')
+        .set(auth(ana.token))
+        .send({ fulfillment, addressId: ana.addressId });
+    const nearRow = (branches: { id: string; deliveryFee: number }[]) => branches.find((branch) => branch.id === near.id);
+
+    // Desactivado.
+    expect((await checkout('delivery')).body.freeDelivery).toBeNull();
+
+    // Faltan 5000.
+    await setFreeDeliveryMin(15000);
+    const short = await checkout('delivery');
+    expect(short.body.freeDelivery).toEqual({ minSubtotal: 15000, qualifies: false, missing: 5000 });
+    expect(nearRow(short.body.branches)).toMatchObject({ deliveryFee: 1200 });
+
+    // Llega: el envío de cada sucursal sale en 0.
+    await setFreeDeliveryMin(10000);
+    const enough = await checkout('delivery');
+    expect(enough.body.freeDelivery).toEqual({ minSubtotal: 10000, qualifies: true, missing: 0 });
+    expect(nearRow(enough.body.branches)).toMatchObject({ deliveryFee: 0 });
+
+    // Retiro no tiene envío que bonificar.
+    expect((await checkout('pickup')).body.freeDelivery).toBeNull();
   });
 });

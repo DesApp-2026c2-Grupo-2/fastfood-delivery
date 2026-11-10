@@ -46,6 +46,16 @@ export const PARAMETERS = {
     max: 1_000_000,
     integer: false,
   },
+  free_delivery_min_subtotal: {
+    label: 'Envío gratis desde',
+    description:
+      'Si el subtotal, ya con el descuento, llega a este monto, el envío es gratis. 0 = desactivado.',
+    unit: '$',
+    defaultValue: 0,
+    min: 0,
+    max: 1_000_000,
+    integer: false,
+  },
   loyalty_orders_required: {
     label: 'Pedidos para premio de fidelidad',
     description:

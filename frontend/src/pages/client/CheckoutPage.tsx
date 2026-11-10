@@ -6,6 +6,7 @@ import type {
   Address,
   Cart,
   CheckoutBranchesResponse,
+  FreeDeliveryProgress,
   Fulfillment,
   Order,
   Product,
@@ -681,6 +682,10 @@ export function CheckoutPage() {
     branchOptions?.fulfillment === 'delivery'
       ? (branchOptions.branches.find((branch) => branch.id === branchId)?.deliveryFee ?? null)
       : null;
+  
+  // HU-31: lo que falta para el envío gratis. Solo en domicilio y con el parámetro activo.
+  const freeDelivery: FreeDeliveryProgress | null =
+    branchOptions?.fulfillment === 'delivery' ? (branchOptions.freeDelivery ?? null) : null;
 
   return (
     <section className="stack checkout-page">
@@ -795,6 +800,7 @@ export function CheckoutPage() {
             cart={cart}
             quote={quote}
             deliveryFee={selectedDeliveryFee}
+            freeDelivery={freeDelivery}
             saving={saving}
             shortages={stockError?.items ?? []}
             blockedReason={blockedReason}
@@ -909,6 +915,7 @@ export function CheckoutPage() {
               cart={cart}
               quote={quote}
               deliveryFee={selectedDeliveryFee}
+              freeDelivery={freeDelivery}
               saving={saving}
               shortages={stockError?.items ?? []}
               blockedReason={blockedReason}
@@ -1088,6 +1095,7 @@ function OrderSummary({
   cart,
   quote,
   deliveryFee,
+  freeDelivery,
   saving,
   shortages,
   blockedReason,
@@ -1095,6 +1103,7 @@ function OrderSummary({
   cart: Cart;
   quote: PromotionQuote | null;
   deliveryFee: number | null;
+  freeDelivery: FreeDeliveryProgress | null;
   saving: boolean;
   shortages: OutOfStockItem[];
   blockedReason: string;
@@ -1148,6 +1157,17 @@ function OrderSummary({
         promotionType={quote?.promotion?.type}
         promotionValue={quote?.promotion?.value}
       />
+      {freeDelivery && (freeDelivery.qualifies || (deliveryFee ?? 0) > 0) ? (
+        <p
+          className={freeDelivery.qualifies ? 'free-delivery-note free-delivery-note--ok' : 'free-delivery-note'}
+          role="status"
+        >
+          {freeDelivery.qualifies
+            ? 'Envío gratis'
+            : `Te faltan ${formatPrice(freeDelivery.missing)} para el envío gratis`}
+        </p>
+      ) : null}
+
       <button type="submit" disabled={saving || Boolean(blockedReason)}>
         {saving ? 'Confirmando…' : 'Confirmar pedido'}
       </button>

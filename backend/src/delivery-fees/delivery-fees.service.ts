@@ -12,6 +12,14 @@ export function feeForDistance(pricePerKm: number, distanceKm: number): number {
   return Math.round(km * pricePerKm * 100) / 100;
 }
 
+
+
+/** Envío gratis: el subtotal ya descontado llega al mínimo. Mínimo 0 = desactivado. */
+export function qualifiesForFreeDelivery(minSubtotal: number, subtotalAfterDiscount: number): boolean {
+  if (minSubtotal <= 0) return false;
+  return Math.round(subtotalAfterDiscount * 100) >= Math.round(minSubtotal * 100);
+}
+
 @Injectable()
 export class DeliveryFeesService {
   constructor(private readonly parametersService: ParametersService) {}
@@ -21,9 +29,25 @@ export class DeliveryFeesService {
     return this.parametersService.deliveryPricePerKm();
   }
 
-  /** Lo que se cobra de envío. Retiro no paga. */
-  async feeFor(fulfillment: Fulfillment, distanceKm: number) {
+      /** null si el envío gratis está desactivado. `missing` es lo que falta para llegar al mínimo. */
+  async freeDeliveryProgress(subtotalAfterDiscount: number) {
+    const minSubtotal = await this.parametersService.freeDeliveryMinSubtotal();
+    if (minSubtotal <= 0) return null;
+    const qualifies = qualifiesForFreeDelivery(minSubtotal, subtotalAfterDiscount);
+    return {
+      minSubtotal,
+      qualifies,
+      missing: qualifies ? 0 : Math.round((minSubtotal - subtotalAfterDiscount) * 100) / 100,
+    };
+  }
+
+  /** Lo que se cobra de envío. Retiro no paga. Si llega `subtotalAfterDiscount` y alcanza el mínimo, tampoco. */
+  async feeFor(fulfillment: Fulfillment, distanceKm: number, subtotalAfterDiscount?: number) {
     if (fulfillment === Fulfillment.pickup) return 0;
+    if (subtotalAfterDiscount !== undefined) {
+      const progress = await this.freeDeliveryProgress(subtotalAfterDiscount);
+      if (progress?.qualifies) return 0;
+    }
     return feeForDistance(await this.pricePerKm(), distanceKm);
   }
-}
+  }
