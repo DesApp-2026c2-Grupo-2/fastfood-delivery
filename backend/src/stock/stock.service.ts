@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { byName } from '../extras/extras.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -15,6 +15,21 @@ function quoteNames(names: string[]) {
  * 409 del checkout sin stock (HU-18). `message` nombra los productos que faltan, listo para mostrar;
  * `items` trae el detalle por si el front quiere marcar cada línea del carrito.
  */
+export const CART_DISABLED_MESSAGE =
+  'Este carrito quedó inhabilitado. Vacialo y armalo de nuevo para seguir con el pedido.';
+
+/** 409 del checkout cuando el carrito se armó antes de liberar el reservado. */
+export function cartDisabledException() {
+  return new ConflictException({
+    statusCode: 409,
+    error: 'Conflict',
+    code: 'CART_DISABLED',
+    message: CART_DISABLED_MESSAGE,
+  });
+}
+
+type PurchaseLine = { productId: string; extraIds?: string[]; addedAt?: Date | null };
+
 function outOfStock(branch: { id: string; name: string }, shortages: Shortage[]) {
   const onlyOne = shortages.length === 1 ? shortages[0] : null;
   const left = onlyOne && onlyOne.available > 0 ? ` (quedan ${onlyOne.available})` : '';
@@ -144,6 +159,124 @@ export class StockService {
         throw outOfStock(branch, [{ ...line, available: current?.available ?? 0 }]);
       }
     }
+  }
+
+  /**
+   * El admin devuelve a disponible todo el reservado de un producto en la sucursal.
+   * Los pedidos que lo retenían no lo vuelven a mover. Los carritos que lo tienen quedan inhabilitados.
+   */
+  async releaseReserved(branchId: string, productId: string) {
+    await this.findBranch(branchId);
+    const product = await this.prisma.product.findUnique({ where: { id: productId }, select: productForStock });
+    if (!product) {
+      throw new NotFoundException('Producto no encontrado');
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const stock = await tx.stock.findUnique({ where: { branchId_productId: { branchId, productId } } });
+      if (!stock || stock.reserved <= 0) {
+        throw new BadRequestException('Ese producto no tiene stock reservado en esta sucursal');
+      }
+
+      await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "Stock" WHERE "id" = ${stock.id} FOR UPDATE`);
+      const current = await tx.stock.findUnique({ where: { id: stock.id } });
+      if (!current || current.reserved <= 0) {
+        throw new BadRequestException('Ese producto no tiene stock reservado en esta sucursal');
+      }
+
+      const { count } = await tx.stock.updateMany({
+        where: { id: current.id, reserved: { gte: current.reserved } },
+        data: {
+          available: { increment: current.reserved },
+          reserved: { decrement: current.reserved },
+        },
+      });
+      if (count === 0) {
+        throw new ConflictException('El reservado cambió; actualizá e intentá de nuevo');
+      }
+
+      const orders = await tx.order.findMany({
+        where: {
+          branchId,
+          stockReserved: true,
+          OR: [
+            { items: { some: { productId } } },
+            { items: { some: { extras: { some: { extraId: productId } } } } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (orders.length > 0) {
+        await tx.orderStockWaiver.createMany({
+          data: orders.map((order) => ({ orderId: order.id, productId })),
+          skipDuplicates: true,
+        });
+      }
+
+      await tx.stockRelease.create({
+        data: { branchId, productId, quantity: current.reserved },
+      });
+
+      const carts = await tx.cart.findMany({
+        where: {
+          OR: [
+            { items: { some: { productId } } },
+            { items: { some: { extras: { some: { extraId: productId } } } } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (carts.length > 0) {
+        await tx.cart.updateMany({
+          where: { id: { in: carts.map((cart) => cart.id) } },
+          data: { purchaseBlocked: true },
+        });
+      }
+
+      const updated = await tx.stock.findUniqueOrThrow({ where: { id: current.id } });
+      return { stock: updated, cartsBlocked: carts.length };
+    });
+
+    return { ...serializeStock(product, result.stock), cartsBlocked: result.cartsBlocked };
+  }
+
+  /** Última liberación de cada producto. El carrito de invitado la compara con el momento en que lo armó. */
+  async latestReleases() {
+    const rows = await this.prisma.stockRelease.groupBy({
+      by: ['productId'],
+      _max: { createdAt: true },
+    });
+    return rows.flatMap((row) =>
+      row._max.createdAt ? [{ productId: row.productId, releasedAt: row._max.createdAt.toISOString() }] : [],
+    );
+  }
+
+  /**
+   * Un carrito de invitado no se puede comprar si algún producto se liberó después de agregarlo.
+   * Sin fecha, se toma como armado antes de cualquier liberación.
+   */
+  async isPurchaseBlocked(lines: PurchaseLine[]) {
+    const ids = [...new Set(lines.flatMap((line) => [line.productId, ...(line.extraIds ?? [])]))];
+    if (ids.length === 0) return false;
+
+    const rows = await this.prisma.stockRelease.groupBy({
+      by: ['productId'],
+      where: { productId: { in: ids } },
+      _max: { createdAt: true },
+    });
+    const releasedAt = new Map(
+      rows.flatMap((row) => (row._max.createdAt ? [[row.productId, row._max.createdAt.getTime()] as const] : [])),
+    );
+
+    return lines.some((line) => {
+      const stamps = [line.productId, ...(line.extraIds ?? [])]
+        .map((id) => releasedAt.get(id))
+        .filter((stamp): stamp is number => stamp !== undefined);
+      if (stamps.length === 0) return false;
+      const added = line.addedAt?.getTime();
+      if (added == null || Number.isNaN(added)) return true;
+      return stamps.some((stamp) => stamp > added);
+    });
   }
 
   /** Pedido cancelado: la reserva vuelve a estar disponible. */

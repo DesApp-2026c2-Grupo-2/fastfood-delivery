@@ -1,5 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsNotEmpty,
   IsNumber,
@@ -8,8 +10,10 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { CityField, PostalCodeField, ProvinceField } from '../../addresses/dto/address-fields';
+import { BranchHourDto } from './branch-hour.dto';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -69,4 +73,11 @@ export class UpdateBranchDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(14)
+  @ValidateNested({ each: true })
+  @Type(() => BranchHourDto)
+  hours?: BranchHourDto[];
 }

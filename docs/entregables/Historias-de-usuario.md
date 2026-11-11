@@ -1,347 +1,359 @@
 # Historias de usuario
 
-**Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
-**Versión:** 2.0  
-**Actualizado:** 07/10/2026  
-**Estado:** HU-01 a HU-19 hechas (Sprints 1 a 3). HU-20 a HU-22 son el Sprint 4, todavía no construidas.  
-**Relacionados:** `Alcance-funcional.md`, `Requerimientos-funcionales.md`, `Incrementos-de-los-sprints.md`
+**Proyecto:** Mordi, pedidos de una casa de comidas rápidas
+**Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
+**Versión:** 2.2
+**Actualizado:** 11/11/2026
+**Fuente:** sección homónima de `Carpeta.md`
 
----
+Cada historia dice quién la usa y para qué. En las que mueven plata o stock hay un caso feliz y al menos un caso que no debe salir bien. El ejemplo trae situación inicial, acción y resultado. Los precios son los del catálogo de demostración.
 
-## 1. Cómo leer este documento
-
-Formato: *Como [actor], quiero [acción], para [beneficio].*
-
-Los IDs de HU-09 en adelante son los de las fichas y del código. El borrador del 07/09 los había numerado distinto (el perfil era HU-09; en la ficha del Sprint 2 ese número pasó al historial). Esta versión adopta la numeración que quedó implementada.
+## Cómo se leen
 
 | Campo | Significado |
 |---|---|
-| ID | Identificador estable. No se reutiliza. |
-| Épica | Agrupa historias del mismo bloque. |
-| RF | Requerimientos que cubre. |
-| Sprint | En cuál se construyó o se va a construir. |
-| Estado | `Hecha` o `Pendiente`. |
+| ID | El de las fichas. No se reutiliza. |
+| Estado | Todas las de esta carpeta están hechas en el producto que se entrega. |
 
-**Definición de terminada:** funciona en frontend y backend, usable en el celular, y está en `main` antes del corte del sprint.
+Definición de terminada: funciona en la aplicación del cliente o en la administrativa, y en la API, y se puede usar en el celular.
 
----
-
-## 2. Actores
+## Actores
 
 | Actor | Quién es |
 |---|---|
-| Visitante | Persona sin cuenta. Puede registrarse, ver el catálogo y confirmar un pedido invitado. |
-| Cliente | Usuario autenticado con rol `customer`. |
-| Administrador | Usuario autenticado con rol `admin`. |
-| Sistema | Comportamiento automático (seed, total, sucursal, stock, ETA). |
+| Visitante | Persona sin cuenta. Ve el catálogo, arma un carrito en el navegador y puede confirmar como invitado. |
+| Cliente | Usuario con cuenta. |
+| Super admin | Opera todo el local. |
+| Solo pedidos | Ve pedidos, reclamos y cupones. Puede resolver un reclamo. No cambia el estado ni cancela. |
+| Sistema | Reserva stock, elige la promoción, calcula el envío y la hora. |
 
-## 3. Épicas
+## HU-01 — Registro e inicio de sesión
 
-| Épica | Nombre | Qué cubre |
-|---|---|---|
-| E1 | Identidad | Registro, sesión, perfil, recuperar contraseña, admins |
-| E2 | Catálogo | ABM, consulta y adicionales |
-| E3 | Sucursales y geo | Sucursales, direcciones, radio, asignación |
-| E4 | Carrito y pedido | Carrito, confirmación, estados, cancelación |
-| E5 | Seguimiento e historial | Timeline, hora estimada, demora, repetir |
-| E6 | Administración | Pedidos, stock, parámetros, más admins, promos, reportes |
-| E7 | Extensión 1 | Reserva de stock y, en el Sprint 4, promociones aplicadas |
+Como visitante, quiero registrarme e iniciar sesión, para usar la app como cliente.
 
----
-
-## 4. Sprint 1 — hechas (40 pts)
-
-### HU-01 — Registro e inicio de sesión — 5 pts — Hecha
-
-*Como visitante, quiero registrarme e iniciar sesión, para usar la app como cliente.*
-
-**Épica:** E1 · **RF:** RF-CLI-01, RF-CLI-02 · **Rutas:** `/register`, `/login`
-
-1. Creo una cuenta con nombre, email y contraseña y quedo autenticado como `customer`.
-2. Inicio sesión con esas credenciales (JWT).
+1. Creo una cuenta con nombre, correo y contraseña y quedo autenticado.
+2. Vuelvo a entrar con esas credenciales.
 3. Credenciales inválidas muestran un error y no entra.
-4. Un cliente no entra a la app administrativa.
-5. El catálogo y el carrito se pueden usar sin cuenta. Las direcciones guardadas piden sesión.
+4. Un cliente no entra a la aplicación administrativa.
+5. El catálogo y el carrito se pueden usar sin cuenta.
 
-### HU-02 — Admin inicial y backoffice — 5 pts — Hecha
+## HU-02 — Administrador inicial
 
-*Como administrador, quiero un usuario seed e iniciar sesión en la app de administración, para cargar el menú.*
+Como administrador, quiero un usuario inicial e iniciar sesión en la administración, para cargar el menú.
 
-**Épica:** E1 · **RF:** RF-ADM-01, RF-ADM-02, RF-ADM-04 · **Rutas:** `/admin/login`, `/admin`
+1. El sistema nace con un administrador precargado. Ese usuario no se borra.
+2. Inicia sesión y ve el inicio del local.
+3. Un cliente no accede a la API de administración.
+4. La administración es otra aplicación, con la misma API y la misma base.
 
-1. El sistema nace con un administrador precargado.
-2. Ese usuario inicia sesión y ve el home del backoffice.
-3. Un cliente no accede a `/api/admin/*`.
-4. La app de administración es otro SPA, con la misma API y la misma base.
+## HU-03 — Categorías y productos
 
-### HU-03 — ABM de categorías y productos — 8 pts — Hecha
+Como administrador, quiero crear y editar categorías y productos, para armar el catálogo.
 
-*Como administrador, quiero crear y editar categorías y productos, para armar el catálogo.*
+1. Alta, listado y edición de categoría. No se borra una categoría con productos.
+2. El producto tiene nombre, descripción, categoría, precio, imagen y disponible sí o no.
+3. Un producto no disponible no se ofrece al cliente.
 
-**Épica:** E2 · **RF:** RF-CAT-01, RF-CAT-02 · **Rutas:** `/admin/categories`, `/admin/products`
+## HU-04 — Consultar el catálogo
 
-1. Alta, listado y edición de categoría. No se borra una categoría con productos (409).
-2. El producto tiene nombre, descripción, categoría, precio, imagen y disponible sí/no.
-3. Un producto con `available = false` no se ofrece al cliente.
-
-### HU-04 — Consultar catálogo — 3 pts — Hecha
-
-*Como cliente, quiero ver productos por categoría, para armar un pedido.*
-
-**Épica:** E2 · **RF:** RF-CAT-03 · **Rutas:** `/products`, `/products/:id`
+Como cliente, quiero ver productos por categoría, para armar un pedido.
 
 1. El listado se filtra por categoría.
-2. El detalle muestra nombre, precio, descripción e imagen.
-3. Solo aparecen productos disponibles. El layout se usa en el celular.
+2. El detalle muestra nombre, precio, descripción, imagen y solo los adicionales marcados para ese producto.
+3. Solo aparecen productos disponibles.
 
-### HU-05 — ABM de sucursales — 5 pts — Hecha
+## HU-05 — Sucursales
 
-*Como administrador, quiero cargar sucursales con ubicación y horario, para que un pedido tenga un local de origen.*
+Como administrador, quiero cargar sucursales con ubicación y horario, para que un pedido tenga un local.
 
-**Épica:** E3 · **RF:** RF-BRN-01 · **Rutas:** `/admin/branches`
+1. Se registran nombre, dirección, mapa, teléfono, hasta dos franjas por día y activa o inactiva.
+2. Una sucursal inactiva no se ofrece en un pedido nuevo.
+3. Hay al menos una sucursal activa de demostración.
 
-1. Se registran nombre, dirección, latitud, longitud, horarios, teléfono y activa/inactiva.
-2. Una sucursal inactiva no se asigna a pedidos nuevos.
-3. Hay al menos una sucursal activa de seed para demostrar el checkout.
+## HU-06 — Direcciones
 
-### HU-06 — Direcciones del cliente — 3 pts — Hecha
-
-*Como cliente, quiero cargar mis direcciones con ubicación geográfica, para indicar dónde entregar.*
-
-**Épica:** E3 · **RF:** RF-CLI-05, RF-GEO-01 · **Rutas:** `/account/addresses`
+Como cliente, quiero cargar mis direcciones con ubicación, para indicar dónde entregar.
 
 1. Solo un cliente autenticado administra sus direcciones.
-2. Cada dirección tiene texto, latitud y longitud. Desde el Sprint 2 también puede usar la ubicación del dispositivo, y un alias para reconocerla.
-3. En el checkout autenticado elijo una dirección guardada.
+2. Cada dirección tiene calle, ciudad, provincia, código postal, alias, latitud y longitud. La búsqueda propone hasta cinco candidatos y el pin confirma el punto.
+3. En el checkout elijo una dirección guardada.
 4. No veo ni edito direcciones de otro cliente.
 
-### HU-07 — Carrito — 5 pts — Hecha
+## HU-07 — Carrito
 
-*Como cliente, quiero agregar, cambiar y quitar productos y ver el total, para controlar lo que voy a pagar.*
+Como cliente, quiero armar el pedido y ver el importe, para saber cuánto llevo antes de confirmar.
 
-**Épica:** E4 · **RF:** RF-CRT-01 a RF-CRT-04 · **Rutas:** `/cart`, `/products/:id`
+**Situación inicial.** El carrito tiene dos hamburguesas dobles. Cada una sale $20.000. El total es $40.000. La gaseosa cola sale $2.000.
 
-1. Agrego desde el detalle, con cantidad y observaciones.
-2. El total es la suma de `(precio + adicionales) × cantidad`. En el Sprint 1, sin adicionales, era `precio × cantidad`.
-3. Cambio cantidad y observaciones, y quito ítems, antes de confirmar.
-4. El carrito autenticado sobrevive recargar. El de visitante vive en el navegador y, al entrar, pasa a la cuenta.
-5. Desde el Sprint 2 una hamburguesa puede llevar adicionales. Esos adicionales no se editan en la línea: se quita y se vuelve a agregar.
+**Acción.** Agregar tres gaseosas cola.
 
-### HU-08 — Confirmar pedido — 6 pts — Hecha
+**Resultado.** El carrito queda en dos hamburguesas dobles ($40.000) y tres gaseosas ($6.000). El total es $46.000.
 
-*Como cliente, quiero confirmar el pedido, para que quede registrado en el sistema.*
+Si cambia la cantidad de gaseosas a cuatro, el total pasa a $48.000. Si recarga la página, el carrito sigue igual: dos dobles y cuatro gaseosas, $48.000. Con cuenta, ese carrito está en el servidor. Sin cuenta, en el navegador.
 
-**Épica:** E4 · **RF:** RF-CLI-07, RF-ORD-01, RF-BRN-02 · **Rutas:** `/checkout`
+**Otro caso.** Agrega la misma hamburguesa doble con cheddar ($2.000). Es otra línea, no se mezcla con la doble sin adicional. Esa línea sale $22.000 por unidad. Un adicional que ese producto no ofrece no se agrega.
 
-1. Con cuenta: carrito con ítems y dirección guardada crean el pedido.
-2. Quedan sucursal, dirección, fecha y hora, detalle, importe y estado `pending`.
-3. Después el carrito queda vacío.
-4. En el Sprint 1, si no había sucursal activa, no se creaba el pedido. Desde el Sprint 3 tampoco se crea si ninguna sucursal activa está dentro del radio, o si no hay stock.
-5. Un visitante puede confirmar con nombre, email y dirección puntual. Eso no cubre el ABM de direcciones.
+## HU-08 — Confirmar el pedido
 
----
+Como cliente, quiero confirmar el pedido en una sucursal que pueda prepararlo, para que me lo envíen o lo retire, al precio con la promoción.
 
-## 5. Sprint 2 — hechas (25 pts)
+**Caso feliz.** Una doble y una cola, subtotal $22.000, descuento Martes 20 de $4.400, productos $17.600. Elige domicilio a 2,34 km de Mordi Centro, que tiene stock. El envío es $2.400.
 
-### HU-09 — Historial de pedidos — 4 pts — Hecha
+**Acción.** Confirmar, con pago en efectivo.
 
-*Como cliente, quiero ver mis pedidos anteriores con detalle, importe, fecha y estado, para saber qué pedí.*
+**Resultado.** Se crea el pedido en Pendiente, con código `MOR` y seis dígitos. Total $20.000. Quedan guardados el subtotal, el descuento, el nombre de la promo y el envío. En Mordi Centro la hamburguesa doble y la gaseosa pasan de disponible a reservado, una unidad cada una. La hora estimada queda fija. El carrito se vacía. El medio de pago no se guarda.
 
-**Épica:** E5 · **RF:** RF-CLI-06, RF-HIS-01 · **Rutas:** `/orders`, `/orders/:id`
+**No hay sucursal cerca.** La dirección está a 8 km de todas y el radio es 5 km. La lista viene vacía, el botón de confirmar no se puede usar y no se crea un pedido.
+
+**No hay stock.** Elige Mordi Norte, que tiene una sola hamburguesa doble y el carrito pide dos. Confirmar no crea el pedido. La respuesta dice que faltan hamburguesas dobles (pidió 2, hay 1). El stock de Norte no cambia.
+
+**Retiro.** Elige retiro en Mordi Centro. No pide dirección, el envío es $0 y el total es $17.600. El stock se reserva igual.
+
+**Aderezos.** Si el carrito tiene hamburguesas o guarniciones y ningún aderezo, antes de seguir pregunta «¿Sumamos aderezos?». Con dos dobles y una papa el tope de cada aderezo es 6 y el valor inicial es 3. Puede seguir sin aderezos. Si ya había aderezos, la pregunta no vuelve.
+
+## HU-09 — Historial de pedidos
+
+Como cliente, quiero ver mis pedidos anteriores, para saber qué pedí.
 
 1. Solo veo mis pedidos. Un invitado no usa esta pantalla.
 2. El listado muestra fecha, importe, estado y sucursal, del más reciente al más viejo.
-3. El detalle muestra ítems, dirección, sucursal e importe.
+3. El detalle muestra ítems, dirección, sucursal, descuento e importe.
 
-### HU-10 — Seguimiento del pedido — 6 pts — Hecha
+## HU-10 — Seguimiento
 
-*Como cliente, quiero ver cómo evoluciona mi pedido, para saber quién lo prepara, en qué está y cuándo llega.*
+Como cliente, quiero ver en qué está el pedido, para saber si lo preparan, si viene en camino o si ya lo puedo retirar.
 
-**Épica:** E5 · **RF:** RF-TRK-01, RF-TRK-02, RF-TRK-03 · **Rutas:** `/orders/:id`
+**Situación inicial.** El pedido `MOR482913` es a domicilio, está en Pendiente y tiene dos hamburguesas dobles reservadas en Mordi Centro (disponible 3, reservado 2).
 
-1. Se ve la sucursal, el estado en español y el timeline con fecha y hora de cada cambio.
-2. Desde el Sprint 3 la hora estimada se calculó una vez al confirmar (“Llega aprox. 21:40”) y, si se pasó, se ve la demora.
-3. Un pedido cancelado no promete llegada.
+**Acción.** El administrador lo pasa a Confirmado.
 
-### HU-11 — Cancelar pedido — 3 pts — Hecha
+**Resultado.** El cliente, en el detalle, ve Confirmado y el historial con la fecha del cambio. El administrador ve el mismo estado. El stock sigue reservado.
 
-*Como cliente, quiero cancelar un pedido que todavía no empezó a prepararse, para no recibirlo si me arrepentí.*
+| Lo pasa el administrador | Lo ve el cliente | Stock |
+|---|---|---|
+| En preparación | En preparación. Ya no puede cancelar. | Sigue reservado |
+| Listo para entregar | Listo para entregar | Sigue reservado |
+| En camino | En camino | Sigue reservado |
+| Entregado | Entregado | Se descuenta: reservado vuelve a 0 y el disponible sigue en 3 |
 
-**Épica:** E4 · **RF:** RF-ORD-04 · **Rutas:** `/orders/:id`
+Ese último paso es el descuento definitivo. Cancelarlo después ya no devuelve unidades.
 
-1. Puedo cancelar en `pending` o `confirmed`.
-2. Desde `preparing` el botón no está y la API no cambia el pedido.
-3. El admin también puede cancelar en esos estados.
-4. Queda el registro `cancelled` con fecha y hora. Desde el Sprint 3, cancelar libera el stock reservado.
+Si el pedido fuera de retiro, «Listo para entregar» se lee «Listo para retirar» y el paso siguiente es «Retirado». No aparece «En camino». Al marcarlo retirado, el stock se descuenta igual.
 
-### HU-12 — Repetir un pedido anterior — 3 pts — Hecha
+## HU-11 — Cancelar
 
-*Como cliente, quiero repetir un pedido anterior, para no armar el carrito de nuevo.*
+Como cliente, quiero cancelar un pedido que el local todavía no empezó a preparar, para que el stock vuelva a estar disponible.
 
-**Épica:** E5 · **RF:** RF-HIS-02
+**Situación inicial.** `MOR482913` está Confirmado, con la reserva de la historia anterior (Centro: disponible 3, reservado 2). Al crearlo había sumado un sello.
 
-1. Copia producto, cantidad, observaciones y adicionales al carrito. No clona el pedido.
-2. Si un producto ya no está disponible, se omite.
-3. Después voy al carrito. Confirmar es un pedido nuevo: la verificación de stock y de cobertura es en ese momento.
-4. Si el carrito ya tenía productos, el botón dice “Agregar al carrito” y los ítems se suman.
+**Acción.** El cliente cancela.
 
-### HU-13 — Pedidos en admin y máquina de estados — 9 pts — Hecha
+**Resultado.** El estado pasa a Cancelado. El cliente y el administrador lo ven cancelado, con el cambio en el historial. Centro vuelve a disponible 5 y reservado 0. El sello se revierte. Si el pedido tenía un cupón de reclamo, el cupón vuelve a estar disponible.
 
-*Como administrador, quiero ver los pedidos y cambiar su estado, para llevar cada uno hasta la entrega.*
+**No se puede.** Si el administrador ya lo pasó a En preparación, cancelar responde que ese paso no existe. El stock sigue reservado.
 
-**Épica:** E4 / E6 · **RF:** RF-ORD-02, RF-ORD-03, RF-ADM-10 · **Rutas:** `/admin/orders`, `/admin/orders/:id`
+El administrador también puede cancelar en Pendiente o Confirmado, con el mismo efecto en el stock.
 
-1. Listado con filtro por estado y el código completo del pedido.
-2. El detalle muestra cliente, sucursal, dirección, ítems, importe, estado, timeline, hora estimada y demora.
-3. Solo se pasa al siguiente estado válido. Cada cambio queda en el historial, con quién lo hizo.
-4. Al pasar a `delivered`, la reserva de stock se descuenta.
-5. Un cliente no accede a estas rutas.
+## HU-12 — Repetir un pedido
 
----
+Como cliente, quiero volver a pedir lo de la vez anterior, para no armarlo de cero.
 
-## 6. Sprint 3 — hechas (26 pts)
+**Situación inicial.** El carrito ya tiene una porción de papas fritas ($3.000). El pedido anterior tiene una hamburguesa doble ($20.000) y una porción de papas fritas ($3.000).
 
-### HU-14 — Perfil del cliente — 3 pts — Hecha
+**Acción.** Repetir ese pedido.
 
-*Como cliente, quiero consultar y modificar mis datos personales, para mantener mi cuenta al día.*
+**Resultado.** El carrito queda con una hamburguesa doble y dos porciones de papas fritas. Total $26.000. No se copian la sucursal, el envío ni la promoción.
 
-**Épica:** E1 · **RF:** RF-CLI-04 · **Rutas:** `/account` · **API:** `GET /api/me`, `PATCH /api/me`
+**El carrito estaba vacío.** Repetir deja una doble y una papa, total $23.000.
 
-1. Veo y edito el nombre. El email es de solo lectura.
+**Un producto ya no se vende.** La hamburguesa doble está desactivada. El carrito solo suma las papas y avisa que la doble no se agregó.
+
+## HU-13 — El administrador mueve el estado
+
+Como administrador, quiero avanzar el pedido, para que el cliente vea el mismo estado que el local y el stock se resuelva al final.
+
+La acción es una sola: el administrador elige el estado siguiente. Las consecuencias son las de HU-10 para el cliente y para el stock, y las de HU-11 si elige Cancelado. Quien tiene el rol solo pedidos ve el estado y no tiene el botón. Si lo intenta por la API, recibe 403. Resolver un reclamo sí puede.
+
+**Situación inicial.** Pedido de retiro en Listo para retirar, con stock reservado.
+
+**Acción.** Marcarlo retirado.
+
+**Resultado.** El cliente ve Retirado. El administrador ve Retirado y una fila nueva en el historial. La reserva se descuenta. No hubo estado En camino.
+
+## HU-14 — Perfil
+
+Como cliente, quiero consultar y modificar mis datos, para mantener la cuenta al día.
+
+1. Veo y edito el nombre. El correo es de solo lectura.
 2. Cambio la contraseña con la actual y la nueva.
-3. El “Hola {nombre}” del encabezado se actualiza al guardar.
-4. Solo el dueño de la cuenta lee y edita sus datos.
+3. Puedo dar de baja la cuenta con la contraseña. Si hay un pedido en curso, no deja. Los datos personales se anonimizan y los pedidos quedan.
 
-### HU-15 — Recuperar contraseña — 4 pts — Hecha
+## HU-15 — Recuperar la contraseña
 
-*Como cliente, quiero recuperar mi contraseña, para volver a entrar si la olvidé.*
+Como cliente, quiero recuperar mi contraseña, para volver a entrar si la olvidé.
 
-**Épica:** E1 · **RF:** RF-CLI-03 · **Rutas:** `/forgot-password`, `/reset-password`
-
-1. Desde el login inicio el flujo con el email.
-2. Obtengo un token demostrable (sin SMTP), vigente 30 minutos y de un solo uso.
+1. Desde el ingreso inicio el flujo con el correo.
+2. Obtengo un token de 30 minutos y de un solo uso. Sin correo configurado, la pantalla lo muestra.
 3. Con el token y una contraseña nueva puedo iniciar sesión.
-4. Un email inexistente recibe la misma respuesta genérica.
+4. Un correo inexistente recibe la misma respuesta genérica.
 
-### HU-16 — Alta de administradores — 3 pts — Hecha
+## HU-16 — Otros administradores
 
-*Como administrador, quiero crear otros administradores, para no depender de un solo usuario seed.*
+Como super admin, quiero crear otros administradores, para no depender de un solo usuario.
 
-**Épica:** E6 · **RF:** RF-ADM-03, RF-ADM-07 · **Rutas:** `/admin/admins`
+1. Veo el listado y doy de alta con nombre, correo, contraseña y rol: super admin o solo pedidos.
+2. Puedo editar y borrar. El administrador inicial no se borra.
+3. Quien solo ve pedidos no entra a esta pantalla.
 
-1. Veo el listado (nombre, email) y doy de alta con nombre, email y contraseña inicial.
-2. Puedo editar y borrar. El administrador inicial no se borra ni cambia de email.
-3. Un cliente no accede. El seed del Sprint 1 sigue existiendo.
+## HU-17 — Cargar stock
 
-### HU-17 — Stock por sucursal — 6 pts — Hecha
-
-*Como administrador, quiero cargar el stock de cada producto por sucursal, para saber qué hay en cada local.*
-
-**Épica:** E6 · **RF:** RF-ADM-06, RF-STK-01, RF-STK-03 · **Rutas:** `/admin/stock`
+Como administrador, quiero cargar el stock de cada producto por sucursal, para saber qué hay en cada local.
 
 1. Elijo una sucursal y veo o edito la cantidad disponible de cada producto.
-2. Un producto puede tener stock en una sucursal y cero, o ninguna fila, en otra.
-3. Se ven disponible y reservado. El admin edita solo el disponible.
+2. Se ven disponible y reservado. El admin edita el disponible y puede devolver el reservado a disponible.
+3. Si el disponible es 0, la fila sube al tope y se muestra en rojo.
 4. Un cliente no accede.
 
-### HU-18 — Verificar y reservar stock al pedir — 5 pts — Hecha
+## HU-18 — Reservar stock al pedir
 
-*Como sistema, quiero verificar y reservar stock al confirmar, y liberarlo si se cancela, para no vender lo que no hay.*
+Como sistema, quiero verificar y reservar stock al confirmar, y liberarlo si se cancela, para no vender lo que no hay.
 
-**Épica:** E7 · **RF:** RF-STK-02, RF-STK-04
+1. Si no alcanza en la sucursal elegida, el checkout nombra el producto y no crea el pedido.
+2. Si alcanza, el stock queda reservado. Los adicionales y la unidad gratis del 2x1 también.
+3. Cancelar libera la reserva. Entregar o retirar la descuenta para siempre.
+4. Repetir no reserva: la verificación es al confirmar de nuevo.
 
-1. Si no hay stock suficiente en la sucursal asignada, el checkout falla con un mensaje que nombra el producto y no se crea el pedido.
-2. Si alcanza, el stock queda reservado. Los adicionales descuentan igual.
-3. Cancelar en `pending` o `confirmed` libera la reserva.
-4. Al marcar `delivered`, la reserva se descuenta para siempre.
-5. Repetir no reserva: la verificación es al confirmar.
+## HU-19 — Parámetros y radio
 
-### HU-19 — Parámetros, radio y sucursales disponibles — 5 pts — Hecha
+Como administrador, quiero ajustar el radio, los tiempos y el costo de envío. Como cliente, quiero ver qué sucursales puedo elegir.
 
-*Como administrador, quiero ajustar radio y ETA; como cliente, quiero ver qué sucursales me cubren.*
+1. El admin edita el radio (de 0,1 a 100 km; el inicial es 5), los minutos de la hora estimada, el precio por kilómetro y el mínimo de envío gratis.
+2. En domicilio solo entran sucursales activas a una distancia menor o igual al radio. Si ninguna llega, no se confirma.
+3. Cambiar un parámetro no mueve ni recalcula un pedido ya confirmado.
 
-**Épica:** E3 / E6 · **RF:** RF-ADM-08, RF-ADM-09, RF-BRN-03 · **Rutas:** `/admin/parameters`, `/branches`
+## HU-20 — Promociones de la carta
 
-1. El admin edita el radio de cobertura y las constantes de la hora estimada.
-2. Al confirmar solo se consideran sucursales activas dentro del radio. Si ninguna llega, no se crea el pedido.
-3. El cliente ve las sucursales que lo cubren: nombre, dirección, distancia y horario, de la más cercana a la más lejana.
-4. Los estados de pedido se listan con su etiqueta, en solo lectura. La máquina no se edita.
+Como administrador, quiero dar de alta, editar y desactivar promociones, para ofrecer un porcentaje o un 2x1.
 
----
+1. El porcentaje puede tener un monto mínimo. El 2x1 nombra el producto.
+2. Desactivar una promoción no cambia los pedidos que ya la tienen guardada.
+3. No se carga un monto fijo ni un código de la carta. El cupón de reclamo es otra cosa (HU-36).
 
-## 7. Sprint 4 — pendientes (18 pts)
+## HU-21 — Ver qué promoción aplica
 
-El contrato de precios está en `Supuestos-y-decisiones.md` (D46 a D52) y en `docs/sprints/Ficha-Sprint-4.md`.
+Como cliente, quiero ver el descuento antes de confirmar, para saber cuál ganó y cuánto voy a pagar.
 
-### HU-20 — ABM de promociones — 5 pts — Pendiente
+El caso de las tres promos: dos dobles y dos colas, subtotal $44.000. Martes 20 descuenta $8.800, el 2x1 de la cola $2.000 y el 15% desde $30.000 descuenta $6.600. Se ven las tres y queda Martes 20. Productos: $35.200. Con el envío gratis desde $25.000, el envío es $0.
 
-*Como administrador, quiero dar de alta, editar y desactivar promociones, para ofrecer un descuento, un 2x1 o un cupón.*
+El caso del 2x1: tres colas, subtotal $6.000. El 2x1 descuenta $2.000 y gana sobre el 20% ($1.200). Paga $4.000.
 
-**Épica:** E6 · **RF:** RF-ADM-05, RF-PRM-01 · **Rutas:** `/admin/promotions`
+El caso del premio: la clienta tiene 9 sellos y pide una doble de $20.000. Ese pedido completa los 10. Premio Fidelidad descuenta $6.000 y gana sobre Martes 20 ($4.000). En el pedido se lee Premio Fidelidad y $6.000, no «30%». Si después cancela, vuelve a 9 sellos.
 
-### HU-21 — Aplicar la promoción al confirmar — 8 pts — Pendiente
+Si tiene un cupón de reclamo de $5.000 sobre el pedido de $35.200, el cupón se suma. El descuento total es $13.800 y los productos quedan en $21.400.
 
-*Como cliente, quiero que una promoción vigente se aplique al pedido y se vea en el importe, para pagar el precio promocional.*
+## HU-22 — Reportes de productos
 
-**Épica:** E7 · **RF:** RF-PRM-02 · **Rutas:** `/checkout`, detalle del pedido
+Como administrador, quiero ver qué se vende, qué no se vende, qué no tiene stock y qué factura más, para decidir el menú.
 
-### HU-22 — Reportes de productos — 5 pts — Pendiente
+1. Los cuatro listados salen de los pedidos y del stock. No se guardan aparte.
+2. Un cancelado no suma en las ventas. Un pendiente sí.
+3. Sin stock respeta la sucursal elegida y no el rango de fechas.
 
-*Como administrador, quiero ver qué se vende, qué no se vende, qué no tiene stock y qué factura más, para decidir el menú.*
+## HU-23 — Retiro, domicilio y sucursal
 
-**Épica:** E6 · **RF:** RF-RPT-01 a RF-RPT-04 · **Rutas:** `/admin/reports`
+Como cliente, quiero elegir si lo retiro o me lo envían, y qué sucursal lo prepara, para no quedar atado a la más cercana.
 
----
+1. En domicilio elijo entre las activas dentro del radio, aunque haya otra más cerca.
+2. En retiro elijo entre todas las activas. No hay dirección ni costo de envío.
+3. Primero aparecen las que tienen stock de todo el carrito.
+4. La distancia se muestra, ordena y cotiza el envío de la sucursal que marqué.
 
-## 8. Sprint 5 — pendientes, sin estimar en ficha
+Con el radio en 5 km, Centro a 2,34 km y Oeste a 4,1 km entran las dos. Si marco Oeste y el kilómetro está a $1.000, el envío es $4.100. Sur, a 6,2 km, no entra.
 
-| ID | Historia | RF | Estado |
-|---|---|---|---|
-| HU-23 | *Como administrador, quiero reportes de pedidos (por día, sucursal, estado, tiempo promedio, cancelados), para ver la operación.* | RF-RPT-10 a RF-RPT-14 | Pendiente |
-| HU-24 | *Como administrador, quiero reportes de clientes (más pedidos, nuevos, inactivos), para ver la base.* | RF-RPT-15 a RF-RPT-17 | Pendiente |
-| HU-25 | *Como administrador, quiero reportes de sucursales (ventas, productos, pedidos atendidos), para comparar locales.* | RF-RPT-18 a RF-RPT-20 | Pendiente |
-| HU-26 | *Como administrador, quiero ver las promociones más usadas y su impacto en las ventas, para decidir cuáles mantener.* | RF-RPT-21, RF-RPT-22 | Pendiente |
-| HU-27 | *Como administrador, quiero una alerta de stock mínimo, para reponer a tiempo.* | RF-STK-05 | Pendiente, si hay tiempo |
+## HU-24 — Rol solo pedidos
 
-**Fuera de compromiso:** mapa (`RF-GEO-03`) y Extensión 2 (calificaciones, notificaciones, repartidores). No tienen historia de entrega.
+Como administrador de solo pedidos, quiero consultar la operación sin tocar la carta ni el stock, para no cambiar un pedido por error.
 
----
+1. El menú es Inicio, Pedidos, Reclamos y Cupones de reclamos.
+2. En el inicio ve los pedidos de hoy, la facturación de hoy, los estados y las ventas de la semana. No ve los paneles de carta, stock, parámetros ni reportes de productos.
+3. No hay botones para avanzar el estado ni para cancelar. La API de cambio de estado responde 403.
+4. Ve los reclamos y los cupones, y puede marcar un reclamo resuelto.
 
-## 9. Trazabilidad HU → RF
+## HU-28 — Reportes con filtro, gráfico y CSV
 
-| RF | HU | Sprint | Estado |
-|---|---|---|---|
-| RF-CLI-01, RF-CLI-02 | HU-01 | 1 | Hecha |
-| RF-CLI-03 | HU-15 | 3 | Hecha |
-| RF-CLI-04 | HU-14 | 3 | Hecha |
-| RF-CLI-05, RF-GEO-01 | HU-06 | 1 | Hecha |
-| RF-CLI-06, RF-HIS-01 | HU-09 | 2 | Hecha |
-| RF-CLI-07, RF-ORD-01 | HU-08 | 1 | Hecha |
-| RF-ADM-01, RF-ADM-02, RF-ADM-04 | HU-02 | 1 | Hecha |
-| RF-ADM-03, RF-ADM-07 | HU-16 | 3 | Hecha |
-| RF-ADM-05, RF-PRM-01 | HU-20 | 4 | Pendiente |
-| RF-ADM-06, RF-STK-01, RF-STK-03 | HU-17 | 3 | Hecha |
-| RF-ADM-08, RF-ADM-09, RF-BRN-03 | HU-19 | 3 | Hecha |
-| RF-ADM-10, RF-ORD-02, RF-ORD-03 | HU-13 | 2 | Hecha |
-| RF-BRN-01 | HU-05 | 1 | Hecha |
-| RF-BRN-02, RF-GEO-02 | HU-08, HU-19 | 1 y 3 | Hecha |
-| RF-CAT-01, RF-CAT-02 | HU-03 | 1 | Hecha |
-| RF-CAT-03 | HU-04 | 1 | Hecha |
-| RF-CAT-04 | HU-07 (desde el Sprint 2) | 2 | Hecha, solo adicionales |
-| RF-CRT-01 a RF-CRT-04 | HU-07 | 1 | Hecha |
-| RF-ORD-04 | HU-11 | 2 | Hecha |
-| RF-TRK-01 a RF-TRK-03 | HU-10 | 2 | Hecha |
-| RF-HIS-02 | HU-12 | 2 | Hecha |
-| RF-GEO-03 | — | — | Fuera |
-| RF-PRM-02 | HU-21 | 4 | Pendiente |
-| RF-RPT-01 a RF-RPT-04 | HU-22 | 4 | Pendiente |
-| RF-STK-02, RF-STK-04 | HU-18 | 3 | Hecha |
-| RF-STK-05 | HU-27 | 5 | Pendiente |
-| RF-RPT-10 a RF-RPT-22 | HU-23 a HU-26 | 5 | Pendiente |
+Como administrador, quiero acotar los reportes por fecha y sucursal, verlos en un gráfico y bajarlos, para mirar una semana o un local.
+
+1. Sin filtro, el corte es todo el historial y todas las sucursales.
+2. Las fechas son días de Argentina.
+3. Cada lista se puede descargar en CSV con el filtro que está puesto.
+
+## HU-30 — Adicionales de cada producto
+
+Como administrador, quiero marcar qué adicionales ofrece cada producto, para que una gaseosa no ofrezca cheddar.
+
+1. En el producto marco los adicionales.
+2. En el detalle del cliente solo aparecen esos.
+3. Agregar uno que no está marcado responde error y no crea la línea.
+
+## HU-31 — Envío gratis
+
+Como cliente, quiero ver si el envío ya es gratis o cuánto me falta, para saber el total antes de confirmar.
+
+Sobre el pedido de una doble y una cola ($17.600 después del 20%), con el gratis desde $25.000, faltan $7.400 y se cobran $2.400 de envío. El total es $20.000.
+
+Sobre dos dobles y dos colas ($35.200 después del 20%) el mínimo ya se pasó. El envío es $0. En retiro el envío es $0 aunque no se llegue al mínimo. Si el mínimo está en 0, la bonificación está apagada.
+
+## HU-33 — Tablero del inicio
+
+Como super admin, quiero ver el día de un vistazo, para saber si el local está vendiendo antes de abrir un reporte.
+
+**Situación inicial.** Es el 11/11, de noche. En el día entraron 4 pedidos. Tres se entregaron y uno se canceló. Lo facturado, sin el cancelado, es $60.000.
+
+**Acción.** Abrir el inicio.
+
+**Resultado.** Se ven 4 pedidos de hoy, facturación $60.000, una barra por estado y la línea de ventas de los últimos siete días. Quien entra con el rol solo pedidos ve ese mismo tablero, y no ve los paneles de carta, stock ni reportes de productos.
+
+## HU-34 — Provincia y código postal
+
+Como cliente, quiero guardar provincia y código postal en la dirección, para que el envío quede completo.
+
+1. La dirección pide calle, ciudad, provincia y código postal.
+2. La búsqueda puede completar esos datos.
+3. El pedido de domicilio guarda esa dirección.
+
+## HU-35 — Nosotros, contacto y mapa
+
+Como visitante, quiero leer quiénes son y ver las sucursales en un mapa, para saber a dónde ir.
+
+1. Nosotros y contacto se leen sin cuenta.
+2. El mapa muestra un marcador por sucursal activa.
+3. En contacto también se lee el horario de cada local.
+
+## HU-36 — Reportar un problema
+
+Como cliente, quiero reportar un problema de un pedido que ya recibí, para que el local lo resuelva.
+
+1. Uno por pedido, solo si está entregado o retirado, y solo el dueño.
+2. Motivos: faltó algo, pedido equivocado, llegó tarde, llegó frío, otro.
+3. El administrador ve los abiertos primero y los marca resueltos.
+4. Al resolver puede cargar un importe. El cliente recibe un cupón de 3 meses y un solo uso, que se suma al descuento del próximo pedido.
+
+## HU-37 — Horario de la sucursal
+
+Como cliente, quiero saber si la sucursal está abierta, para no pedir en un local que ya cerró sin enterarme.
+
+**Situación inicial.** Mordi Centro abre de lunes a domingo, de 10:00 a 23:00. El carrito tiene stock en Centro y la dirección está dentro del radio. Son las 23:30 del miércoles.
+
+**Acción.** Elegir Centro y aceptar dejar el pedido para la próxima apertura.
+
+**Resultado.** El checkout dice «Mordi Centro está cerrada» y ofrece programarlo para el jueves a las 10:00. Al aceptar, el pedido queda programado para esa hora y la estimada se cuenta desde las 10:00. El stock se reserva en el momento. Si no acepta, el pedido no se crea. A las 21:00 esa opción no aparece y el pedido sale enseguida.
+
+El administrador puede cargar el día corrido o partido, con hasta dos franjas. Si no cargó franjas, el local se toma como abierto y se muestra el texto de respaldo.
 
 ## Historial
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
-| 2.0 | 07/10/2026 | Se adopta la numeración real de las fichas. HU-01 a HU-19 quedan hechas; HU-20 a HU-22 son el Sprint 4 |
-| 1.0 | 07/09/2026 | Versión inicial. El backlog de HU-09 en adelante se reasignó en los plannings siguientes |
+| 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11. Todas las historias de la carpeta están hechas |
+| 2.0 | 07/10/2026 | Se adopta la numeración real de las fichas. HU-01 a HU-19 quedan hechas; HU-20 a HU-22 eran el Sprint 4 |
+| 1.0 | 07/09/2026 | Versión inicial |

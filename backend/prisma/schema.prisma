@@ -13,7 +13,8 @@ enum Role {
   admin
 }
 
-// Qué puede hacer un admin. super_admin: todo el backoffice. orders_viewer: solo consultar pedidos.
+// Qué puede hacer un admin. super_admin: todo el backoffice.
+// orders_viewer: consulta pedidos, ve y resuelve reclamos y sus cupones. No cambia estados de pedidos.
 enum AdminRole {
   super_admin
   orders_viewer
@@ -121,6 +122,8 @@ model Product {
   offeredIn       ProductExtra[]   @relation("ProductExtraOption")
   stock           Stock[]
   promotions      Promotion[]
+  stockReleases   StockRelease[]
+  stockWaivers    OrderStockWaiver[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -160,9 +163,12 @@ model Branch {
   latitude     Decimal  @db.Decimal(10, 7)
   longitude    Decimal  @db.Decimal(10, 7)
   openingHours String
+  // Franjas por día (0 = lunes … 6 = domingo). Si no hay ninguna, se muestra el texto openingHours.
+  hours        BranchHour[]
   phone        String
   orders       Order[]
   stock        Stock[]
+  stockReleases StockRelease[]
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -170,8 +176,24 @@ model Branch {
   @@index([active])
 }
 
+// Hasta dos franjas por día (horario corrido o partido). El cierre es el mismo día.
+model BranchHour {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  weekday  Int
+  // 0 primera franja, 1 segunda cuando el día está partido.
+  slot     Int    @default(0)
+  opensAt  String
+  closesAt String
+
+  @@unique([branchId, weekday, slot])
+  @@index([branchId])
+}
+
 // Stock de un producto en una sucursal (HU-17, HU-18). Sin fila, el producto no se vende en esa sucursal.
 // Al confirmar un pedido pasa de available a reserved; al cancelarlo vuelve; al entregarlo sale de reserved.
+// El admin puede devolver el reservado a disponible. Ese pedido no vuelve a mover esas unidades.
 model Stock {
   id        String   @id @default(cuid())
   branchId  String
@@ -184,6 +206,31 @@ model Stock {
   updatedAt DateTime @updatedAt
 
   @@unique([branchId, productId])
+  @@index([productId])
+}
+
+// El admin liberó el reservado de un producto. Sirve para frenar un carrito de invitado armado antes.
+model StockRelease {
+  id        String   @id @default(cuid())
+  branchId  String
+  productId String
+  quantity  Int
+  createdAt DateTime @default(now())
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, createdAt])
+  @@index([branchId])
+}
+
+// Producto que un pedido ya no retiene porque el admin liberó ese reservado.
+model OrderStockWaiver {
+  orderId   String
+  productId String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([orderId, productId])
   @@index([productId])
 }
 
@@ -220,6 +267,8 @@ model Cart {
   userId    String     @unique
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     CartItem[]
+  // true si el admin liberó stock de un producto que estaba en este carrito. No se puede comprar hasta vaciarlo.
+  purchaseBlocked Boolean @default(false)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
@@ -270,9 +319,13 @@ model Order {
   totalAmount Decimal     @db.Decimal(10, 2)
   // Hora estimada de entrega. Se calcula una vez al confirmar y no se recalcula (DEV-14).
   estimatedDeliveryAt DateTime
+  // Si el pedido se confirmó con la sucursal cerrada, la preparación arranca en esta hora (la próxima apertura).
+  scheduledFor DateTime?
   // true mientras el pedido tiene stock reservado en su sucursal (HU-18). Los pedidos anteriores
   // al stock quedan en false: al cancelarlos o entregarlos no se toca el stock.
   stockReserved Boolean     @default(false)
+  // Productos que este pedido ya no retiene: el admin liberó ese reservado.
+  stockWaivers  OrderStockWaiver[]
   // true si al crear el pedido se sumó un sello de fidelidad (para revertirlo al cancelar).
   loyaltyStampGranted Boolean @default(false)
   // true si ese sello completó la tarjeta. Sirve para mostrar la grilla llena en ese pedido.
@@ -293,7 +346,10 @@ model Order {
   address     Address?    @relation(fields: [addressId], references: [id], onDelete: Restrict)
   items       OrderItem[]
   statusHistory OrderStatusHistory[]
-  incident      Incident?
+  incident      Incident? @relation("OrderIncident")
+  // Cupón de un reclamo consumido en este pedido. Se vacía si se cancela, para que vuelva a estar disponible.
+  couponIncidentId String?   @unique
+  couponIncident   Incident? @relation("IncidentCoupon", fields: [couponIncidentId], references: [id], onDelete: SetNull)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -370,17 +426,26 @@ model OrderStatusHistory {
 }
 
 // Un reclamo por pedido (orderId único). Solo lo puede crear el dueño de un pedido entregado o retirado.
+// Al resolverlo, el admin deja una respuesta y, si quiere, un cupón de un monto fijo solo para ese cliente.
 model Incident {
-  id         String         @id @default(cuid())
-  orderId    String         @unique
-  userId     String
-  reason     IncidentReason
-  message    String         @default("")
-  status     IncidentStatus @default(open)
-  createdAt  DateTime       @default(now())
-  resolvedAt DateTime?
-  order      Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  user       User           @relation(fields: [userId], references: [id])
+  id           String         @id @default(cuid())
+  orderId      String         @unique
+  userId       String
+  reason       IncidentReason
+  message      String         @default("")
+  status       IncidentStatus @default(open)
+  response     String         @default("")
+  // Vacío si la solución no incluye cupón. El código es de un solo uso, exclusivo del userId y vence a los 3 meses.
+  couponCode      String?   @unique
+  couponAmount    Decimal?  @db.Decimal(10, 2)
+  couponCreatedAt DateTime?
+  createdAt    DateTime       @default(now())
+  resolvedAt   DateTime?
+  // Cuándo el cliente abrió el pedido después de la solución. Vacío si todavía no la vio.
+  responseSeenAt DateTime?
+  order        Order          @relation("OrderIncident", fields: [orderId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id])
+  redeemedOrder Order?        @relation("IncidentCoupon")
 
   @@index([status])
   @@index([userId])

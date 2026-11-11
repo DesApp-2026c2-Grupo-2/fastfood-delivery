@@ -14,20 +14,26 @@ import type {
   OutOfCoverageError,
   OutOfStockError,
   OutOfStockItem,
+  OrderDiscountLine,
 } from '../../api/types';
 import { useCart } from '../../cart/CartContext';
 import { getToken, getUserId, isCustomer } from '../../auth/session';
 import { clearGuestCart, getGuestCart, guestOrderItem, hydrateGuestCart } from '../../cart/guestCart';
+import { CART_DISABLED_MESSAGE, guestCartBlocked, type StockReleaseNotice } from '../../lib/cart-block';
 import { LineExtras } from '../../components/LineExtras';
 import { PromotionOffers } from '../../components/PromotionOffers';
 import { LoyaltyStampsCard } from '../../components/LoyaltyStampsCard';
 import { parseNotesAndExtras } from '../../lib/cart-notes';
-import { discountCaption } from '../../lib/discount-label';
+import { withSaucesLast } from '../../lib/sauces';
+import { appliedClaimCouponId, readClaimCouponId, saveClaimCouponId } from '../../lib/claim-coupon';
+import { discountCaption, orderDiscountLabel } from '../../lib/discount-label';
 import { formatDateTime, formatPrice } from '../../lib/money';
+import { nextOpenPhrase, openStatusLabel } from '../../lib/branch-status';
 import { mediaUrl } from '../../lib/media';
-import { orderStatusHint, orderStatusLabel } from '../../lib/order-status';
+import { orderStatusHint, orderStatusLabel, showPickupBadge } from '../../lib/order-status';
 import { AddressFields } from '../../components/AddressFields';
 import { AddressLocationPicker } from '../../components/AddressLocationPicker';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import {
   type AddressParts,
   addressPartsError,
@@ -115,6 +121,7 @@ export function CheckoutPage() {
   const { refresh } = useCart();
   const [cart, setCart] = useState<Cart | null>(null);
   const [quote, setQuote] = useState<PromotionQuote | null>(null);
+  const [couponId, setCouponId] = useState<string | null>(() => (loggedIn ? readClaimCouponId() : null));
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressId, setAddressId] = useState('');
   const [name, setName] = useState('');
@@ -134,6 +141,7 @@ export function CheckoutPage() {
   const [error, setError] = useState('');
   const [coverageError, setCoverageError] = useState<OutOfCoverageError | null>(null);
   const [stockError, setStockError] = useState<OutOfStockError | null>(null);
+  const [closedAsk, setClosedAsk] = useState<string | null>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const pinnedBranch = useRef<{ scope: string; id: string } | null>(null);
   const fulfillmentPinned = useRef<Fulfillment | null>(null);
@@ -158,8 +166,13 @@ export function CheckoutPage() {
           const preferred = nextAddresses.find((address) => address.isDefault) ?? nextAddresses[0];
           setAddressId(preferred?.id ?? '');
         } else {
-          const nextCart = await hydrateGuestCart();
-          if (!cancelled) setCart(nextCart);
+          const [nextCart, releases] = await Promise.all([
+            hydrateGuestCart(),
+            api<StockReleaseNotice[]>('/stock/releases').catch(() => [] as StockReleaseNotice[]),
+          ]);
+          if (!cancelled) {
+            setCart({ ...nextCart, purchaseBlocked: guestCartBlocked(nextCart.items, releases) });
+          }
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'No se pudo cargar el checkout');
@@ -275,14 +288,22 @@ export function CheckoutPage() {
       return;
     }
     let cancelled = false;
-    const body = loggedIn
+    const body: Record<string, unknown> = loggedIn
       ? {}
       : {
           items: cart.items.map(guestOrderItem),
         };
+    if (loggedIn && couponId) body.couponIncidentId = couponId;
     api<PromotionQuote>('/promotions/quote', { method: 'POST', token, body: JSON.stringify(body) })
       .then((next) => {
-        if (!cancelled) setQuote(next);
+        if (cancelled) return;
+        setQuote(next);
+        const appliedId = appliedClaimCouponId(next.offers);
+        setCouponId((current) => {
+          if (appliedId === current) return current;
+          saveClaimCouponId(appliedId);
+          return appliedId;
+        });
       })
       .catch(() => {
         if (!cancelled) setQuote(null);
@@ -290,7 +311,7 @@ export function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [cart, loading, loggedIn, token]);
+  }, [cart, loading, loggedIn, token, couponId]);
 
   // Sucursales para elegir: dependen de retiro/domicilio, de la ubicación y del carrito.
   useEffect(() => {
@@ -302,6 +323,7 @@ export function CheckoutPage() {
     }
 
     const body: Record<string, unknown> = { fulfillment };
+    if (loggedIn && couponId) body.couponIncidentId = couponId;
     if (loggedIn) {
       if (fulfillment === 'delivery') {
         if (!addressId) return reset();
@@ -352,7 +374,7 @@ export function CheckoutPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [loading, cart, loggedIn, token, fulfillment, addressId, latitude, longitude]);
+  }, [loading, cart, loggedIn, token, fulfillment, addressId, latitude, longitude, couponId]);
 
   function branchScope() {
     if (fulfillment === 'pickup') return 'pickup';
@@ -415,13 +437,26 @@ export function CheckoutPage() {
       setCoverageError(err.body as OutOfCoverageError);
     } else if (err instanceof ApiError && err.code === 'OUT_OF_STOCK') {
       setStockError(err.body as OutOfStockError);
+    } else if (err instanceof ApiError && err.code === 'BRANCH_CLOSED') {
+      setClosedAsk(err.message);
     } else {
       setError(err instanceof Error ? err.message : 'No se pudo confirmar el pedido');
     }
   }
 
-  async function confirmLoggedIn(event: FormEvent) {
-    event.preventDefault();
+  function closedMessage(): string | null {
+    const branch = branchOptions?.branches.find((item) => item.id === branchId);
+    if (!branch || branch.openNow !== false) return null;
+    if (!branch.nextOpenAt) return `${branch.name} está cerrada y no tiene un próximo horario de apertura.`;
+    return `${branch.name} está cerrada. Abre ${nextOpenPhrase(branch.nextOpenAt)}. ¿Lo dejamos programado para esa hora?`;
+  }
+
+  async function confirmLoggedIn(event: FormEvent | null, scheduleWhenClosed = false) {
+    event?.preventDefault();
+    if (cart?.purchaseBlocked) {
+      setError(CART_DISABLED_MESSAGE);
+      return;
+    }
     if (fulfillment === 'delivery' && !addressId) {
       setError('Elegí una dirección de entrega.');
       return;
@@ -429,6 +464,17 @@ export function CheckoutPage() {
     if (!branchId) {
       setError('Elegí la sucursal.');
       return;
+    }
+    if (!scheduleWhenClosed) {
+      const message = closedMessage();
+      if (message?.includes('no tiene')) {
+        setError(message);
+        return;
+      }
+      if (message) {
+        setClosedAsk(message);
+        return;
+      }
     }
     setSaving(true);
     clearConfirmErrors();
@@ -440,6 +486,8 @@ export function CheckoutPage() {
           fulfillment,
           branchId,
           ...(fulfillment === 'delivery' ? { addressId } : {}),
+          ...(scheduleWhenClosed ? { scheduleWhenClosed: true } : {}),
+          ...(couponId ? { couponIncidentId: couponId } : {}),
         }),
       });
       await refresh();
@@ -492,9 +540,13 @@ export function CheckoutPage() {
     return Object.keys(nextErrors).length === 0;
   }
 
-  async function confirmGuest(event: FormEvent) {
-    event.preventDefault();
+  async function confirmGuest(event: FormEvent | null, scheduleWhenClosed = false) {
+    event?.preventDefault();
     clearConfirmErrors();
+    if (cart?.purchaseBlocked) {
+      setError(CART_DISABLED_MESSAGE);
+      return;
+    }
 
     if (!validateGuest()) {
       return;
@@ -502,6 +554,17 @@ export function CheckoutPage() {
     if (!branchId) {
       setError('Elegí la sucursal.');
       return;
+    }
+    if (!scheduleWhenClosed) {
+      const message = closedMessage();
+      if (message?.includes('no tiene')) {
+        setError(message);
+        return;
+      }
+      if (message) {
+        setClosedAsk(message);
+        return;
+      }
     }
 
     const current = cart ?? getGuestCart();
@@ -526,6 +589,7 @@ export function CheckoutPage() {
               }
             : {}),
           items: current.items.map(guestOrderItem),
+          ...(scheduleWhenClosed ? { scheduleWhenClosed: true } : {}),
         }),
       });
       clearGuestCart();
@@ -561,7 +625,8 @@ export function CheckoutPage() {
           <div className="checkout-block">
             <div className="checkout-receive">
               <div className="order-status-marks">
-                {order.fulfillment === 'pickup' ? <span className="pickup-badge">Retiro</span> : null}
+                {order.scheduledFor ? <span className="scheduled-badge">Programado</span> : null}
+                {showPickupBadge(order.status, order.fulfillment) ? <span className="pickup-badge">Retiro</span> : null}
                 <span className={`badge badge--${order.status}`}>
                   {orderStatusLabel(order.status, order.fulfillment)}
                 </span>
@@ -608,6 +673,12 @@ export function CheckoutPage() {
                 <dt>Fecha</dt>
                 <dd>{formatDateTime(order.createdAt)}</dd>
               </div>
+              {order.scheduledFor ? (
+                <div className="is-wide">
+                  <dt>Programado</dt>
+                  <dd>La sucursal lo empieza {formatDateTime(order.scheduledFor)}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt>Pago</dt>
                 <dd>{paymentLabel(paymentMethod)}</dd>
@@ -623,7 +694,7 @@ export function CheckoutPage() {
           <div className="checkout-block">
             <h2>Resumen</h2>
             <ul className="order-items">
-              {withExtraImages(order, catalog).items.map((item) => {
+              {withSaucesLast(withExtraImages(order, catalog).items, catalog).map((item) => {
                 const itemTotal = item.subtotal ?? item.quantity * item.unitPrice;
                 const note = parseNotesAndExtras(item.notes).kitchenNote;
                 return (
@@ -654,6 +725,7 @@ export function CheckoutPage() {
               promotionName={order.promotionName}
               promotionType={order.promotionType}
               promotionValue={order.promotionValue}
+              discounts={order.discounts}
             />
             <p className="checkout-back">
               <Link to="/products">Seguir mirando el menú</Link>
@@ -798,12 +870,18 @@ export function CheckoutPage() {
           <div className="checkout-block">
           <OrderSummary
             cart={cart}
+            catalog={catalog}
             quote={quote}
             deliveryFee={selectedDeliveryFee}
             freeDelivery={freeDelivery}
             saving={saving}
             shortages={stockError?.items ?? []}
             blockedReason={blockedReason}
+            selectedCouponId={couponId}
+            onSelectCoupon={(id) => {
+              saveClaimCouponId(id);
+              setCouponId(id);
+            }}
           />
           </div>
         </form>
@@ -913,6 +991,7 @@ export function CheckoutPage() {
           <div className="checkout-block">
             <OrderSummary
               cart={cart}
+              catalog={catalog}
               quote={quote}
               deliveryFee={selectedDeliveryFee}
               freeDelivery={freeDelivery}
@@ -923,6 +1002,24 @@ export function CheckoutPage() {
           </div>
         </form>
       )}
+      {closedAsk ? (
+        <ConfirmModal
+          title="La sucursal está cerrada"
+          message={closedAsk}
+          confirmLabel="Programarlo"
+          dismissLabel="Cancelar"
+          busy={saving}
+          busyLabel="Programando…"
+          onConfirm={() => {
+            setClosedAsk(null);
+            if (loggedIn) void confirmLoggedIn(null, true);
+            else void confirmGuest(null, true);
+          }}
+          onClose={() => {
+            if (!saving) setClosedAsk(null);
+          }}
+        />
+      ) : null}
     </section>
   );
 }
@@ -1015,6 +1112,12 @@ function BranchPicker({
               ) : null}
             </span>
             <span className="checkout-choice-meta">{formatBranchAddress(branch)}</span>
+            <small className="checkout-choice-meta">{branch.openingHours}</small>
+            {openStatusLabel(branch.openNow, branch.nextOpenAt) ? (
+              <small className={branch.openNow ? 'branch-stock branch-stock--ok' : 'branch-stock branch-stock--short'}>
+                {openStatusLabel(branch.openNow, branch.nextOpenAt)}
+              </small>
+            ) : null}
             {branch.canFulfill ? (
               <small className="branch-stock branch-stock--ok">Tiene stock de todo tu pedido</small>
             ) : (
@@ -1039,6 +1142,7 @@ function PriceBreakdown({
   promotionName,
   promotionType,
   promotionValue,
+  discounts,
 }: {
   subtotal: number;
   discountAmount: number;
@@ -1051,6 +1155,7 @@ function PriceBreakdown({
   promotionName?: string | null;
   promotionType?: 'percent' | 'two_for_one' | null;
   promotionValue?: number | null;
+  discounts?: OrderDiscountLine[];
 }) {
   const caption = discountCaption({ id: promotionId, name: promotionName, type: promotionType, value: promotionValue });
   const showDiscountRow = Boolean(discountAmount) && !hideDiscountRow;
@@ -1068,7 +1173,14 @@ function PriceBreakdown({
         <span>Subtotal</span>
         <strong>{formatPrice(subtotal)}</strong>
       </p>
-      {showDiscountRow ? (
+      {discounts && discounts.length > 0 && !hideDiscountRow
+        ? discounts.map((line) => (
+            <p className="total-row total-row--detail" key={`${line.kind}-${line.name}`}>
+              <span>{orderDiscountLabel(line, { type: promotionType, value: promotionValue })}</span>
+              <strong>−{formatPrice(line.amount)}</strong>
+            </p>
+          ))
+        : showDiscountRow ? (
         <p className="total-row total-row--detail">
           <span className="total-discount">
             <span>Descuento</span>
@@ -1093,20 +1205,26 @@ function PriceBreakdown({
 
 function OrderSummary({
   cart,
+  catalog,
   quote,
   deliveryFee,
   freeDelivery,
   saving,
   shortages,
   blockedReason,
+  selectedCouponId,
+  onSelectCoupon,
 }: {
   cart: Cart;
+  catalog: Product[];
   quote: PromotionQuote | null;
   deliveryFee: number | null;
   freeDelivery: FreeDeliveryProgress | null;
   saving: boolean;
   shortages: OutOfStockItem[];
   blockedReason: string;
+  selectedCouponId?: string | null;
+  onSelectCoupon?: (incidentId: string) => void;
 }) {
   // Igual que al confirmar: total con descuento + envío, redondeado a centavos.
   const itemsTotal = quote?.totalAmount ?? cart.total;
@@ -1115,7 +1233,7 @@ function OrderSummary({
     <>
       <h2>Resumen</h2>
       <ul className="order-items">
-        {cart.items.map((item) => {
+        {withSaucesLast(cart.items, catalog).map((item) => {
           const shortage = shortages.find((entry) => entry.productId === item.productId);
           const note = parseNotesAndExtras(item.notes).kitchenNote;
           return (
@@ -1145,7 +1263,7 @@ function OrderSummary({
           );
         })}
       </ul>
-      <PromotionOffers offers={quote?.offers} />
+      <PromotionOffers offers={quote?.offers} selectedCouponId={selectedCouponId} onSelectCoupon={onSelectCoupon} />
       <PriceBreakdown
         subtotal={quote?.subtotal ?? cart.total}
         discountAmount={quote?.discountAmount ?? 0}
@@ -1168,7 +1286,12 @@ function OrderSummary({
         </p>
       ) : null}
 
-      <button type="submit" disabled={saving || Boolean(blockedReason)}>
+      {cart.purchaseBlocked ? (
+        <p className="warning" role="status">
+          {CART_DISABLED_MESSAGE}
+        </p>
+      ) : null}
+      <button type="submit" disabled={saving || Boolean(blockedReason) || Boolean(cart.purchaseBlocked)}>
         {saving ? 'Confirmando…' : 'Confirmar pedido'}
       </button>
       <p className="checkout-back">

@@ -17,7 +17,14 @@ type GuestLine = {
   unitPrice: number;
   product: CartItem['product'];
   extras: GuestExtra[];
+  addedAt?: string;
 };
+
+function earlier(left?: string, right?: string) {
+  if (!left) return right;
+  if (!right) return left;
+  return left < right ? left : right;
+}
 
 function sortExtras(extras: GuestExtra[]): GuestExtra[] {
   return [...extras].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
@@ -58,6 +65,7 @@ function readLines(): GuestLine[] {
         notes: line.notes ?? '',
         unitPrice: Number(line.unitPrice) || 0,
         product: line.product,
+        addedAt: typeof line.addedAt === 'string' && line.addedAt ? line.addedAt : undefined,
         extras: sortExtras(
           (Array.isArray(line.extras) ? line.extras : [])
             .map((extra) => normalizeExtra(extra))
@@ -88,6 +96,7 @@ function toCart(lines: GuestLine[]): Cart {
     subtotal: lineSubtotal(line),
     product: line.product,
     extras: line.extras,
+    addedAt: line.addedAt,
   }));
 
   return {
@@ -107,7 +116,13 @@ function productSnapshot(product: Product): CartItem['product'] {
   };
 }
 
-function snapshot(product: Product, notes: string, quantity: number, extras: GuestExtra[]): GuestLine {
+function snapshot(
+  product: Product,
+  notes: string,
+  quantity: number,
+  extras: GuestExtra[],
+  addedAt?: string,
+): GuestLine {
   return {
     productId: product.id,
     quantity,
@@ -115,6 +130,7 @@ function snapshot(product: Product, notes: string, quantity: number, extras: Gue
     unitPrice: Number(product.price) || 0,
     extras: sortExtras(extras),
     product: productSnapshot(product),
+    addedAt,
   };
 }
 
@@ -122,12 +138,13 @@ function sameCombination(line: GuestLine, productId: string, extras: GuestExtra[
   return line.productId === productId && extrasKey(line.extras) === extrasKey(extras);
 }
 
-export function guestOrderItem(item: Pick<CartItem, 'productId' | 'quantity' | 'notes' | 'extras'>) {
+export function guestOrderItem(item: Pick<CartItem, 'productId' | 'quantity' | 'notes' | 'extras' | 'addedAt'>) {
   return {
     productId: item.productId,
     quantity: item.quantity,
     notes: item.notes,
     extraIds: (item.extras ?? []).map((extra) => extra.id),
+    ...(item.addedAt ? { addedAt: item.addedAt } : {}),
   };
 }
 
@@ -150,7 +167,7 @@ export function addGuestItem(product: Product, quantity: number, notes: string, 
     existing.extras = normalized;
     existing.product = productSnapshot(product);
   } else {
-    lines.push(snapshot(product, notes, quantity, normalized));
+    lines.push(snapshot(product, notes, quantity, normalized, new Date().toISOString()));
   }
   writeLines(lines);
   return toCart(lines);
@@ -184,6 +201,7 @@ export function removeGuestExtra(itemId: string, extraId: string): Cart {
   if (siblingIndex >= 0) {
     const sibling = lines[siblingIndex];
     sibling.quantity += line.quantity;
+    sibling.addedAt = earlier(sibling.addedAt, line.addedAt);
     if (!sibling.notes.trim() && line.notes.trim()) sibling.notes = line.notes;
     lines.splice(index, 1);
   } else {
@@ -222,10 +240,11 @@ export async function hydrateGuestCart(): Promise<Cart> {
           extras.push(extra);
         }
       }
-      const refreshed = snapshot(product, line.notes, line.quantity, extras);
+      const refreshed = snapshot(product, line.notes, line.quantity, extras, line.addedAt);
       const sibling = next.find((other) => sameCombination(other, refreshed.productId, refreshed.extras));
       if (sibling) {
         sibling.quantity += refreshed.quantity;
+        sibling.addedAt = earlier(sibling.addedAt, refreshed.addedAt);
         if (!sibling.notes.trim() && refreshed.notes.trim()) sibling.notes = refreshed.notes;
       } else {
         next.push(refreshed);
@@ -242,6 +261,18 @@ export async function hydrateGuestCart(): Promise<Cart> {
 export async function mergeGuestCartIntoAccount(token: string) {
   const lines = readLines();
   if (lines.length === 0) return;
+
+  await api('/cart/release-check', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({
+      items: lines.map((line) => ({
+        productId: line.productId,
+        extraIds: line.extras.map((extra) => extra.id),
+        ...(line.addedAt ? { addedAt: line.addedAt } : {}),
+      })),
+    }),
+  });
 
   for (const line of lines) {
     await api('/cart/items', {

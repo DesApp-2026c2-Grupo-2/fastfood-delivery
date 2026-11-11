@@ -269,6 +269,7 @@ export function AdminOrdersPage() {
                   <td>{order.branch.name}</td>
                   <td>
                     <div className="order-status-marks">
+                      {order.scheduledFor ? <span className="scheduled-badge">Programado</span> : null}
                       {order.fulfillment === 'pickup' ? <span className="pickup-badge">Retiro</span> : null}
                       <span className={`badge badge-status badge-status--${order.status}`}>
                         {orderStatusLabel(order.status, order.fulfillment)}
@@ -296,6 +297,7 @@ export function AdminOrdersPage() {
               <div className="order-card-top">
                 <OrderCode id={order.id} code={order.code} to={`/admin/orders/${order.id}`} state={{ listSearch }} />
                 <div className="order-status-marks">
+                  {order.scheduledFor ? <span className="scheduled-badge">Programado</span> : null}
                   {order.fulfillment === 'pickup' ? <span className="pickup-badge">Retiro</span> : null}
                   <span className={`badge badge-status badge-status--${order.status}`}>
                     {orderStatusLabel(order.status, order.fulfillment)}

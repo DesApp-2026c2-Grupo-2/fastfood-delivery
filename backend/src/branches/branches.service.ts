@@ -11,7 +11,15 @@ import { JwtPayload } from '../auth/jwt-payload';
 import { haversineDistanceKm } from '../orders/geo';
 import { ParametersService } from '../parameters/parameters.service';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  formatOpeningHours,
+  openingState,
+  storedSlots,
+  validateSlots,
+  type BranchHourSlot,
+} from './branch-hours';
 import { AvailableBranchesQueryDto } from './dto/available-branches-query.dto';
+import { BranchHourDto } from './dto/branch-hour.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
 import {
@@ -22,7 +30,39 @@ import {
   reverseGeocode,
 } from './geocode';
 
-export type CoveringBranch = { branch: Branch; distanceKm: number };
+export type BranchWithHours = Prisma.BranchGetPayload<{
+  include: { hours: { orderBy: [{ weekday: 'asc' }, { slot: 'asc' }] } };
+}>;
+
+const withHours = { hours: { orderBy: [{ weekday: 'asc' as const }, { slot: 'asc' as const }] } };
+
+export type CoveringBranch = { branch: BranchWithHours; distanceKm: number };
+
+function slotsOf(hours: BranchHourDto[] | undefined) {
+  if (hours === undefined) return undefined;
+  const slots: BranchHourSlot[] = hours.map((hour) => ({
+    weekday: hour.weekday,
+    opensAt: hour.opensAt,
+    closesAt: hour.closesAt,
+  }));
+  const problem = validateSlots(slots);
+  if (problem) throw new BadRequestException(problem);
+  return storedSlots(slots);
+}
+
+export function scheduleOf(branch: BranchWithHours) {
+  const slots = branch.hours.map((hour) => ({
+    weekday: hour.weekday,
+    opensAt: hour.opensAt,
+    closesAt: hour.closesAt,
+  }));
+  const state = openingState(slots);
+  return {
+    openingHours: state.configured ? formatOpeningHours(slots) : branch.openingHours,
+    openNow: state.configured ? state.openNow : null,
+    nextOpenAt: state.nextOpenAt ? state.nextOpenAt.toISOString() : null,
+  };
+}
 
 function geocodeHttpError(error: unknown): unknown {
   if (error instanceof GeocodeNotFoundError) return new BadRequestException(error.message);
@@ -54,7 +94,7 @@ export class BranchesService {
   async findCovering(latitude: number, longitude: number) {
     const [radiusKm, active] = await Promise.all([
       this.parametersService.coverageRadiusKm(),
-      this.prisma.branch.findMany({ where: { active: true }, orderBy: { name: 'asc' } }),
+      this.prisma.branch.findMany({ where: { active: true }, orderBy: { name: 'asc' }, include: withHours }),
     ]);
     const branches: CoveringBranch[] = active
       .map((branch) => ({
@@ -73,7 +113,7 @@ export class BranchesService {
   async findActiveByDistance(origin: { latitude: number; longitude: number } | null) {
     const [radiusKm, active] = await Promise.all([
       this.parametersService.coverageRadiusKm(),
-      this.prisma.branch.findMany({ where: { active: true }, orderBy: { name: 'asc' } }),
+      this.prisma.branch.findMany({ where: { active: true }, orderBy: { name: 'asc' }, include: withHours }),
     ]);
     const branches = active
       .map((branch) => {
@@ -95,7 +135,7 @@ export class BranchesService {
     fulfillment: Fulfillment,
     origin: { latitude: number; longitude: number } | null,
   ): Promise<CoveringBranch> {
-    const branch = await this.prisma.branch.findUnique({ where: { id: branchId } });
+    const branch = await this.prisma.branch.findUnique({ where: { id: branchId }, include: withHours });
     if (!branch || !branch.active) {
       throw new BadRequestException({
         statusCode: 400,
@@ -141,7 +181,7 @@ export class BranchesService {
         name: branch.name,
         ...branchAddress(branch),
         phone: branch.phone,
-        openingHours: branch.openingHours,
+        ...scheduleOf(branch),
         latitude: Number(branch.latitude),
         longitude: Number(branch.longitude),
         distanceKm: Math.round(distanceKm * 100) / 100,
@@ -164,7 +204,7 @@ export class BranchesService {
         name: branch.name,
         ...branchAddress(branch),
         phone: branch.phone,
-        openingHours: branch.openingHours,
+        ...scheduleOf(branch),
         latitude: Number(branch.latitude),
         longitude: Number(branch.longitude),
         distanceKm: distanceKm === null ? null : Math.round(distanceKm * 100) / 100,
@@ -176,6 +216,7 @@ export class BranchesService {
   findAll() {
     return this.prisma.branch.findMany({
       orderBy: { name: 'asc' },
+      include: withHours,
     });
   }
 
@@ -201,14 +242,15 @@ export class BranchesService {
   }
 
   async findOne(id: string) {
-    const branch = await this.prisma.branch.findUnique({ where: { id } });
+    const branch = await this.prisma.branch.findUnique({ where: { id }, include: withHours });
     if (!branch) {
       throw new NotFoundException('Sucursal no encontrada');
     }
     return branch;
   }
 
-  create(dto: CreateBranchDto) {
+  async create(dto: CreateBranchDto) {
+    const slots = slotsOf(dto.hours);
     return this.prisma.branch.create({
       data: {
         name: dto.name.trim(),
@@ -218,35 +260,47 @@ export class BranchesService {
         postalCode: dto.postalCode ?? null,
         latitude: new Prisma.Decimal(dto.latitude),
         longitude: new Prisma.Decimal(dto.longitude),
-        openingHours: dto.openingHours.trim(),
+        openingHours: slots && slots.length > 0 ? formatOpeningHours(slots) : dto.openingHours.trim(),
         phone: dto.phone.trim(),
         active: dto.active ?? true,
+        ...(slots && slots.length > 0 ? { hours: { create: slots } } : {}),
       },
+      include: withHours,
     });
   }
 
   async update(id: string, dto: UpdateBranchDto) {
     await this.findOne(id);
-    return this.prisma.branch.update({
-      where: { id },
-      data: {
-        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-        ...(dto.address !== undefined ? { address: dto.address.trim() } : {}),
-        ...(dto.city !== undefined ? { city: dto.city } : {}),
-        ...(dto.province !== undefined ? { province: dto.province } : {}),
-        ...(dto.postalCode !== undefined ? { postalCode: dto.postalCode } : {}),
-        ...(dto.latitude !== undefined
-          ? { latitude: new Prisma.Decimal(dto.latitude) }
-          : {}),
-        ...(dto.longitude !== undefined
-          ? { longitude: new Prisma.Decimal(dto.longitude) }
-          : {}),
-        ...(dto.openingHours !== undefined
-          ? { openingHours: dto.openingHours.trim() }
-          : {}),
-        ...(dto.phone !== undefined ? { phone: dto.phone.trim() } : {}),
-        ...(dto.active !== undefined ? { active: dto.active } : {}),
-      },
+    const slots = slotsOf(dto.hours);
+    const openingHours =
+      slots === undefined
+        ? dto.openingHours?.trim()
+        : slots.length > 0
+          ? formatOpeningHours(slots)
+          : dto.openingHours?.trim();
+    return this.prisma.$transaction(async (tx) => {
+      if (slots !== undefined) {
+        await tx.branchHour.deleteMany({ where: { branchId: id } });
+        if (slots.length > 0) {
+          await tx.branchHour.createMany({ data: slots.map((slot) => ({ ...slot, branchId: id })) });
+        }
+      }
+      return tx.branch.update({
+        where: { id },
+        data: {
+          ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+          ...(dto.address !== undefined ? { address: dto.address.trim() } : {}),
+          ...(dto.city !== undefined ? { city: dto.city } : {}),
+          ...(dto.province !== undefined ? { province: dto.province } : {}),
+          ...(dto.postalCode !== undefined ? { postalCode: dto.postalCode } : {}),
+          ...(dto.latitude !== undefined ? { latitude: new Prisma.Decimal(dto.latitude) } : {}),
+          ...(dto.longitude !== undefined ? { longitude: new Prisma.Decimal(dto.longitude) } : {}),
+          ...(openingHours !== undefined ? { openingHours } : {}),
+          ...(dto.phone !== undefined ? { phone: dto.phone.trim() } : {}),
+          ...(dto.active !== undefined ? { active: dto.active } : {}),
+        },
+        include: withHours,
+      });
     });
   }
 

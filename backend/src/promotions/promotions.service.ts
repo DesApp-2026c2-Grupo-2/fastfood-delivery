@@ -1,9 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { OrderStatus, Prisma, Promotion, Role } from '@prisma/client';
+import { IncidentStatus, OrderStatus, Prisma, Promotion, Role } from '@prisma/client';
 import { ParametersService } from '../parameters/parameters.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PARAMETERS } from '../parameters/parameters';
 import { LOYALTY_REWARD_ID, LOYALTY_REWARD_NAME, TOP3_REWARD_ID, TOP3_REWARD_NAME } from './campaign-rewards';
+import { couponExpiresAt, couponStatus } from '../incidents/coupon-term';
+import { incidentCouponPromotionId } from './incident-coupon';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdateLoyaltyCampaignDto } from './dto/update-loyalty-campaign.dto';
 import { UpdateTop3CampaignDto } from './dto/update-top3-campaign.dto';
@@ -16,6 +18,10 @@ export type QuotedOffer = {
   value: number;
   discountAmount: number;
   applied: boolean;
+  /** El cupón de un reclamo se suma al descuento elegido. El resto no se acumula. */
+  stacks?: boolean;
+  /** Vencimiento del cupón de reclamo. Sirve para elegir, por defecto, el que vence antes. */
+  expiresAt?: string;
 };
 
 export type AppliedPromotion = {
@@ -23,7 +29,9 @@ export type AppliedPromotion = {
   discountAmount: number;
   totalAmount: number;
   promotion: Pick<Promotion, 'id' | 'name' | 'type' | 'value'> | null;
-  /** Promos con descuento en este pedido. Solo una, la que más descuenta, queda applied. */
+  /** Cupón de reclamo que se suma al descuento elegido. Uno por pedido. */
+  stackedCoupon: { incidentId: string; code: string; discountAmount: number } | null;
+  /** Promos con descuento en este pedido. Solo una, la que más descuenta, queda applied. El cupón de reclamo se suma. */
   offers: QuotedOffer[];
 };
 
@@ -254,13 +262,15 @@ export class PromotionsService {
     lines: PromotionLine[] = [],
     now = new Date(),
     userId?: string,
+    couponIncidentId?: string | null,
   ): Promise<AppliedPromotion> {
     const current = await this.prisma.promotion.findMany({
       where: currentWhere(now),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
 
-    const candidates: Omit<QuotedOffer, 'applied'>[] = [];
+    const candidates: Omit<QuotedOffer, 'applied' | 'stacks'>[] = [];
+    const claimCoupons: { incidentId: string; code: string; amount: number; expiresAt: Date }[] = [];
     for (const promotion of current) {
       const discountAmount = discountFor(promotion, subtotal, lines);
       if (discountAmount <= 0) continue;
@@ -316,6 +326,31 @@ export class PromotionsService {
           });
         }
       }
+
+      // El cupón de un reclamo no compite: se suma al descuento que ganó, sin pasar el subtotal.
+      const coupons = await this.prisma.incident.findMany({
+        where: {
+          userId,
+          status: IncidentStatus.resolved,
+          couponCode: { not: null },
+          couponAmount: { gt: 0 },
+          redeemedOrder: { is: null },
+        },
+        select: { id: true, couponCode: true, couponAmount: true, couponCreatedAt: true },
+        orderBy: [{ couponCreatedAt: 'asc' }, { id: 'asc' }],
+      });
+      for (const coupon of coupons) {
+        if (!coupon.couponCode || !coupon.couponCreatedAt) continue;
+        if (couponStatus(coupon.couponCreatedAt, false) !== 'available') continue;
+        const amount = roundMoney(Number(coupon.couponAmount));
+        if (amount <= 0) continue;
+        claimCoupons.push({
+          incidentId: coupon.id,
+          code: coupon.couponCode,
+          amount,
+          expiresAt: couponExpiresAt(coupon.couponCreatedAt),
+        });
+      }
     }
 
     // Empate: se queda la primera. Las promos llegan de la más nueva a la más vieja, y un beneficio solo gana si descuenta más.
@@ -326,19 +361,62 @@ export class PromotionsService {
       }
     });
     const best = bestIndex === -1 ? null : candidates[bestIndex];
-    const offers = candidates
-      .map((candidate, index) => ({ ...candidate, applied: index === bestIndex }))
-      .sort((a, b) => Number(b.applied) - Number(a.applied) || b.discountAmount - a.discountAmount);
+    const regularDiscount = best?.discountAmount ?? 0;
+    const remaining = Math.max(0, roundMoney(subtotal - regularDiscount));
+    // Un solo cupón por pedido. Si no eligieron, queda el que vence antes.
+    const couponOffers = claimCoupons
+      .map((coupon) => ({
+        ...coupon,
+        discountAmount: Math.min(coupon.amount, remaining),
+      }))
+      .filter((coupon) => coupon.discountAmount > 0)
+      .sort((a, b) => a.expiresAt.getTime() - b.expiresAt.getTime() || a.incidentId.localeCompare(b.incidentId));
+    const requested = couponIncidentId?.trim() || null;
+    const chosen = couponOffers.find((coupon) => coupon.incidentId === requested) ?? couponOffers[0] ?? null;
+    const stackedCoupon: AppliedPromotion['stackedCoupon'] = chosen
+      ? { incidentId: chosen.incidentId, code: chosen.code, discountAmount: chosen.discountAmount }
+      : null;
+
+    const offers: QuotedOffer[] = candidates.map((candidate, index) => ({ ...candidate, applied: index === bestIndex }));
+    for (const coupon of couponOffers) {
+      offers.push({
+        id: incidentCouponPromotionId(coupon.incidentId),
+        name: `Cupón ${coupon.code}`,
+        type: 'percent',
+        value: 0,
+        discountAmount: coupon.discountAmount,
+        applied: coupon.incidentId === chosen?.incidentId,
+        stacks: true,
+        expiresAt: coupon.expiresAt.toISOString(),
+      });
+    }
+    offers.sort((a, b) => {
+      const byApplied = Number(b.applied) - Number(a.applied);
+      if (byApplied) return byApplied;
+      const byStack = Number(Boolean(b.stacks)) - Number(Boolean(a.stacks));
+      if (byStack) return byStack;
+      if (a.stacks && b.stacks) return (a.expiresAt ?? '').localeCompare(b.expiresAt ?? '');
+      return b.discountAmount - a.discountAmount;
+    });
 
     const roundedSubtotal = roundMoney(subtotal);
-    if (!best) {
-      return { subtotal: roundedSubtotal, discountAmount: 0, totalAmount: roundedSubtotal, promotion: null, offers };
-    }
+    const discountAmount = roundMoney(regularDiscount + (stackedCoupon?.discountAmount ?? 0));
+    const promotion = best
+      ? { id: best.id, name: best.name, type: best.type, value: best.value }
+      : stackedCoupon
+        ? {
+            id: incidentCouponPromotionId(stackedCoupon.incidentId),
+            name: `Cupón ${stackedCoupon.code}`,
+            type: 'percent' as const,
+            value: 0,
+          }
+        : null;
     return {
       subtotal: roundedSubtotal,
-      discountAmount: best.discountAmount,
-      totalAmount: roundMoney(subtotal - best.discountAmount),
-      promotion: { id: best.id, name: best.name, type: best.type, value: best.value },
+      discountAmount,
+      totalAmount: roundMoney(subtotal - discountAmount),
+      promotion,
+      stackedCoupon: best ? stackedCoupon : null,
       offers,
     };
   }

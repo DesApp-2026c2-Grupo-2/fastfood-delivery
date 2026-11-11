@@ -1,20 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCart } from '../../cart/CartContext';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Cart, CartItem, Product, PromotionQuote } from '../../api/types';
 import { getToken, isCustomer } from '../../auth/session';
-import { guestOrderItem, hydrateGuestCart, removeGuestExtra, removeGuestItem, updateGuestItem } from '../../cart/guestCart';
+import { addGuestItem, clearGuestCart, getGuestCart, guestOrderItem, hydrateGuestCart, removeGuestExtra, removeGuestItem, updateGuestItem } from '../../cart/guestCart';
 import { LineExtras } from '../../components/LineExtras';
 import { PromoBanner } from '../../components/PromoBanner';
 import { PromotionOffers } from '../../components/PromotionOffers';
+import { NeedMealModal, SaucePickerModal } from '../../components/SauceModals';
 import { parseNotesAndExtras } from '../../lib/cart-notes';
 import { mediaUrl } from '../../lib/media';
+import { appliedClaimCouponId, readClaimCouponId, saveClaimCouponId } from '../../lib/claim-coupon';
 import { formatPrice } from '../../lib/money';
+import { CART_DISABLED_MESSAGE, guestCartBlocked, type StockReleaseNotice } from '../../lib/cart-block';
+import { countMeals, isSauceProduct, sauceOverLimitLabel, withSaucesLast } from '../../lib/sauces';
 import { useAutoClear } from '../../lib/useAutoClear';
 
 export function CartPage() {
+  const loggedIn = isCustomer();
   const { refresh } = useCart();
+  const navigate = useNavigate();
   const location = useLocation();
  const [notice, setNotice] = useState(
     (location.state as { notice?: string } | null)?.notice ?? '',
@@ -25,20 +31,35 @@ export function CartPage() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState('');
   const [quote, setQuote] = useState<PromotionQuote | null>(null);
+  const [couponId, setCouponId] = useState<string | null>(() => (loggedIn ? readClaimCouponId() : null));
   const [quoteSettled, setQuoteSettled] = useState(false);
-  const loggedIn = isCustomer();
+  const [saucePickerOpen, setSaucePickerOpen] = useState(false);
+  const [needMealOpen, setNeedMealOpen] = useState(false);
+  const [sauceBusy, setSauceBusy] = useState(false);
+  const [sauceError, setSauceError] = useState('');
+  const [resetting, setResetting] = useState(false);
+  const releasesRef = useRef<StockReleaseNotice[]>([]);
+
+  function showCart(next: Cart): Cart {
+    if (loggedIn) return next;
+    return { ...next, purchaseBlocked: guestCartBlocked(next.items, releasesRef.current) };
+  }
 
   async function load() {
     setLoading(true);
     setError('');
     try {
-      const [cartData, productsData] = await Promise.all([
+      const [cartData, productsData, releases] = await Promise.all([
         loggedIn
           ? api<Cart>('/cart', { token: getToken() ?? '' })
           : hydrateGuestCart(),
         api<Product[]>('/products').catch(() => []),
+        loggedIn
+          ? Promise.resolve([] as StockReleaseNotice[])
+          : api<StockReleaseNotice[]>('/stock/releases').catch(() => [] as StockReleaseNotice[]),
       ]);
-      setCart(cartData);
+      releasesRef.current = releases;
+      setCart(loggedIn ? cartData : showCart(cartData));
       setAllProducts(productsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo cargar el carrito');
@@ -61,18 +82,26 @@ export function CartPage() {
     }
     let cancelled = false;
     setQuoteSettled(false);
-    const body = loggedIn
+    const body: Record<string, unknown> = loggedIn
       ? {}
       : {
           items: cart.items.map(guestOrderItem),
         };
+    if (loggedIn && couponId) body.couponIncidentId = couponId;
     api<PromotionQuote>('/promotions/quote', {
       method: 'POST',
       token: getToken() ?? '',
       body: JSON.stringify(body),
     })
       .then((next) => {
-        if (!cancelled) setQuote(next);
+        if (cancelled) return;
+        setQuote(next);
+        const appliedId = appliedClaimCouponId(next.offers);
+        setCouponId((current) => {
+          if (appliedId === current) return current;
+          saveClaimCouponId(appliedId);
+          return appliedId;
+        });
       })
       .catch(() => {
         if (!cancelled) setQuote(null);
@@ -83,7 +112,7 @@ export function CartPage() {
     return () => {
       cancelled = true;
     };
-  }, [cart, loggedIn]);
+  }, [cart, loggedIn, couponId]);
 
   async function saveItem(item: CartItem, quantity: number, notes: string) {
     setUpdatingId(item.id);
@@ -98,7 +127,7 @@ export function CartPage() {
         setCart(next);
         void refresh();
       } else {
-        setCart(updateGuestItem(item.id, quantity, notes));
+        setCart(showCart(updateGuestItem(item.id, quantity, notes)));
         void refresh();
       }
     } catch (err) {
@@ -127,7 +156,7 @@ export function CartPage() {
         });
         setCart(next);
       } else {
-        setCart(removeGuestExtra(item.id, extraId));
+        setCart(showCart(removeGuestExtra(item.id, extraId)));
       }
       void refresh();
     } catch (err) {
@@ -149,7 +178,7 @@ export function CartPage() {
         setCart(next);
         void refresh();
       } else {
-        setCart(removeGuestItem(item.id));
+        setCart(showCart(removeGuestItem(item.id)));
         void refresh();
       }
     } catch (err) {
@@ -159,12 +188,97 @@ export function CartPage() {
     }
   }
 
-  const items = cart?.items ?? [];
+  const items = withSaucesLast(cart?.items ?? [], allProducts);
+  const meals = countMeals(items, allProducts);
+  const sauceProducts = allProducts
+    .filter((product) => isSauceProduct(product))
+    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  const saucesOverLimit = Object.values(meals.sauceQtyByProductId).some((quantity) => quantity > meals.maxPerSauce);
   const offers = quote?.offers ?? [];
   // Si ya listamos las ofertas arriba, no repetimos el descuento en el resumen.
   const showDiscountRow = Boolean(quote && quote.discountAmount > 0 && offers.length === 0);
 
   const showBanner = !loading && quoteSettled && !quote?.promotion;
+
+  function goCheckout() {
+    navigate('/checkout');
+  }
+
+  async function restartCart() {
+    setResetting(true);
+    setError('');
+    try {
+      if (loggedIn) {
+        setCart(await api<Cart>('/cart', { method: 'DELETE', token: getToken() ?? '' }));
+      } else {
+        clearGuestCart();
+        setCart(showCart(getGuestCart()));
+      }
+      void refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo vaciar el carrito');
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  function handleConfirm() {
+    if (cart?.purchaseBlocked || saucesOverLimit) return;
+    if (meals.maxPerSauce > 0 && meals.sauces === 0) {
+      setSauceError('');
+      setSaucePickerOpen(true);
+      return;
+    }
+    goCheckout();
+  }
+
+  async function addSelectedSauces(quantities: Record<string, number>) {
+    const picks = sauceProducts
+      .map((product) => ({ product, quantity: quantities[product.id] ?? 0 }))
+      .filter((pick) => pick.quantity > 0);
+    if (picks.length === 0) {
+      setSaucePickerOpen(false);
+      goCheckout();
+      return;
+    }
+    if (picks.some((pick) => pick.quantity > meals.maxPerSauce)) {
+      setSauceError(
+        meals.maxPerSauce === 1
+          ? 'De cada aderezo podés agregar hasta 1.'
+          : `De cada aderezo podés agregar hasta ${meals.maxPerSauce}.`,
+      );
+      return;
+    }
+
+    setSauceBusy(true);
+    setSauceError('');
+    try {
+      if (loggedIn) {
+        let next = cart;
+        for (const pick of picks) {
+          next = await api<Cart>('/cart/items', {
+            method: 'POST',
+            token: getToken() ?? '',
+            body: JSON.stringify({ productId: pick.product.id, quantity: pick.quantity, notes: '' }),
+          });
+        }
+        if (next) setCart(next);
+      } else {
+        let next = cart;
+        for (const pick of picks) {
+          next = addGuestItem(pick.product, pick.quantity, '');
+        }
+        if (next) setCart(showCart(next));
+      }
+      void refresh();
+      setSaucePickerOpen(false);
+      goCheckout();
+    } catch (err) {
+      setSauceError(err instanceof Error ? err.message : 'No se pudieron agregar los aderezos');
+    } finally {
+      setSauceBusy(false);
+    }
+  }
 
   return (
     <section className="stack">
@@ -203,6 +317,7 @@ export function CartPage() {
           <ul className="cart-list">
             {items.map((item) => {
               const catalogProduct = allProducts.find((product) => product.id === item.productId);
+              const sauceLine = catalogProduct ? isSauceProduct(catalogProduct) : false;
               const productQty = items
                 .filter((line) => line.productId === item.productId)
                 .reduce((sum, line) => sum + line.quantity, 0);
@@ -217,7 +332,14 @@ export function CartPage() {
                   allProducts={allProducts}
                   pairHint={pairHint}
                   busy={updatingId === item.id}
-                  onQuantity={(quantity) => void changeQuantity(item, quantity)}
+                  increaseDisabled={sauceLine && meals.maxPerSauce > 0 && productQty >= meals.maxPerSauce}
+                  onQuantity={(quantity) => {
+                    if (quantity > item.quantity && sauceLine && meals.maxPerSauce === 0) {
+                      setNeedMealOpen(true);
+                      return;
+                    }
+                    void changeQuantity(item, quantity);
+                  }}
                   onNotes={(notes) => void saveItem(item, item.quantity, notes)}
                   onRemove={() => void removeItem(item)}
                   onRemoveExtra={(extraId) => void removeExtra(item, extraId)}
@@ -226,7 +348,18 @@ export function CartPage() {
             })}
           </ul>
           <div className="card total-card">
-            <PromotionOffers offers={offers} />
+            <PromotionOffers
+              offers={offers}
+              selectedCouponId={couponId}
+              onSelectCoupon={
+                loggedIn
+                  ? (id) => {
+                      saveClaimCouponId(id);
+                      setCouponId(id);
+                    }
+                  : undefined
+              }
+            />
             {quote && quote.discountAmount > 0 ? (
               <>
                 <p className="total-row total-row--detail">
@@ -245,11 +378,53 @@ export function CartPage() {
               <span>Total</span>
               <strong>{formatPrice(quote?.totalAmount ?? cart?.total ?? 0)}</strong>
             </p>
-            <Link className="checkout-button" to="/checkout">
+            {cart?.purchaseBlocked ? (
+              <p className="warning" role="status">
+                {CART_DISABLED_MESSAGE}
+              </p>
+            ) : null}
+            {saucesOverLimit ? (
+              <p className="warning" role="status">
+                {meals.maxPerSauce === 0
+                  ? 'Los aderezos van con las hamburguesas y las guarniciones. Sumá alguna o quitalos para continuar.'
+                  : `De cada aderezo podés tener hasta ${meals.maxPerSauce}. ${sauceOverLimitLabel(meals, allProducts)}`}
+              </p>
+            ) : null}
+            {cart?.purchaseBlocked ? (
+              <button type="button" className="secondary" disabled={resetting} onClick={() => void restartCart()}>
+                {resetting ? 'Vaciando…' : 'Vaciar y armar de nuevo'}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="checkout-button"
+              disabled={saucesOverLimit || Boolean(cart?.purchaseBlocked) || resetting}
+              onClick={handleConfirm}
+            >
               Ir a confirmar el pedido
-            </Link>
+            </button>
           </div>
         </>
+      ) : null}
+
+      {saucePickerOpen ? (
+        <SaucePickerModal
+          sauces={sauceProducts}
+          maxPerSauce={meals.maxPerSauce}
+          busy={sauceBusy}
+          error={sauceError}
+          onConfirm={(quantities) => void addSelectedSauces(quantities)}
+          onSkip={() => {
+            setSaucePickerOpen(false);
+            goCheckout();
+          }}
+          onClose={() => {
+            if (!sauceBusy) setSaucePickerOpen(false);
+          }}
+        />
+      ) : null}
+      {needMealOpen ? (
+        <NeedMealModal onMenu={() => navigate('/products')} onClose={() => setNeedMealOpen(false)} />
       ) : null}
     </section>
   );
@@ -260,6 +435,7 @@ function CartLine({
   allProducts,
   pairHint,
   busy,
+  increaseDisabled = false,
   onQuantity,
   onNotes,
   onRemove,
@@ -269,6 +445,7 @@ function CartLine({
   allProducts: Product[];
   pairHint: boolean;
   busy: boolean;
+  increaseDisabled?: boolean;
   onQuantity: (quantity: number) => void;
   onNotes: (notes: string) => void;
   onRemove: () => void;
@@ -407,7 +584,7 @@ function CartLine({
             <span>{item.quantity}</span>
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || increaseDisabled}
               onClick={() => onQuantity(item.quantity + 1)}
               aria-label="Más"
             >

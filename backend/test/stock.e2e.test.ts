@@ -195,9 +195,15 @@ beforeAll(async () => {
 }, 60_000);
 
 beforeEach(async () => {
+  const productIds = [burger.id, bacon.id, drink.id];
   await prisma.cartItem.deleteMany({ where: { cart: { userId: { in: [ana.userId, beto.userId] } } } });
+  await prisma.cart.updateMany({
+    where: { userId: { in: [ana.userId, beto.userId] } },
+    data: { purchaseBlocked: false },
+  });
+  await prisma.stockRelease.deleteMany({ where: { productId: { in: productIds } } });
   // Cada test carga el stock que necesita; sin fila, el producto está en 0.
-  await prisma.stock.deleteMany({ where: { productId: { in: [burger.id, bacon.id, drink.id] } } });
+  await prisma.stock.deleteMany({ where: { productId: { in: productIds } } });
 });
 
 afterAll(async () => {
@@ -461,5 +467,131 @@ describe('Liberar al cancelar y descontar al entregar (HU-18)', () => {
 
     expect(cancel.status).toBe(200);
     expect(await stockOf(drink)).toEqual({ available: 10, reserved: 0 });
+  });
+});
+
+describe('Liberar el reservado desde stock', () => {
+  function release(product: Product, branchId = branch.id, token = adminToken) {
+    return request(server).post(`/api/admin/branches/${branchId}/stock/${product.id}/release`).set(auth(token));
+  }
+
+  it('devuelve el reservado a disponible y el pedido no lo mueve otra vez al cancelar', async () => {
+    await setStock(burger, 5);
+    await setStock(drink, 5);
+    const orderId = await placeOrder(ana, [
+      { productId: burger.id, quantity: 1 },
+      { productId: drink.id, quantity: 1 },
+    ]);
+    expect(await stockOf(drink)).toEqual({ available: 4, reserved: 1 });
+
+    const released = await release(drink);
+    expect(released.status).toBe(201);
+    expect(released.body).toMatchObject({ available: 5, reserved: 0, cartsBlocked: 0 });
+    expect(await stockOf(burger)).toEqual({ available: 4, reserved: 1 });
+
+    const cancel = await request(server).post(`/api/orders/${orderId}/cancel`).set(auth(ana.token));
+    expect(cancel.status).toBe(200);
+    expect(await stockOf(drink)).toEqual({ available: 5, reserved: 0 });
+    expect(await stockOf(burger)).toEqual({ available: 5, reserved: 0 });
+  });
+
+  it('al entregar no descuenta de nuevo lo que el admin ya liberó', async () => {
+    await setStock(drink, 5);
+    const orderId = await placeOrder(ana, [{ productId: drink.id, quantity: 2 }]);
+    expect((await release(drink)).status).toBe(201);
+
+    await advanceTo(orderId, ['confirmed', 'preparing', 'ready', 'on_the_way', 'delivered']);
+
+    expect(await stockOf(drink)).toEqual({ available: 5, reserved: 0 });
+  });
+
+  it('inhabilita el carrito que tiene el producto y el cliente tiene que armarlo de nuevo', async () => {
+    await setStock(drink, 5, 2);
+    const added = await request(server)
+      .post('/api/cart/items')
+      .set(auth(beto.token))
+      .send({ productId: drink.id, quantity: 1 });
+    expect(added.status).toBe(201);
+
+    const released = await release(drink);
+    expect(released.status).toBe(201);
+    expect(released.body.cartsBlocked).toBe(1);
+    expect(await stockOf(drink)).toEqual({ available: 7, reserved: 0 });
+
+    const cart = await request(server).get('/api/cart').set(auth(beto.token));
+    expect(cart.body.purchaseBlocked).toBe(true);
+
+    const blocked = await request(server).post('/api/orders').set(auth(beto.token)).send(deliveryTo(beto));
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.code).toBe('CART_DISABLED');
+
+    const reset = await request(server).delete('/api/cart').set(auth(beto.token));
+    expect(reset.status).toBe(200);
+    expect(reset.body).toMatchObject({ purchaseBlocked: false, items: [] });
+
+    const again = await checkout(beto, [{ productId: drink.id, quantity: 1 }]);
+    expect(again.status).toBe(201);
+    expect(await stockOf(drink)).toEqual({ available: 6, reserved: 1 });
+  });
+
+  it('también inhabilita el carrito si el producto está como adicional', async () => {
+    await setStock(burger, 5);
+    await setStock(bacon, 4, 1);
+    const added = await request(server)
+      .post('/api/cart/items')
+      .set(auth(beto.token))
+      .send({ productId: burger.id, quantity: 1, extraIds: [bacon.id] });
+    expect(added.status).toBe(201);
+
+    const released = await release(bacon);
+    expect(released.status).toBe(201);
+    expect(released.body.cartsBlocked).toBe(1);
+    const cart = await request(server).get('/api/cart').set(auth(beto.token));
+    expect(cart.body.purchaseBlocked).toBe(true);
+  });
+
+  it('no toca el reservado de otra sucursal ni un carrito con otro producto', async () => {
+    await setStock(drink, 3, 2);
+    await prisma.stock.upsert({
+      where: { branchId_productId: { branchId: otherBranch.id, productId: drink.id } },
+      update: { available: 4, reserved: 2 },
+      create: { branchId: otherBranch.id, productId: drink.id, available: 4, reserved: 2 },
+    });
+    const added = await request(server)
+      .post('/api/cart/items')
+      .set(auth(ana.token))
+      .send({ productId: burger.id, quantity: 1 });
+    expect(added.status).toBe(201);
+
+    const released = await release(drink);
+    expect(released.body.cartsBlocked).toBe(0);
+    const cart = await request(server).get('/api/cart').set(auth(ana.token));
+    expect(cart.body.purchaseBlocked).toBe(false);
+    const other = await prisma.stock.findUnique({
+      where: { branchId_productId: { branchId: otherBranch.id, productId: drink.id } },
+    });
+    expect(other).toMatchObject({ available: 4, reserved: 2 });
+  });
+
+  it('rechaza liberar si no hay reservado, y un cliente no puede', async () => {
+    await setStock(drink, 3, 0);
+    expect((await release(drink)).status).toBe(400);
+    expect((await release(drink, branch.id, ana.token)).status).toBe(403);
+  });
+
+  it('el pedido de invitado armado antes de liberar no se puede confirmar', async () => {
+    await setStock(drink, 5, 1);
+    expect((await release(drink)).status).toBe(201);
+
+    const stale = await guestOrder([{ productId: drink.id, quantity: 1, addedAt: '2000-01-01T00:00:00.000Z' }]);
+    expect(stale.status).toBe(409);
+    expect(stale.body.code).toBe('CART_DISABLED');
+    expect(await stockOf(drink)).toEqual({ available: 6, reserved: 0 });
+
+    const fresh = await guestOrder([
+      { productId: drink.id, quantity: 1, addedAt: new Date(Date.now() + 60_000).toISOString() },
+    ]);
+    expect(fresh.status).toBe(201);
+    expect(await stockOf(drink)).toEqual({ available: 5, reserved: 1 });
   });
 });

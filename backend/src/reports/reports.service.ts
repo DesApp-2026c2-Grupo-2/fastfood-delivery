@@ -198,6 +198,15 @@ export class ReportsService {
       .map(([date, count]) => ({ date, count }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
+    const salesByDayMap = new Map<string, number>();
+    for (const order of salesOrders) {
+      const key = dayKeyAR(order.createdAt);
+      salesByDayMap.set(key, (salesByDayMap.get(key) ?? 0) + Number(order.totalAmount));
+    }
+    const salesByDay = Array.from(salesByDayMap.entries())
+      .map(([date, totalAmount]) => ({ date, totalAmount: Number(totalAmount.toFixed(2)) }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
     const byStatus = new Map<OrderStatus, number>();
     for (const status of Object.values(OrderStatus)) {
       byStatus.set(status, 0);
@@ -334,6 +343,7 @@ export class ReportsService {
     return {
       branches,
       ordersByDay,
+      salesByDay,
       ordersByStatus,
       ordersByBranch,
       cancelled,

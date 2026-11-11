@@ -164,13 +164,27 @@ describe('POST /api/orders/:id/incident (HU-36)', () => {
       reason: 'cold',
       message: 'Llegó frío',
       status: 'open',
+      response: '',
+      coupon: null,
       createdAt: expect.any(String),
       resolvedAt: null,
+      responseUnseen: false,
     });
 
     const after = await request(server).get(`/api/orders/${orderId}`).set(auth(ana.token));
     expect(after.body.canReportIncident).toBe(false);
     expect(after.body.incident).toMatchObject({ reason: 'cold', status: 'open' });
+
+    const adminDetail = await request(server).get(`/api/admin/incidents/${response.body.id}`).set(auth(adminToken));
+    expect(adminDetail.status).toBe(200);
+    expect(adminDetail.body).toMatchObject({
+      id: response.body.id,
+      orderId,
+      reason: 'cold',
+      orderCode: expect.stringMatching(/^[A-Z]{3}\d{6}$/),
+      customerName: 'Cliente ana',
+    });
+    expect((await request(server).get('/api/admin/incidents/no-existe').set(auth(adminToken))).status).toBe(404);
   });
 
   it('es uno por pedido', async () => {
@@ -235,9 +249,19 @@ describe('/api/admin/incidents (HU-36)', () => {
     const resolved = await request(server)
       .patch(`/api/admin/incidents/${firstIncident.body.id}`)
       .set(auth(adminToken))
-      .send({ status: 'resolved' });
+      .send({ status: 'resolved', response: 'Te reponemos el pedido' });
     expect(resolved.status).toBe(200);
-    expect(resolved.body).toMatchObject({ status: 'resolved', resolvedAt: expect.any(String) });
+    expect(resolved.body).toMatchObject({
+      status: 'resolved',
+      response: 'Te reponemos el pedido',
+      coupon: null,
+      resolvedAt: expect.any(String),
+    });
+    const withoutCoupon = await request(server).get('/api/orders').set(auth(ana.token));
+    expect(withoutCoupon.body.find((order: { id: string }) => order.id === first)).toMatchObject({
+      hasIncident: true,
+      claimOpen: true,
+    });
 
     const list = await adminList();
     expect(list.status).toBe(200);
@@ -273,8 +297,290 @@ describe('/api/admin/incidents (HU-36)', () => {
     const missing = await request(server)
       .patch('/api/admin/incidents/no-existe')
       .set(auth(adminToken))
-      .send({ status: 'resolved' });
+      .send({ status: 'resolved', response: 'Listo' });
     expect(missing.status).toBe(404);
+
+    const withoutResponse = await request(server)
+      .patch(`/api/admin/incidents/${created.body.id}`)
+      .set(auth(adminToken))
+      .send({ status: 'resolved', response: '   ' });
+    expect(withoutResponse.status).toBe(400);
+  });
+
+  it('la solución con cupón la ve solo ese cliente y se descuenta una vez', async () => {
+    const claimedId = await deliveredOrder(ana);
+    const created = await report(ana, claimedId, { reason: 'wrong_order', message: 'Llegó otra cosa' });
+    expect(created.status).toBe(201);
+    const reported = await request(server).get('/api/orders').set(auth(ana.token));
+    expect(reported.body.find((order: { id: string }) => order.id === claimedId)).toMatchObject({
+      claimOpen: true,
+    });
+
+    const activePromos = await prisma.promotion.findMany({ where: { active: true }, select: { id: true } });
+    const loyalty = await prisma.parameter.findUnique({ where: { key: 'loyalty_campaign_active' } });
+    await prisma.promotion.updateMany({ where: { active: true }, data: { active: false } });
+    await prisma.parameter.upsert({
+      where: { key: 'loyalty_campaign_active' },
+      update: { value: 'false' },
+      create: { key: 'loyalty_campaign_active', value: 'false' },
+    });
+
+    try {
+      const resolved = await request(server)
+        .patch(`/api/admin/incidents/${created.body.id}`)
+        .set(auth(adminToken))
+        .send({ status: 'resolved', response: 'Te dejamos un cupón de $800', couponAmount: 800 });
+      expect(resolved.status).toBe(200);
+      const code = resolved.body.coupon.code as string;
+      expect(code).toMatch(/^REC-[A-Z2-9]{6}$/);
+      expect(resolved.body.coupon).toMatchObject({ amount: 800, used: false, status: 'available' });
+      const stackPromo = await prisma.promotion.create({
+        data: { name: `E2E suma reclamo ${stamp}`, type: 'percent', value: 10, active: true },
+      });
+      const stackedQuote = await request(server)
+        .post('/api/promotions/quote')
+        .set(auth(ana.token))
+        .send({ items: [{ productId: drink.id, quantity: 1 }] });
+      expect(stackedQuote.status).toBe(200);
+      expect(stackedQuote.body.discountAmount).toBe(950);
+      expect(stackedQuote.body.offers.filter((offer: { applied: boolean }) => offer.applied)).toHaveLength(2);
+      await prisma.promotion.delete({ where: { id: stackPromo.id } });
+      const createdAt = new Date(resolved.body.coupon.createdAt as string);
+      const expiresAt = new Date(resolved.body.coupon.expiresAt as string);
+      const days = (expiresAt.getTime() - createdAt.getTime()) / 86_400_000;
+      expect(days).toBeGreaterThan(85);
+      expect(days).toBeLessThan(95);
+
+      const coupons = await request(server).get('/api/admin/incidents/coupons').set(auth(adminToken));
+      expect(coupons.status).toBe(200);
+      expect(coupons.body.find((row: { code: string }) => row.code === code)).toMatchObject({
+        orderCode: expect.stringMatching(/^[A-Z]{3}\d{6}$/),
+        status: 'available',
+        reportedAt: expect.any(String),
+        createdAt: resolved.body.coupon.createdAt,
+      });
+
+      const stale = new Date(createdAt);
+      stale.setMonth(stale.getMonth() - 4);
+      await prisma.incident.update({ where: { id: created.body.id }, data: { couponCreatedAt: stale } });
+      const expiredQuote = await request(server)
+        .post('/api/promotions/quote')
+        .set(auth(ana.token))
+        .send({ items: [{ productId: drink.id, quantity: 1 }] });
+      expect(JSON.stringify(expiredQuote.body)).not.toContain(code);
+      const expiredList = await request(server).get('/api/admin/incidents/coupons').set(auth(adminToken));
+      expect(expiredList.body.find((row: { code: string }) => row.code === code)).toMatchObject({ status: 'expired' });
+      const expiredOrders = await request(server).get('/api/orders').set(auth(ana.token));
+      expect(expiredOrders.body.find((order: { id: string }) => order.id === claimedId)).toMatchObject({
+        claimOpen: true,
+      });
+      await prisma.incident.update({ where: { id: created.body.id }, data: { couponCreatedAt: createdAt } });
+
+      const detail = await request(server).get(`/api/orders/${claimedId}`).set(auth(ana.token));
+      expect(detail.body.incident).toMatchObject({
+        status: 'resolved',
+        response: 'Te dejamos un cupón de $800',
+        coupon: { code, amount: 800, used: false },
+      });
+
+      const list = await request(server).get('/api/orders').set(auth(ana.token));
+      expect(list.body.find((order: { id: string }) => order.id === claimedId)).toMatchObject({
+        hasIncident: true,
+        hasResolution: true,
+        resolutionUnseen: true,
+        claimOpen: true,
+      });
+      const seen = await request(server).post(`/api/orders/${claimedId}/incident/seen`).set(auth(ana.token));
+      expect(seen.status).toBe(201);
+      expect(seen.body.responseUnseen).toBe(false);
+      const hidden = await request(server).post(`/api/orders/${claimedId}/incident/seen`).set(auth(beto.token));
+      expect(hidden.status).toBe(404);
+      const afterSeen = await request(server).get('/api/orders').set(auth(ana.token));
+      expect(afterSeen.body.find((order: { id: string }) => order.id === claimedId)).toMatchObject({
+        hasIncident: true,
+        resolutionUnseen: false,
+      });
+
+      const edited = await request(server)
+        .patch(`/api/admin/incidents/${created.body.id}`)
+        .set(auth(adminToken))
+        .send({ status: 'resolved', response: 'Corregimos el cupón', couponAmount: 900 });
+      expect(edited.status).toBe(200);
+      expect(edited.body).toMatchObject({
+        response: 'Corregimos el cupón',
+        responseUnseen: true,
+        coupon: { code, amount: 900, used: false },
+      });
+      const unread = await request(server).get('/api/orders').set(auth(ana.token));
+      expect(unread.body.find((order: { id: string }) => order.id === claimedId)).toMatchObject({
+        resolutionUnseen: true,
+      });
+      const restoredResponse = await request(server)
+        .patch(`/api/admin/incidents/${created.body.id}`)
+        .set(auth(adminToken))
+        .send({ status: 'resolved', response: 'Te dejamos un cupón de $800', couponAmount: 800 });
+      expect(restoredResponse.status).toBe(200);
+      expect(restoredResponse.body.coupon).toMatchObject({ code, amount: 800 });
+
+      const quote = await request(server)
+        .post('/api/promotions/quote')
+        .set(auth(ana.token))
+        .send({ items: [{ productId: drink.id, quantity: 1 }] });
+      expect(quote.status).toBe(200);
+      expect(quote.body.promotion).toMatchObject({ name: `Cupón ${code}` });
+      expect(quote.body.discountAmount).toBe(800);
+
+      const other = await request(server)
+        .post('/api/promotions/quote')
+        .set(auth(beto.token))
+        .send({ items: [{ productId: drink.id, quantity: 1 }] });
+      expect(JSON.stringify(other.body)).not.toContain(code);
+
+      const redeemedId = await placeOrder(ana);
+      const redeemed = await request(server).get(`/api/orders/${redeemedId}`).set(auth(ana.token));
+      expect(redeemed.body).toMatchObject({ promotionName: `Cupón ${code}`, discountAmount: 800 });
+
+      const used = await request(server).get(`/api/orders/${claimedId}`).set(auth(ana.token));
+      expect(used.body.incident.coupon.used).toBe(true);
+      const closed = await request(server).get('/api/orders').set(auth(ana.token));
+      expect(closed.body.find((order: { id: string }) => order.id === claimedId)).toMatchObject({
+        hasIncident: true,
+        claimOpen: false,
+      });
+      expect(closed.body.find((order: { id: string }) => order.id === redeemedId)).toMatchObject({
+        claimOpen: false,
+      });
+
+      const locked = await request(server)
+        .patch(`/api/admin/incidents/${created.body.id}`)
+        .set(auth(adminToken))
+        .send({ status: 'resolved', response: 'Otro monto', couponAmount: 100 });
+      expect(locked.status).toBe(409);
+      const reopened = await request(server)
+        .patch(`/api/admin/incidents/${created.body.id}`)
+        .set(auth(adminToken))
+        .send({ status: 'open' });
+      expect(reopened.status).toBe(409);
+
+      const cancelled = await request(server).post(`/api/orders/${redeemedId}/cancel`).set(auth(ana.token));
+      expect(cancelled.status).toBe(200);
+      const restored = await request(server).get(`/api/orders/${claimedId}`).set(auth(ana.token));
+      expect(restored.body.incident.coupon.used).toBe(false);
+      const reopenedList = await request(server).get('/api/orders').set(auth(ana.token));
+      expect(reopenedList.body.find((order: { id: string }) => order.id === claimedId)).toMatchObject({
+        claimOpen: true,
+      });
+    } finally {
+      await prisma.promotion.deleteMany({ where: { name: `E2E suma reclamo ${stamp}` } });
+      if (activePromos.length > 0) {
+        await prisma.promotion.updateMany({
+          where: { id: { in: activePromos.map((promo) => promo.id) } },
+          data: { active: true },
+        });
+      }
+      if (loyalty) {
+        await prisma.parameter.update({ where: { key: loyalty.key }, data: { value: loyalty.value } });
+      } else {
+        await prisma.parameter.deleteMany({ where: { key: 'loyalty_campaign_active' } });
+      }
+    }
+  });
+
+  it('con varios cupones se elige uno, y por defecto el que vence antes', async () => {
+    const soonOrderId = await deliveredOrder(beto);
+    const laterOrderId = await deliveredOrder(beto);
+    const soonReport = await report(beto, soonOrderId, { reason: 'cold', message: 'Frío' });
+    const laterReport = await report(beto, laterOrderId, { reason: 'missing_item', message: 'Faltó algo' });
+    expect(soonReport.status).toBe(201);
+    expect(laterReport.status).toBe(201);
+
+    const soonResolved = await request(server)
+      .patch(`/api/admin/incidents/${soonReport.body.id}`)
+      .set(auth(adminToken))
+      .send({ status: 'resolved', response: 'Cupón chico que vence antes', couponAmount: 200 });
+    const laterResolved = await request(server)
+      .patch(`/api/admin/incidents/${laterReport.body.id}`)
+      .set(auth(adminToken))
+      .send({ status: 'resolved', response: 'Cupón grande que vence después', couponAmount: 700 });
+    expect(soonResolved.status).toBe(200);
+    expect(laterResolved.status).toBe(200);
+    const soonCode = soonResolved.body.coupon.code as string;
+    const laterCode = laterResolved.body.coupon.code as string;
+
+    const sooner = new Date();
+    sooner.setDate(sooner.getDate() - 10);
+    await prisma.incident.update({ where: { id: soonReport.body.id }, data: { couponCreatedAt: sooner } });
+
+    const activePromos = await prisma.promotion.findMany({ where: { active: true }, select: { id: true } });
+    const loyalty = await prisma.parameter.findUnique({ where: { key: 'loyalty_campaign_active' } });
+    await prisma.promotion.updateMany({ where: { active: true }, data: { active: false } });
+    await prisma.parameter.upsert({
+      where: { key: 'loyalty_campaign_active' },
+      update: { value: 'false' },
+      create: { key: 'loyalty_campaign_active', value: 'false' },
+    });
+
+    try {
+      const quote = await request(server)
+        .post('/api/promotions/quote')
+        .set(auth(beto.token))
+        .send({ items: [{ productId: drink.id, quantity: 1 }] });
+      expect(quote.status).toBe(200);
+      const coupons = (quote.body.offers as { name: string; applied: boolean; stacks?: boolean }[]).filter(
+        (offer) => offer.stacks,
+      );
+      expect(coupons).toHaveLength(2);
+      expect(coupons.filter((offer) => offer.applied)).toEqual([
+        expect.objectContaining({ name: `Cupón ${soonCode}` }),
+      ]);
+      expect(quote.body.discountAmount).toBe(200);
+
+      const chosen = await request(server)
+        .post('/api/promotions/quote')
+        .set(auth(beto.token))
+        .send({ items: [{ productId: drink.id, quantity: 1 }], couponIncidentId: laterReport.body.id });
+      expect(chosen.status).toBe(200);
+      expect(chosen.body.discountAmount).toBe(700);
+      const chosenCoupons = (chosen.body.offers as { name: string; applied: boolean; stacks?: boolean }[]).filter(
+        (offer) => offer.stacks,
+      );
+      expect(chosenCoupons).toHaveLength(2);
+      expect(chosenCoupons.find((offer) => offer.applied)?.name).toBe(`Cupón ${laterCode}`);
+
+      const added = await request(server)
+        .post('/api/cart/items')
+        .set(auth(beto.token))
+        .send({ productId: drink.id, quantity: 1 });
+      expect(added.status).toBe(201);
+      const order = await request(server)
+        .post('/api/orders')
+        .set(auth(beto.token))
+        .send({
+          fulfillment: 'delivery',
+          branchId,
+          addressId: beto.addressId,
+          couponIncidentId: laterReport.body.id,
+        });
+      expect(order.status).toBe(201);
+      expect(order.body).toMatchObject({ promotionName: `Cupón ${laterCode}`, discountAmount: 700 });
+
+      const soonDetail = await request(server).get(`/api/orders/${soonOrderId}`).set(auth(beto.token));
+      const laterDetail = await request(server).get(`/api/orders/${laterOrderId}`).set(auth(beto.token));
+      expect(soonDetail.body.incident.coupon.used).toBe(false);
+      expect(laterDetail.body.incident.coupon.used).toBe(true);
+    } finally {
+      if (activePromos.length > 0) {
+        await prisma.promotion.updateMany({
+          where: { id: { in: activePromos.map((promo) => promo.id) } },
+          data: { active: true },
+        });
+      }
+      if (loyalty) {
+        await prisma.parameter.update({ where: { key: loyalty.key }, data: { value: loyalty.value } });
+      } else {
+        await prisma.parameter.deleteMany({ where: { key: 'loyalty_campaign_active' } });
+      }
+    }
   });
 
   it('un cliente no entra, y sin token responde 401', async () => {

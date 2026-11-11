@@ -1,15 +1,20 @@
 import { useCart } from '../cart/CartContext';
 import { useSession } from '../auth/SessionContext';
 import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { clearSession } from '../auth/session';
 import { BrandLogo } from '../components/BrandLogo';
 import { BottomNav } from '../components/BottomNav';
+import { useOpenClaims } from '../lib/use-open-claims';
 
 export function ClientLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { user, customer, refresh: refreshSession } = useSession();
   const { count } = useCart();
+  const { hasClaims, unseenCount } = useOpenClaims(Boolean(customer));
+  const viewingClaim = location.pathname.startsWith('/orders/') && searchParams.get('from') === 'claims';
   const [hideTopbar, setHideTopbar] = useState(false);
   const lastScrollY = useRef(0);
 
@@ -82,9 +87,23 @@ export function ClientLayout() {
               <NavLink to="/account/addresses" className="session-link">
                 Direcciones
               </NavLink>
-              <NavLink to="/orders" className="session-link">
+              <NavLink
+                to="/orders"
+                className={({ isActive }) => (isActive && !viewingClaim ? 'session-link active' : 'session-link')}
+              >
                 Pedidos
               </NavLink>
+              {hasClaims ? (
+                <NavLink
+                  to="/claims"
+                  className={({ isActive }) =>
+                    isActive || viewingClaim ? 'session-link claims-link active' : 'session-link claims-link'
+                  }
+                >
+                  Reclamos
+                  {unseenCount > 0 ? <span className="cart-badge">{unseenCount}</span> : null}
+                </NavLink>
+              ) : null}
               <button type="button" className="link-button session-logout" onClick={logout}>
                 Salir
               </button>
@@ -105,7 +124,14 @@ export function ClientLayout() {
         <Link to="/nosotros">Nosotros</Link>
         <Link to="/contacto">Contacto</Link>
       </footer>
-      <BottomNav count={count} customer={customer} userName={user?.name} />
+      <BottomNav
+        count={count}
+        customer={customer}
+        userName={user?.name}
+        hasOpenClaims={hasClaims}
+        claimsCount={unseenCount}
+        highlightClaims={viewingClaim}
+      />
     </div>
   );
 }

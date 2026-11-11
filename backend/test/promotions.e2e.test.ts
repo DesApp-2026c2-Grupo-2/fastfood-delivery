@@ -465,6 +465,7 @@ describe('promo 2x1 de un producto (HU-20, HU-21)', () => {
       discountAmount: 10000,
       totalAmount: 10000,
       promotion: { id: promo.id, name: promo.name, type: 'two_for_one', value: 0 },
+      stackedCoupon: null,
       offers: [
         {
           id: promo.id,
@@ -492,6 +493,7 @@ describe('POST /api/promotions/quote', () => {
       discountAmount: 1150,
       totalAmount: 10350,
       promotion: { id: promo.id, name: promo.name, type: 'percent', value: 10 },
+      stackedCoupon: null,
       offers: [
         {
           id: promo.id,
@@ -516,6 +518,7 @@ describe('POST /api/promotions/quote', () => {
       discountAmount: 0,
       totalAmount: 30000,
       promotion: null,
+      stackedCoupon: null,
       offers: [],
     });
   });

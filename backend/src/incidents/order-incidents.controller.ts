@@ -12,6 +12,12 @@ type AuthedRequest = Request & { user: JwtPayload };
 export class OrderIncidentsController {
   constructor(private readonly incidentsService: IncidentsService) {}
 
+  @Post(':id/incident/seen')
+  @UseGuards(JwtAuthGuard, CustomerGuard)
+  markSeen(@Req() req: AuthedRequest, @Param('id') id: string) {
+    return this.incidentsService.markResponseSeen(req.user.sub, id);
+  }
+
   @Post(':id/incident')
   @UseGuards(JwtAuthGuard, CustomerGuard)
   create(@Req() req: AuthedRequest, @Param('id') id: string, @Body() dto: CreateIncidentDto) {

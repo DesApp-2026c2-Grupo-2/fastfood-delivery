@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import type { LoginResponse } from '../../api/types';
 import { useSession } from '../../auth/SessionContext';
 import { isCustomer, saveSession } from '../../auth/session';
+import { useCart } from '../../cart/CartContext';
 import { mergeGuestCartIntoAccount } from '../../cart/guestCart';
 import { BrandLogo } from '../../components/BrandLogo';
 
@@ -16,6 +17,7 @@ type FormErrors = {
 export function RegisterPage() {
   const navigate = useNavigate();
   const { refresh: refreshSession } = useSession();
+  const { refresh: refreshCart } = useCart();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -76,6 +78,7 @@ export function RegisterPage() {
       } catch {
         /* el pedido se puede seguir armando desde la cuenta */
       }
+      await refreshCart();
       navigate('/products', { replace: true });
     } catch (err) {
       setApiError(err instanceof Error ? err.message : 'No se pudo crear la cuenta');

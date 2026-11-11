@@ -18,6 +18,11 @@ const HINTS: Record<string, string> = {
   cancelled: 'El pedido se canceló.',
 };
 
+/** La etiqueta Retiro avisa que hay que pasar a buscarlo. Si ya se retiró o se canceló, no hace falta. */
+export function showPickupBadge(status: string, fulfillment?: string | null): boolean {
+  return fulfillment === 'pickup' && status !== 'delivered' && status !== 'cancelled';
+}
+
 export function orderStatusLabel(status: string, fulfillment?: string | null): string {
   if (fulfillment === 'pickup') {
     if (status === 'ready') return 'Listo para retirar';

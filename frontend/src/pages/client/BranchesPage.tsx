@@ -10,6 +10,7 @@ import type {
 import { getToken, isCustomer } from '../../auth/session';
 import { BranchesMap, type MapOrigin } from '../../components/BranchesMap';
 import { formatBranchAddress } from '../../lib/address';
+import { openStatusLabel } from '../../lib/branch-status';
 import { type DevicePosition, requestDevicePosition } from '../../lib/geolocation';
 
 function formatDistance(km: number): string {
@@ -352,6 +353,9 @@ function BranchSpot({
       <p className="branch-spot-address">{formatBranchAddress(branch)}</p>
       <p className="branch-spot-meta">
         <span>{branch.openingHours}</span>
+        {openStatusLabel(branch.openNow, branch.nextOpenAt) ? (
+          <span>{openStatusLabel(branch.openNow, branch.nextOpenAt)}</span>
+        ) : null}
         <a href={`tel:${branch.phone.replace(/\s/g, '')}`}>{branch.phone}</a>
       </p>
       {nearest ? <span className="badge">La más cercana</span> : null}

@@ -1,10 +1,22 @@
 export type Role = 'customer' | 'admin';
 
+export type AdminRole = 'super_admin' | 'orders_viewer';
+
+export const ADMIN_ROLE_LABEL: Record<AdminRole, string> = {
+  super_admin: 'Super admin',
+  orders_viewer: 'Solo pedidos',
+};
+
+export function adminRoleLabel(role: AdminRole | null | undefined) {
+  return role === 'orders_viewer' ? ADMIN_ROLE_LABEL.orders_viewer : ADMIN_ROLE_LABEL.super_admin;
+}
+
 export type User = {
   id: string;
   email: string;
   name: string;
   role: Role;
+  adminRole?: AdminRole | null;
 };
 
 export type Category = {
@@ -98,6 +110,7 @@ export type AdminOrderListItem = {
   fulfillment: Fulfillment;
   totalAmount: number;
   createdAt: string;
+  scheduledFor?: string | null;
   customerName: string;
   customerEmail: string;
   branch: { id: string; name: string };
@@ -126,6 +139,7 @@ export type OrderStatusChangedEvent = {
 export type AdminOrderDetail = AdminOrderListItem & {
   subtotal: number;
   discountAmount: number;
+  deliveryFee: number;
   promotionName: string | null;
   promotionType: 'percent' | 'two_for_one' | null;
   promotionValue: number | null;
@@ -154,6 +168,8 @@ export type AdminOrderDetail = AdminOrderListItem & {
     quantity: number;
     notes: string;
     unitPrice: number;
+    extras: { id: string; name: string; price: number }[];
+    extrasTotal: number;
     subtotal: number;
     product: { id: string; name: string; imageUrl: string };
   }[];
@@ -201,6 +217,7 @@ export type AdminAccount = {
   id: string;
   name: string;
   email: string;
+  adminRole: AdminRole | null;
   createdAt: string;
   deletable: boolean;
 };
@@ -303,6 +320,7 @@ export type Branch = {
   latitude: number | string;
   longitude: number | string;
   openingHours: string;
+  hours?: { weekday: number; slot?: number; opensAt: string; closesAt: string }[];
   phone: string;
   active: boolean;
   createdAt: string;
@@ -321,11 +339,43 @@ export const INCIDENT_REASON_LABEL: Record<IncidentReason, string> = {
   other: 'Otro',
 };
 
+export type IncidentCouponStatus = 'available' | 'used' | 'expired';
+
+export const INCIDENT_COUPON_STATUS_LABEL: Record<IncidentCouponStatus, string> = {
+  available: 'Vigente',
+  used: 'Usado',
+  expired: 'Vencido',
+};
+
+export type IncidentCoupon = {
+  code: string;
+  amount: number;
+  used: boolean;
+  status: IncidentCouponStatus;
+  createdAt: string;
+  expiresAt: string;
+};
+
+export type AdminIncidentCoupon = {
+  id: string;
+  code: string;
+  amount: number;
+  status: IncidentCouponStatus;
+  orderId: string;
+  orderCode: string;
+  customerName: string;
+  reportedAt: string;
+  createdAt: string;
+  expiresAt: string;
+};
+
 export type AdminIncident = {
   id: string;
   reason: IncidentReason;
   message: string;
   status: IncidentStatus;
+  response: string;
+  coupon: IncidentCoupon | null;
   createdAt: string;
   resolvedAt: string | null;
   orderId: string;
@@ -356,6 +406,7 @@ export type ProductReports = {
 export type OrderReports = {
   branches: { id: string; name: string }[];
   ordersByDay: { date: string; count: number }[];
+  salesByDay: { date: string; totalAmount: number }[];
   ordersByStatus: { status: OrderStatus; label: string; count: number }[];
   ordersByBranch: { branchId: string; branchName: string; count: number }[];
   cancelled: { count: number; percent: number };

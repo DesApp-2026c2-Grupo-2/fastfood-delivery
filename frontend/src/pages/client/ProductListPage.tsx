@@ -6,16 +6,10 @@ import { ProductTags, PromoBadge } from '../../components/ProductTags';
 import { PromoBanner } from '../../components/PromoBanner';
 import { mediaUrl } from '../../lib/media';
 import { formatPrice } from '../../lib/money';
+import { categoryKey, isSauceProduct } from '../../lib/sauces';
 import { useAutoClear } from '../../lib/useAutoClear';
 
-const MENU_CATEGORY_ORDER = ['hamburguesas', 'guarnicion', 'bebidas', 'aderezos'];
-
-function categoryKey(category: Category) {
-  return (category.slug || category.name)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-}
+const MENU_CATEGORY_ORDER = ['hamburguesas', 'guarnicion', 'bebidas'];
 
 function menuCategories(categoryList: Category[]) {
   const hasCounts = categoryList.some((category) => typeof category._count?.products === 'number');
@@ -51,10 +45,17 @@ export function ProductListPage() {
           api<Product[]>(categoryId ? `/products?categoryId=${encodeURIComponent(categoryId)}` : '/products'),
         ]);
         if (!cancelled) {
+          const sauceCategory = categoryList.find((item) => categoryKey(item) === 'aderezos');
+          if (sauceCategory && categoryId === sauceCategory.id) {
+            setSearchParams({}, { replace: true });
+            return;
+          }
+
           setCategories(menuCategories(categoryList));
 
-          // Excluir productos que pertenezcan a 'adicional' para que no se compren sueltos
+          // Adicionales y aderezos no se compran sueltos desde el menú.
           const visibleProducts = productList.filter((p) => {
+            if (isSauceProduct(p)) return false;
             const hasExtraCategory = p.categories?.some(
               (c) => c.slug === 'adicional' || c.name?.toLowerCase() === 'adicional'
             );
@@ -74,12 +75,20 @@ export function ProductListPage() {
     return () => {
       cancelled = true;
     };
-  }, [categoryId]);
+  }, [categoryId, setSearchParams]);
 
   const selectedName = useMemo(
     () => categories.find((category) => category.id === categoryId)?.name,
     [categories, categoryId],
   );
+
+  // Con "Todas" el menú va de más caro a más barato. En una categoría se mantiene el orden del catálogo.
+  const listedProducts = useMemo(() => {
+    if (categoryId) return products;
+    return [...products].sort(
+      (a, b) => b.price - a.price || a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }),
+    );
+  }, [products, categoryId]);
 
   return (
     <section>
@@ -116,12 +125,12 @@ export function ProductListPage() {
 
       {loading ? <p className="muted">Calentando el horno…</p> : null}
       {error ? <p className="error">{error}</p> : null}
-      {!loading && !error && products.length === 0 ? (
+      {!loading && !error && listedProducts.length === 0 ? (
         <p className="empty">Todavía no hay nada para morder. El admin puede cargar el menú.</p>
       ) : null}
 
       <ul className="product-grid">
-        {products.map((product) => (
+        {listedProducts.map((product) => (
           <li key={product.id}>
             <Link className="product-card" to={`/products/${product.id}`}>
               <span className="product-card-media">

@@ -16,6 +16,8 @@ import users from './users.svg?raw';
 import sliders from './sliders.svg?raw';
 import percent from './percent.svg?raw';
 import flag from './flag.svg?raw';
+import ticket from './ticket.svg?raw';
+import chart from './chart.svg?raw';
 
 const icons = {
   eye,
@@ -30,6 +32,8 @@ const icons = {
   sliders,
   percent,
   flag,
+  ticket,
+  chart,
   logout,
   'chevron-left': chevronLeft,
   'chevron-right': chevronRight,

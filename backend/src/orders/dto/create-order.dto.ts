@@ -1,5 +1,5 @@
 import { Fulfillment } from '@prisma/client';
-import { IsEnum, IsNotEmpty, IsString, ValidateIf } from 'class-validator';
+import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
 
 export class CreateOrderDto {
   @IsEnum(Fulfillment, { message: 'Elegí retiro o domicilio' })
@@ -15,4 +15,15 @@ export class CreateOrderDto {
   @IsString()
   @IsNotEmpty({ message: 'Elegí una dirección de entrega' })
   addressId?: string;
+
+  // true solo cuando el cliente aceptó dejar el pedido para la próxima apertura.
+  @IsOptional()
+  @IsBoolean()
+  scheduleWhenClosed?: boolean;
+
+  // Cupón de reclamo elegido. Si no llega, se usa el que vence antes.
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  couponIncidentId?: string;
 }

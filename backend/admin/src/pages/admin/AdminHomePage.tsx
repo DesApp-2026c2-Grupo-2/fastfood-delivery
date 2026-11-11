@@ -1,19 +1,10 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
-import type { AdminAccount, AdminOrderListResponse, Branch, Category, Product, Promotion } from '../../api/types';
-import { getToken } from '../../auth/session';
-import { mediaUrl } from '../../lib/media';
+import type { AdminAccount, AdminOrderListResponse, Branch, Category, OrderReports, Product, Promotion } from '../../api/types';
+import { getToken, isOrdersViewer } from '../../auth/session';
 
 const LATEST = 5;
-
-function byNewest<T extends { createdAt?: string }>(items: T[]) {
-  return [...items].sort((a, b) => {
-    const aTime = a.createdAt ? Date.parse(a.createdAt) : 0;
-    const bTime = b.createdAt ? Date.parse(b.createdAt) : 0;
-    return bTime - aTime;
-  });
-}
 
 type ParameterRow = { key: string; label: string; value: number; unit: string };
 
@@ -36,15 +27,161 @@ function promotionLabel(promotion: Promotion) {
   return promotion.minSubtotal != null ? `${percent} desde ${formatMoney(promotion.minSubtotal)}` : percent;
 }
 
-function formatWhen(iso?: string) {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'short' }).format(date);
+function argentinaToday() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+function shiftDay(iso: string, delta: number) {
+  const [year, month, day] = iso.split('-').map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day + delta));
+  return next.toISOString().slice(0, 10);
+}
+
+function formatDay(iso: string) {
+  const [year, month, day] = iso.split('-').map(Number);
+  if (!year || !month || !day) return iso;
+  return new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'short' }).format(new Date(year, month - 1, day));
+}
+
+function sumBilling(report: OrderReports | null) {
+  return (report?.salesByBranch ?? []).reduce((sum, row) => sum + row.totalAmount, 0);
+}
+
+function sumOrders(report: OrderReports | null) {
+  return (report?.ordersByStatus ?? []).reduce((sum, row) => sum + row.count, 0);
+}
+
+function StatusBars({ bars }: { bars: { label: string; value: number }[] }) {
+  const max = bars.reduce((highest, bar) => Math.max(highest, bar.value), 0);
+  if (bars.length === 0 || max === 0) {
+    return <p className="home-latest-empty">Sin pedidos.</p>;
+  }
+  return (
+    <ul className="home-bars home-status-bars">
+      {bars.map((bar) => (
+        <li key={bar.label}>
+          <strong title={bar.label}>{bar.label}</strong>
+          <span className="home-bar-track">
+            <span className="home-bar-fill" style={{ width: `${Math.max(8, (bar.value / max) * 100)}%` }} />
+          </span>
+          <small>{bar.value}</small>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function SalesLine({ points }: { points: { label: string; value: number }[] }) {
+  const height = 160;
+  const pad = 24;
+  const width = 520;
+  const max = Math.max(...points.map((point) => point.value), 1);
+  const step = points.length <= 1 ? 0 : (width - pad * 2) / (points.length - 1);
+  const coords = points.map((point, index) => ({
+    x: pad + index * step,
+    y: height - pad - (point.value / max) * (height - pad * 2),
+    ...point,
+  }));
+  const path = coords.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Ventas de los últimos 7 días">
+      <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad} stroke="#fed7aa" strokeWidth="1" />
+      <path d={path} fill="none" stroke="#ea580c" strokeWidth="2.5" strokeLinejoin="round" />
+      {coords.map((point) => (
+        <g key={point.label}>
+          <circle cx={point.x} cy={point.y} r="3.5" fill="#c2410c" />
+          <text x={point.x} y={height - 6} textAnchor="middle" fontSize="11" fill="#78716c">
+            {formatDay(point.label)}
+          </text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function OrderDashboard({ token }: { token: string }) {
+  const [todayReport, setTodayReport] = useState<OrderReports | null>(null);
+  const [weekReport, setWeekReport] = useState<OrderReports | null>(null);
+  const [statusReport, setStatusReport] = useState<OrderReports | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    const today = argentinaToday();
+    const from = shiftDay(today, -6);
+    async function load() {
+      try {
+        const [todayData, weekData, statusData] = await Promise.all([
+          api<OrderReports>(`/admin/reports/orders?from=${today}&to=${today}`, { token }),
+          api<OrderReports>(`/admin/reports/orders?from=${from}&to=${today}`, { token }),
+          api<OrderReports>('/admin/reports/orders', { token }),
+        ]);
+        if (cancelled) return;
+        setTodayReport(todayData);
+        setWeekReport(weekData);
+        setStatusReport(statusData);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'No se pudo cargar el tablero');
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const salesByDay = new Map((weekReport?.salesByDay ?? []).map((row) => [row.date, row.totalAmount]));
+  const today = argentinaToday();
+  const points = Array.from({ length: 7 }, (_, index) => {
+    const label = shiftDay(today, index - 6);
+    return { label, value: salesByDay.get(label) ?? 0 };
+  });
+  const bars = (statusReport?.ordersByStatus ?? [])
+    .filter((row) => row.count > 0)
+    .map((row) => ({ label: row.label, value: row.count }));
+
+  return (
+    <section className="home-dashboard" aria-label="Pedidos">
+      {error ? (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <div className="home-kpis">
+        <article className="home-kpi">
+          <span>Pedidos de hoy</span>
+          <strong>{todayReport ? sumOrders(todayReport) : '…'}</strong>
+        </article>
+        <article className="home-kpi">
+          <span>Facturación de hoy</span>
+          <strong>{todayReport ? formatMoney(sumBilling(todayReport)) : '…'}</strong>
+        </article>
+      </div>
+      <div className="home-charts">
+        <article className="home-panel home-chart">
+          <h2>Pedidos por estado</h2>
+          <p className="muted">Todos</p>
+          {statusReport ? <StatusBars bars={bars} /> : <p className="home-latest-empty">Cargando…</p>}
+        </article>
+        <article className="home-panel home-chart">
+          <h2>Ventas</h2>
+          <p className="muted">Últimos 7 días, sin cancelados</p>
+          {weekReport ? <SalesLine points={points} /> : <p className="home-latest-empty">Cargando…</p>}
+        </article>
+      </div>
+    </section>
+  );
 }
 
 export function AdminHomePage() {
   const token = getToken() ?? '';
+  const viewer = isOrdersViewer();
   const [categories, setCategories] = useState<Category[] | null>(null);
   const [products, setProducts] = useState<Product[] | null>(null);
   const [branches, setBranches] = useState<Branch[] | null>(null);
@@ -57,6 +194,7 @@ export function AdminHomePage() {
   const [reports, setReports] = useState<ProductReports | null>(null);
 
   useEffect(() => {
+    if (viewer) return;
     let cancelled = false;
     async function load() {
       const [categoryList, productList, branchList, promotionList, adminList, customerList, parameterList, orders, pending, reportData] =
@@ -88,16 +226,8 @@ export function AdminHomePage() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, viewer]);
 
-  const latestCategories = useMemo(
-    () => (categories ? byNewest(categories).slice(0, LATEST) : []),
-    [categories],
-  );
-  const latestProducts = useMemo(
-    () => (products ? byNewest(products).slice(0, LATEST) : []),
-    [products],
-  );
   const hiddenCount = products?.filter((product) => !product.available).length ?? 0;
   const activePromotions = useMemo(
     () => (promotions ? promotions.filter((promotion) => promotion.active).slice(0, LATEST) : []),
@@ -114,35 +244,19 @@ export function AdminHomePage() {
       <header className="page-head">
         <div>
           <h1>Cocina Mordi</h1>
-          <p className="muted">Pedidos, menú, sucursales, promociones, stock y reportes.</p>
+          <p className="muted">
+            {viewer
+              ? 'Pedidos, reclamos y los cupones de esos reclamos.'
+              : 'Pedidos, menú, sucursales, promociones, stock y reportes.'}
+          </p>
         </div>
       </header>
 
-      <ol className="demo-steps">
-        <li>Operación: pedidos, clientes, stock y reportes de ventas.</li>
-        <li>Carta: productos, categorías, promociones y campañas. Sucursales es el local.</li>
-        <li>Configuración: radio y tiempo estimado, y quiénes administran.</li>
-      </ol>
+      <OrderDashboard token={token} />
 
+      {viewer ? null : (
+      <>
       <div className="admin-home-links">
-        <article className="home-panel">
-          <Link className="card-link" to="/admin/orders">
-            <span>Pedidos</span>
-            <small>
-              {orderTotal === null
-                ? '…'
-                : `${orderTotal} en total${pendingOrders ? ` · ${pendingOrders} pendientes` : ''}`}
-            </small>
-          </Link>
-        </article>
-
-        <article className="home-panel">
-          <Link className="card-link" to="/admin/stock">
-            <span>Stock</span>
-            <small>Disponible y reservado por sucursal</small>
-          </Link>
-        </article>
-
         <article className="home-panel">
           <Link className="card-link" to="/admin/reports">
             <span>Reportes</span>
@@ -182,61 +296,6 @@ export function AdminHomePage() {
         </article>
 
         <article className="home-panel">
-          <Link className="card-link" to="/admin/products">
-            <span>Productos</span>
-            <small>
-              {products === null
-                ? '…'
-                : `${products.length} en el menú${hiddenCount ? ` · ${hiddenCount} ocultos` : ''}`}
-            </small>
-          </Link>
-          {products && latestProducts.length > 0 ? (
-            <div>
-              <p className="home-latest-caption">Últimos cargados</p>
-              <ul className="home-latest">
-                {latestProducts.map((product) => (
-                  <li key={product.id}>
-                    <img
-                      className="home-latest-thumb"
-                      src={mediaUrl(product.images?.[0]?.url || product.imageUrl)}
-                      alt=""
-                    />
-                    <div>
-                      <strong>{product.name}</strong>
-                      <small>{formatWhen(product.createdAt)}</small>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="home-latest-empty">{products === null ? 'Cargando…' : 'Todavía no hay productos.'}</p>
-          )}
-        </article>
-
-        <article className="home-panel">
-          <Link className="card-link" to="/admin/categories">
-            <span>Categorías</span>
-            <small>{categories === null ? '…' : `${categories.length} cargadas`}</small>
-          </Link>
-          {categories && latestCategories.length > 0 ? (
-            <div>
-              <p className="home-latest-caption">Últimas cargadas</p>
-              <ul className="home-latest">
-                {latestCategories.map((category) => (
-                  <li key={category.id}>
-                    <strong>{category.name}</strong>
-                    <small>{formatWhen(category.createdAt)}</small>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="home-latest-empty">{categories === null ? 'Cargando…' : 'Todavía no hay categorías.'}</p>
-          )}
-        </article>
-
-        <article className="home-panel">
           <Link className="card-link" to="/admin/promotions">
             <span>Promociones</span>
             <small>
@@ -262,6 +321,42 @@ export function AdminHomePage() {
               {promotions === null ? 'Cargando…' : 'No hay promociones activas.'}
             </p>
           )}
+        </article>
+
+        <article className="home-panel">
+          <Link className="card-link" to="/admin/orders">
+            <span>Pedidos</span>
+            <small>
+              {orderTotal === null
+                ? '…'
+                : `${orderTotal} en total${pendingOrders ? ` · ${pendingOrders} pendientes` : ''}`}
+            </small>
+          </Link>
+        </article>
+
+        <article className="home-panel">
+          <Link className="card-link" to="/admin/stock">
+            <span>Stock</span>
+            <small>Disponible y reservado por sucursal</small>
+          </Link>
+        </article>
+
+        <article className="home-panel">
+          <Link className="card-link" to="/admin/products">
+            <span>Productos</span>
+            <small>
+              {products === null
+                ? '…'
+                : `${products.length} en el menú${hiddenCount ? ` · ${hiddenCount} ocultos` : ''}`}
+            </small>
+          </Link>
+        </article>
+
+        <article className="home-panel">
+          <Link className="card-link" to="/admin/categories">
+            <span>Categorías</span>
+            <small>{categories === null ? '…' : `${categories.length} cargadas`}</small>
+          </Link>
         </article>
 
         <article className="home-panel">
@@ -308,6 +403,8 @@ export function AdminHomePage() {
         </a>
         .
       </p>
+      </>
+      )}
     </section>
   );
 }

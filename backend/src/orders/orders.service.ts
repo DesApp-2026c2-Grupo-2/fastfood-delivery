@@ -2,17 +2,20 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { Fulfillment, OrderStatus, Prisma } from '@prisma/client';
 import { AddressesService } from '../addresses/addresses.service';
 import { JwtPayload } from '../auth/jwt-payload';
-import { BranchesService } from '../branches/branches.service';
+import { BranchesService, scheduleOf, type BranchWithHours } from '../branches/branches.service';
+import { nextOpenPhrase, openingState } from '../branches/branch-hours';
 import { CartService } from '../cart/cart.service';
 import { DeliveryFeesService, feeForDistance } from '../delivery-fees/delivery-fees.service';
 import { byName, ExtrasService } from '../extras/extras.service';
+import { isSauceProduct, withSaucesLast } from '../catalog/item-order';
 import { ParametersService } from '../parameters/parameters.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { loyaltyCardProgress, LOYALTY_REWARD_ID, TOP3_REWARD_ID } from '../promotions/campaign-rewards';
+import { incidentIdFromCouponPromotion } from '../promotions/incident-coupon';
 import { PromotionLine, PromotionsService } from '../promotions/promotions.service';
 import { serializeIncident } from '../incidents/serialize-incident';
 import { stockLines } from '../stock/stock-lines';
-import { StockService } from '../stock/stock.service';
+import { cartDisabledException, StockService } from '../stock/stock.service';
 import { CheckoutBranchesDto } from './dto/checkout-branches.dto';
 import { CreateGuestOrderDto } from './dto/create-guest-order.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -24,7 +27,10 @@ import { canTransition, nextStatuses } from './order-status';
 
 const itemInclude = {
   product: {
-    include: { images: { orderBy: { sortOrder: 'asc' as const }, take: 1 } },
+    include: {
+      images: { orderBy: { sortOrder: 'asc' as const }, take: 1 },
+      categories: { select: { slug: true } },
+    },
   },
   extras: {
     include: {
@@ -33,10 +39,13 @@ const itemInclude = {
   },
 };
 
+const couponIncidentSelect = { select: { couponCode: true, couponAmount: true } } as const;
+
 const withRelations = {
   branch: true,
   address: true,
   promotion: { select: { type: true, value: true } },
+  couponIncident: couponIncidentSelect,
   items: { include: itemInclude },
 };
 
@@ -105,6 +114,32 @@ function pricing(order: {
     promotionType: order.promotion?.type ?? null,
     promotionValue: order.promotion?.value ?? null,
   };
+}
+
+/** Separa la promo del cupón de reclamo. El cupón vive en el pedido que lo usó. */
+function orderSavings(order: {
+  discountAmount: Prisma.Decimal;
+  promotionName: string | null;
+  couponIncident: { couponCode: string | null; couponAmount: Prisma.Decimal | null } | null;
+}) {
+  const total = Math.round(Number(order.discountAmount) * 100) / 100;
+  const code = order.couponIncident?.couponCode ?? null;
+  const face =
+    order.couponIncident?.couponAmount == null ? 0 : Math.round(Number(order.couponIncident.couponAmount) * 100) / 100;
+  const couponName = code ? `Cupón ${code}` : '';
+  const joined = order.promotionName ?? '';
+  const marker = couponName ? ` + ${couponName}` : '';
+  const promoName = marker && joined.endsWith(marker) ? joined.slice(0, -marker.length) : joined === couponName ? '' : joined;
+  const discounts: { kind: 'promotion' | 'coupon'; name: string; amount: number }[] = [];
+  if (total > 0 && code) {
+    const couponAmount = promoName ? Math.min(face, total) : total;
+    const promoAmount = Math.round((total - couponAmount) * 100) / 100;
+    if (promoAmount > 0) discounts.push({ kind: 'promotion', name: promoName, amount: promoAmount });
+    if (couponAmount > 0) discounts.push({ kind: 'coupon', name: couponName, amount: couponAmount });
+  } else if (total > 0) {
+    discounts.push({ kind: 'promotion', name: order.promotionName ?? '', amount: total });
+  }
+  return { discounts, claimCouponCode: code };
 }
 
 const adminDetailInclude = {
@@ -199,7 +234,7 @@ function buildAdminOrderWhere(query: {
 }
 
 function serializeItems(items: OrderWithRelations['items']) {
-  return items.map((item) => {
+  return withSaucesLast(items, (item) => isSauceProduct(item.product)).map((item) => {
     const unitPrice = Number(item.unitPrice);
     const extras = item.extras
       .map((extra) => ({
@@ -239,13 +274,36 @@ function serializeAddress(address: NonNullable<OrderWithRelations['address']>) {
   };
 }
 
+function acceptance(branch: BranchWithHours, scheduleWhenClosed?: boolean) {
+  const createdAt = new Date();
+  const state = openingState(branch.hours, createdAt);
+  if (!state.configured || state.openNow) {
+    return { createdAt, startsAt: createdAt, scheduledFor: null as Date | null };
+  }
+  if (!state.nextOpenAt) {
+    throw new BadRequestException(`${branch.name} no tiene un próximo horario de apertura`);
+  }
+  if (!scheduleWhenClosed) {
+    throw new ConflictException({
+      statusCode: 409,
+      error: 'Conflict',
+      code: 'BRANCH_CLOSED',
+      message: `${branch.name} está cerrada. Abre ${nextOpenPhrase(state.nextOpenAt)}. ¿Lo dejamos programado para esa hora?`,
+      nextOpenAt: state.nextOpenAt.toISOString(),
+    });
+  }
+  return { createdAt, startsAt: state.nextOpenAt, scheduledFor: state.nextOpenAt };
+}
+
 function serialize(order: OrderWithRelations) {
   return {
     id: order.id,
     code: order.code,
     status: order.status,
     ...pricing(order),
+    ...orderSavings(order),
     createdAt: order.createdAt,
+    scheduledFor: order.scheduledFor,
     branch: {
       id: order.branch.id,
       name: order.branch.name,
@@ -271,6 +329,7 @@ function serializeAdmin(order: OrderAdminDetail) {
     status: order.status,
     ...pricing(order),
     createdAt: order.createdAt,
+    scheduledFor: order.scheduledFor,
     customerName: order.user?.name ?? order.guestName ?? 'Invitado',
     customerEmail: order.user?.email ?? order.guestEmail ?? '',
     user: order.user,
@@ -302,7 +361,7 @@ function serializeAdmin(order: OrderAdminDetail) {
 const customerDetailInclude = {
   ...withRelations,
   statusHistory: { orderBy: { changedAt: 'asc' as const } },
-  incident: true,
+  incident: { include: { redeemedOrder: { select: { id: true } } } },
 };
 
 type OrderCustomerDetail = Prisma.OrderGetPayload<{ include: typeof customerDetailInclude }>;
@@ -328,6 +387,49 @@ export type RepeatSkipped = {
   name: string;
   message: string;
 };
+
+type ListedIncident = {
+  status: string;
+  response: string;
+  couponCode: string | null;
+  couponAmount: Prisma.Decimal | null;
+  couponCreatedAt: Date | null;
+  responseSeenAt: Date | null;
+  redeemedOrder: { id: string } | null;
+};
+
+function hasIncidentResolution(incident: ListedIncident | null) {
+  return Boolean(
+    incident &&
+      incident.status === 'resolved' &&
+      (incident.response.trim().length > 0 || incident.couponCode),
+  );
+}
+
+/** Cupón asignado: código, monto y fecha, igual que en el detalle del reclamo. */
+function incidentHasCoupon(incident: ListedIncident) {
+  const amount = incident.couponAmount == null ? null : Number(incident.couponAmount);
+  return Boolean(incident.couponCode && amount != null && amount > 0 && incident.couponCreatedAt);
+}
+
+/**
+ * Sigue abierto si todavía no hay cupón, o si el cupón existe y no se usó.
+ * Un cupón vencido sin usar también cuenta como abierto.
+ */
+function claimIsOpen(incident: ListedIncident | null) {
+  if (!incident) return false;
+  if (!incidentHasCoupon(incident)) return true;
+  return incident.redeemedOrder == null;
+}
+
+function incidentFlags(incident: ListedIncident | null) {
+  return {
+    hasIncident: Boolean(incident),
+    hasResolution: hasIncidentResolution(incident),
+    resolutionUnseen: Boolean(incident && incident.status === 'resolved' && incident.responseSeenAt == null),
+    claimOpen: claimIsOpen(incident),
+  };
+}
 
 @Injectable()
 export class OrdersService {
@@ -357,18 +459,22 @@ export class OrdersService {
       dto.fulfillment,
       address ? { latitude: Number(address.latitude), longitude: Number(address.longitude) } : null,
     );
+    if (cart.purchaseBlocked) {
+      throw cartDisabledException();
+    }
     const lines = cartLines(cart);
-    const createdAt = new Date();
+    const { createdAt, startsAt, scheduledFor } = acceptance(branch, dto.scheduleWhenClosed);
     // Promo vigente + fidelidad / Top 3 si corresponde; no depende de la sucursal ni del tipo de entrega.
     const price = await this.promotionsService.apply(
       linesSubtotal(lines),
       promotionLines(lines),
       createdAt,
       userId,
+      dto.couponIncidentId,
     );
     const deliveryFee = await this.deliveryFeesService.feeFor(dto.fulfillment, distanceKm, price.totalAmount);
     const estimatedDeliveryAt = estimateDeliveryAt(
-      createdAt,
+      startsAt,
       cart.items.reduce((sum, item) => sum + item.quantity, 0),
       distanceKm,
       await this.parametersService.etaSettings(),
@@ -399,12 +505,13 @@ export class OrdersService {
           status: 'pending',
           createdAt,
           estimatedDeliveryAt,
+          scheduledFor,
           stockReserved: true,
           loyaltyStampGranted: qualifiesForStamp,
           loyaltyCycleCompleted,
           loyaltyRewardApplied,
           items: {
-            create: cart.items.map((item) => ({
+            create: withSaucesLast(cart.items, (item) => isSauceProduct(item.product)).map((item) => ({
               productId: item.productId,
               quantity: item.quantity,
               unitPrice: item.product.price,
@@ -459,6 +566,16 @@ export class OrdersService {
   }
 
   async createGuest(dto: CreateGuestOrderDto) {
+    const blocked = await this.stockService.isPurchaseBlocked(
+      dto.items.map((item) => ({
+        productId: item.productId,
+        extraIds: item.extraIds,
+        addedAt: item.addedAt ? new Date(item.addedAt) : null,
+      })),
+    );
+    if (blocked) {
+      throw cartDisabledException();
+    }
     const lines = await this.resolveLines(dto.items);
     const delivery = dto.fulfillment === Fulfillment.delivery;
     const { branch, distanceKm } = await this.branchesService.resolveChosen(
@@ -466,11 +583,11 @@ export class OrdersService {
       dto.fulfillment,
       delivery ? { latitude: dto.latitude as number, longitude: dto.longitude as number } : null,
     );
-    const createdAt = new Date();
+    const { createdAt, startsAt, scheduledFor } = acceptance(branch, dto.scheduleWhenClosed);
     const price = await this.promotionsService.apply(linesSubtotal(lines), promotionLines(lines), createdAt);
     const deliveryFee = await this.deliveryFeesService.feeFor(dto.fulfillment, distanceKm, price.totalAmount);
     const estimatedDeliveryAt = estimateDeliveryAt(
-      createdAt,
+      startsAt,
       lines.reduce((sum, line) => sum + line.quantity, 0),
       distanceKm,
       await this.parametersService.etaSettings(),
@@ -506,9 +623,10 @@ export class OrdersService {
           status: 'pending',
           createdAt,
           estimatedDeliveryAt,
+          scheduledFor,
           stockReserved: true,
           items: {
-            create: lines.map((line) => ({
+            create: withSaucesLast(lines, (line) => isSauceProduct(line.product)).map((line) => ({
               productId: line.product.id,
               quantity: line.quantity,
               unitPrice: line.product.price,
@@ -574,6 +692,7 @@ export class OrdersService {
                 promotionLines(lines),
                 new Date(),
                 user?.sub,
+                dto.couponIncidentId,
               )
             ).totalAmount,
           )
@@ -589,7 +708,7 @@ export class OrdersService {
         province: branch.province,
         postalCode: branch.postalCode,
         phone: branch.phone,
-        openingHours: branch.openingHours,
+        ...scheduleOf(branch),
         latitude: Number(branch.latitude),
         longitude: Number(branch.longitude),
         distanceKm: distanceKm === null ? null : Math.round(distanceKm * 100) / 100,
@@ -621,6 +740,7 @@ export class OrdersService {
       promotionLines(lines),
       new Date(),
       user?.sub,
+      dto.couponIncidentId,
     );
   }
 
@@ -666,6 +786,7 @@ export class OrdersService {
         fulfillment: order.fulfillment,
         ...pricing(order),
         createdAt: order.createdAt,
+        scheduledFor: order.scheduledFor,
         customerName: order.user?.name ?? order.guestName ?? 'Invitado',
         customerEmail: order.user?.email ?? order.guestEmail ?? '',
         branch: order.branch,
@@ -704,6 +825,18 @@ export class OrdersService {
         branch: { select: { id: true, name: true } },
         items: { select: { quantity: true } },
         statusHistory: deliveredEvent,
+        incident: {
+          select: {
+            status: true,
+            response: true,
+            couponCode: true,
+            couponAmount: true,
+            couponCreatedAt: true,
+            responseSeenAt: true,
+            redeemedOrder: { select: { id: true } },
+          },
+        },
+        couponIncident: couponIncidentSelect,
       },
     });
 
@@ -713,10 +846,13 @@ export class OrdersService {
       status: order.status,
       fulfillment: order.fulfillment,
       ...pricing(order),
+      ...orderSavings(order),
       createdAt: order.createdAt,
+      scheduledFor: order.scheduledFor,
       branch: order.branch,
       itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
       loyaltyStampGranted: order.loyaltyStampGranted,
+      ...incidentFlags(order.incident),
       ...deliveryTiming(order),
     }));
   }
@@ -853,16 +989,24 @@ export class OrdersService {
   }
 
   // Los importes que se guardan en el pedido. El nombre de la promo se copia. La promo descuenta solo
-  // los productos: el envío se suma después. Las promos virtuales de fidelidad/Top 3 no tienen fila en Promotion.
+  // los productos: el envío se suma después. Fidelidad, Top 3 y el cupón de un reclamo no tienen fila en Promotion.
   private priceData(price: Awaited<ReturnType<PromotionsService['apply']>>, deliveryFee: number) {
-    const isVirtualPromo = price.promotion?.id.startsWith('loyalty-') ?? false;
+    const promotionId = price.promotion?.id ?? null;
+    const virtualCouponId = incidentIdFromCouponPromotion(promotionId);
+    const couponIncidentId = price.stackedCoupon?.incidentId ?? virtualCouponId;
+    const storedPromotionId = virtualCouponId ? null : promotionId;
+    const isLoyalty = Boolean(storedPromotionId?.startsWith('loyalty-'));
+    const baseName = virtualCouponId ? null : (price.promotion?.name ?? null);
+    const couponName = price.stackedCoupon && !virtualCouponId ? `Cupón ${price.stackedCoupon.code}` : null;
+    const promotionName = [baseName, couponName].filter(Boolean).join(' + ') || price.promotion?.name || null;
     return {
       subtotal: price.subtotal,
       discountAmount: price.discountAmount,
       deliveryFee,
       totalAmount: Math.round((price.totalAmount + deliveryFee) * 100) / 100,
-      promotionId: isVirtualPromo ? null : (price.promotion?.id ?? null),
-      promotionName: price.promotion?.name ?? null,
+      promotionId: isLoyalty ? null : storedPromotionId,
+      promotionName,
+      couponIncidentId,
     };
   }
 
@@ -884,11 +1028,16 @@ export class OrdersService {
 
     const settlesStock =
       current.stockReserved && (status === OrderStatus.cancelled || status === OrderStatus.delivered);
+    const releasesCoupon = status === OrderStatus.cancelled && Boolean(current.couponIncidentId);
 
     await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.order.updateMany({
         where: { id, status: current.status, stockReserved: current.stockReserved },
-        data: { status, ...(settlesStock ? { stockReserved: false } : {}) },
+        data: {
+          status,
+          ...(settlesStock ? { stockReserved: false } : {}),
+          ...(releasesCoupon ? { couponIncidentId: null } : {}),
+        },
       });
       if (count === 0) {
         throw new ConflictException('El pedido cambió de estado; actualizá la página');
@@ -934,6 +1083,7 @@ export class OrdersService {
     const uniqueIds = [...new Set(items.map((item) => item.productId))];
     const products = await this.prisma.product.findMany({
       where: { id: { in: uniqueIds } },
+      include: { categories: { select: { slug: true } } },
     });
     const byId = new Map(products.map((product) => [product.id, product]));
 
@@ -965,19 +1115,35 @@ export class OrdersService {
         extras: { select: { extraId: true, name: true } },
       },
     });
+    const waived = new Set(
+      (
+        await tx.orderStockWaiver.findMany({
+          where: { orderId },
+          select: { productId: true },
+        })
+      ).map((row) => row.productId),
+    );
     return stockLines(
       items.map((item) => ({
         product: item.product,
         quantity: item.quantity,
         extras: item.extras.map((extra) => ({ id: extra.extraId, name: extra.name })),
       })),
-    );
+    ).filter((line) => !waived.has(line.productId));
   }
 
   private async loadCart(userId: string) {
     const cart = await this.prisma.cart.findUnique({
       where: { userId },
-      include: { items: { include: { product: true, extras: { include: { extra: true } } } } },
+      include: {
+        items: {
+          orderBy: { createdAt: 'asc' as const },
+          include: {
+            product: { include: { categories: { select: { slug: true } } } },
+            extras: { include: { extra: true } },
+          },
+        },
+      },
     });
 
     if (!cart || cart.items.length === 0) {

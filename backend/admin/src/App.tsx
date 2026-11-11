@@ -8,6 +8,8 @@ import { AdminCampaignsPage } from './pages/admin/AdminCampaignsPage';
 import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage';
 import { AdminCustomerFormPage, AdminCustomersPage } from './pages/admin/AdminCustomersPage';
 import { AdminHomePage } from './pages/admin/AdminHomePage';
+import { AdminIncidentCouponsPage } from './pages/admin/AdminIncidentCouponsPage';
+import { AdminIncidentDetailPage } from './pages/admin/AdminIncidentDetailPage';
 import { AdminIncidentsPage } from './pages/admin/AdminIncidentsPage';
 import { AdminLoginPage } from './pages/admin/AdminLoginPage';
 import { AdminOrderDetailPage } from './pages/admin/AdminOrderDetailPage';
@@ -42,6 +44,8 @@ export default function App() {
         <Route path="branches/:id" element={<AdminBranchFormPage />} />
         <Route path="reports" element={<AdminReportsPage />} />
         <Route path="incidents" element={<AdminIncidentsPage />} />
+        <Route path="incidents/:id" element={<AdminIncidentDetailPage />} />
+        <Route path="incident-coupons" element={<AdminIncidentCouponsPage />} />
         <Route path="promotions" element={<AdminPromotionsPage />} />
         <Route path="promotions/nueva" element={<AdminPromotionFormPage />} />
         <Route path="promotions/:id" element={<AdminPromotionFormPage />} />

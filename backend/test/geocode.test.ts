@@ -1,4 +1,5 @@
 import { matchProvince } from '../src/addresses/provinces';
+import { geocodeQuery } from '../src/branches/dto/geocode-address.dto';
 import {
   GeocodeNotFoundError,
   GeocodeUnavailableError,
@@ -320,5 +321,23 @@ describe('Geocodificación de direcciones (Nominatim)', () => {
     await expect(geocodeAddress('Av. Colón 100, Córdoba', fetchImpl)).rejects.toBeInstanceOf(
       GeocodeUnavailableError,
     );
+  });
+});
+
+describe('consulta de geocodificación', () => {
+  it('con calle arma la búsqueda por partes', () => {
+    expect(
+      geocodeQuery({ street: 'Av. Colón 100', city: 'Córdoba', province: 'Córdoba', postalCode: '5000' }),
+    ).toEqual({
+      street: 'Av. Colón 100',
+      city: 'Córdoba',
+      province: 'Córdoba',
+      postalCode: '5000',
+    });
+  });
+
+  it('sin calle usa el texto libre, o queda vacío si tampoco hay', () => {
+    expect(geocodeQuery({ address: 'Av. Colón 100, Córdoba' })).toBe('Av. Colón 100, Córdoba');
+    expect(geocodeQuery({})).toBe('');
   });
 });

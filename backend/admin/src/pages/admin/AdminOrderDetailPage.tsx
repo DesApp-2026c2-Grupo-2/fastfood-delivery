@@ -3,7 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import { useOrderStatusEvents } from '../../api/order-events';
 import { orderStatusLabel, type AdminOrderDetail, type OrderStatus } from '../../api/types';
-import { getToken } from '../../auth/session';
+import { getToken, isOrdersViewer } from '../../auth/session';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { OrderCode } from '../../components/OrderCode';
 import { formatAddress, formatBranchAddress } from '../../lib/address';
@@ -109,6 +109,7 @@ export function AdminOrderDetailPage() {
 
   const forward = nextForward(order.nextStatuses);
   const canCancel = order.nextStatuses.includes('cancelled');
+  const viewer = isOrdersViewer();
   const timing = orderTimingText(order);
   const promoCaption = discountCaption(order.promotionName, order.promotionType, order.promotionValue);
 
@@ -128,6 +129,7 @@ export function AdminOrderDetailPage() {
           {timing.delay ? <p className="badge badge-delay">{timing.delay}</p> : null}
         </div>
         <div className="order-status-marks">
+          {order.scheduledFor ? <span className="scheduled-badge">Programado</span> : null}
           {order.fulfillment === 'pickup' ? <span className="pickup-badge">Retiro</span> : null}
           <span className={`badge badge-status badge-status--${order.status}`}>
             {orderStatusLabel(order.status, order.fulfillment)}
@@ -141,6 +143,7 @@ export function AdminOrderDetailPage() {
         </p>
       ) : null}
 
+      {!viewer && (forward || canCancel) ? (
       <div className="row order-status-actions">
         {forward ? (
           <button
@@ -169,6 +172,7 @@ export function AdminOrderDetailPage() {
           </button>
         ) : null}
       </div>
+      ) : null}
 
       <article className="card order-detail-card">
         <h2>Cliente y entrega</h2>

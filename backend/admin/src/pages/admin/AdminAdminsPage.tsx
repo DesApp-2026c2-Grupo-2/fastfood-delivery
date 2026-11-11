@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
-import type { AdminAccount } from '../../api/types';
+import { adminRoleLabel, type AdminAccount } from '../../api/types';
 import { getToken, getUser } from '../../auth/session';
 import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
 
@@ -64,7 +64,10 @@ export function AdminAdminsPage() {
     const needle = query.trim().toLowerCase();
     if (!needle) return admins;
     return admins.filter(
-      (admin) => admin.name.toLowerCase().includes(needle) || admin.email.toLowerCase().includes(needle),
+      (admin) =>
+        admin.name.toLowerCase().includes(needle) ||
+        admin.email.toLowerCase().includes(needle) ||
+        adminRoleLabel(admin.adminRole).toLowerCase().includes(needle),
     );
   }, [admins, query]);
 
@@ -162,6 +165,7 @@ export function AdminAdminsPage() {
               <tr>
                 <th>Nombre</th>
                 <th>Email</th>
+                <th>Rol</th>
                 <th>Desde</th>
                 <th className="data-table-actions">Acciones</th>
               </tr>
@@ -184,6 +188,11 @@ export function AdminAdminsPage() {
                     </td>
                     <td className="table-email" title={admin.email}>
                       {admin.email}
+                    </td>
+                    <td>
+                      <span className={admin.adminRole === 'orders_viewer' ? 'badge badge--off' : 'badge'}>
+                        {adminRoleLabel(admin.adminRole)}
+                      </span>
                     </td>
                     <td className="muted">{formatWhen(admin.createdAt)}</td>
                     <td className="data-table-actions">
@@ -218,6 +227,9 @@ export function AdminAdminsPage() {
                 <div className="order-card-top">
                   <strong>{admin.name}</strong>
                   <span className="row">
+                    <span className={admin.adminRole === 'orders_viewer' ? 'badge badge--off' : 'badge'}>
+                      {adminRoleLabel(admin.adminRole)}
+                    </span>
                     {initial ? <span className="badge">Inicial</span> : null}
                     {self ? <span className="badge">Vos</span> : null}
                   </span>
