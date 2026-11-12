@@ -2,8 +2,8 @@
 
 **Proyecto:** Mordi, pedidos de una casa de comidas rápidas
 **Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
-**Versión:** 2.2
-**Actualizado:** 11/11/2026
+**Versión:** 2.4
+**Actualizado:** 12/11/2026
 **Fuente:** sección homónima de `Carpeta.md`
 
 La API está en `/api`. Estos ocho recursos son los que arman el pedido, el precio, el stock y la lectura del local, y más abajo traen un ejemplo concreto. El resto sigue el mismo criterio: JSON, error con mensaje legible, y el que no tiene permiso recibe 401 o 403.
@@ -14,8 +14,8 @@ La API está en `/api`. Estos ocho recursos son los que arman el pedido, el prec
 | Direcciones | `GET /api/addresses`, `POST /api/addresses`, `PATCH /api/addresses/:id`, `POST /api/geocode` |
 | Catálogo | `GET /api/categories`, `GET /api/products`, `GET /api/products/:id`, `GET /api/products/:id/extras`, `GET /api/promotions/active`, `GET /api/promotions/banner` |
 | Sucursales | `GET /api/branches`, `GET /api/branches/available` |
-| Pedido | `POST /api/orders/guest`, `GET /api/orders`, `POST /api/orders/:id/cancel`, `POST /api/orders/:id/incident` |
-| Administración | pedidos, stock y liberación de reservado, parámetros, productos y sus adicionales, sucursales, clientes, administradores, promociones, campañas, reclamos, `GET /api/admin/reports/products` |
+| Pedido | `POST /api/orders/guest`, `GET /api/orders`, `POST /api/orders/:id/cancel`, `POST /api/orders/:id/incident`, `POST /api/orders/:id/incident/seen` |
+| Administración | pedidos, stock y liberación de reservado, parámetros, productos y sus adicionales, sucursales, clientes, administradores, promociones, campañas, `GET /api/admin/incidents`, `GET /api/admin/incidents/coupons`, `PATCH /api/admin/incidents/:id`, `GET /api/admin/reports/products` |
 
 Precios del catálogo usados abajo: hamburguesa doble `prod-doble` a $20.000, gaseosa cola `prod-cola` a $2.000.
 
@@ -149,6 +149,8 @@ Salida:
 
 Ese pedido se confirmó a las 21:00, dentro del horario, así que `scheduledFor` va vacío. A las 23:30 la misma sucursal está cerrada. Confirmar sin aceptar responde 409, con el código `BRANCH_CLOSED` y la pregunta de programarlo. Si el cliente acepta, la entrada lleva `"scheduleWhenClosed": true` y la salida trae `"scheduledFor": "2026-11-12T10:00:00.000-03:00"`. La estimada se cuenta desde esa hora.
 
+Si el cliente con cuenta elige un cupón de reclamo, la entrada lleva `couponIncidentId` con el id de ese reclamo. Si no lo manda y tiene cupones vigentes, entra el que vence antes. El invitado no tiene cupón.
+
 Si `branchId` es Mordi Norte, la salida es un 409 y no hay fila nueva:
 
 ```json
@@ -198,7 +200,7 @@ Entrada, el paso en el que el stock se descuenta:
 
 Salida: el pedido con `status` «delivered». En la sucursal, esas unidades salen de `reserved` y no vuelven a `available`.
 
-Si el pedido estaba en Pendiente y el cuerpo es `{ "status": "cancelled" }`, la reserva vuelve a `available`. Si estaba en En preparación y se pide cancelar, responde 409 y el stock no se toca. Quien tiene el rol solo pedidos recibe 403 en este recurso. Sí puede hacer `GET /api/admin/orders` y consultar o resolver reclamos.
+Si el pedido estaba en Pendiente y el cuerpo es `{ "status": "cancelled" }`, la reserva vuelve a `available`. Si estaba en En preparación y se pide cancelar, responde 409 y el stock no se toca. Quien tiene el rol solo pedidos recibe 403 en este recurso. Sí puede hacer `GET /api/admin/orders`, listar reclamos y cupones, resolver, cargar el importe y reabrir si el cupón no se usó.
 
 ## 7.7 Reportes de pedidos
 
@@ -241,10 +243,40 @@ No lleva cuerpo. Con el carrito de HU-12 (una papa) y un pedido de una doble má
 
 Si la doble ya no se vende, `items` solo tiene las papas y `skipped` nombra la hamburguesa. No se crea un pedido nuevo en este paso.
 
+## 7.9 Reclamo y cupón
+
+`POST /api/orders/:id/incident` · el dueño, con sesión. Uno por pedido, y solo si está entregado o retirado. Si el motivo es `other`, el mensaje es obligatorio. El mensaje puede tener hasta 500 caracteres.
+
+```json
+{ "reason": "cold", "message": "Llegó fría" }
+```
+
+`POST /api/orders/:id/incident/seen` · el dueño. No lleva cuerpo. Marca que ya vio la respuesta. Hasta entonces el pedido figura con «Nueva respuesta». Si después cambian la respuesta o el monto, vuelve a figurar.
+
+`GET /api/admin/incidents` · super admin o solo pedidos. Los abiertos van primero. Con `?status=open` o `?status=resolved` queda solo ese estado. `GET /api/admin/incidents/coupons` lista los cupones. `GET /api/admin/incidents/:id` es el detalle, y desde ahí se puede copiar el total cobrado del pedido como importe del cupón.
+
+`PATCH /api/admin/incidents/:id` · los dos roles.
+
+```json
+{ "status": "resolved", "response": "Te dejamos un cupón.", "couponAmount": 5000 }
+```
+
+`response` es obligatoria al resolver y puede tener hasta 500 caracteres. `couponAmount` es opcional: un monto de $1 a $500.000 crea o actualiza el cupón, y `null` lo quita si todavía no se usó. El código sale `REC-` y seis caracteres. El cupón vence a los 3 meses. Si se cambia la respuesta o el monto, la respuesta vuelve a quedar no vista.
+
+Reabrir, si el cupón no se usó:
+
+```json
+{ "status": "open" }
+```
+
+Mientras el reclamo está abierto, el cupón no se descuenta. Vuelve a aplicar al resolverlo de nuevo. Si el cliente ya usó el cupón, el mismo PATCH responde 409 y la solución queda como estaba.
+
 ## Historial
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.4 | 12/11/2026 | El reclamo documenta el tope de 500 caracteres, el filtro por estado, el código `REC-` y el cupón pausado al reabrir |
+| 2.3 | 12/11/2026 | Alta de reclamo, respuesta vista, listado y resolución. El rol solo pedidos también resuelve y carga el cupón |
 | 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11 |
 | 1.2 | 01/11/2026 | Ciudad, provincia y CP en direcciones y sucursales. Geocode estructurado e inverso (HU-34) |
 | 1.1 | 15/10/2026 | Alta de GET /api/branches: todas las sucursales activas |

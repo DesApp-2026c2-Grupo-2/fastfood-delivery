@@ -2,8 +2,8 @@
 
 **Proyecto:** Mordi, pedidos de una casa de comidas rápidas
 **Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
-**Versión:** 2.2
-**Actualizado:** 11/11/2026
+**Versión:** 2.5
+**Actualizado:** 12/11/2026
 **Fuente:** sección homónima de `Carpeta.md`
 
 Mordi es la plataforma con la que una casa de comidas rápidas toma un pedido, lo cobra con promoción y envío, y lo sigue hasta que se entrega o se retira. Este documento dice qué hace el producto que se entrega. Se puede leer solo. Los precios de los ejemplos de la carpeta son los del catálogo de demostración: hamburguesa doble $20.000, gaseosa cola $2.000, papas fritas $3.000, cheddar $2.000.
@@ -15,7 +15,7 @@ Hay dos aplicaciones y una base PostgreSQL. La API es la misma para las dos.
 | Cliente | Cualquier persona, con cuenta o como invitado | `frontend` |
 | Administración | Super admin, o un administrador que solo ve pedidos | `backend/admin`, se abre en `/admin` |
 
-La administrativa no es una pantalla del servidor. Es otra aplicación React, separada de la API. No hay una tercera aplicación para repartidores.
+La administrativa no es una pantalla del servidor. Es otra aplicación React, separada de la API.
 
 ## Qué hace el cliente
 
@@ -25,13 +25,13 @@ Con cuenta se puede registrar, iniciar sesión, recuperar la contraseña, editar
 
 Al pasar a confirmar, si hay hamburguesas o guarniciones y todavía no hay aderezos, se pregunta si se suman. El valor inicial es la mitad del máximo.
 
-El pedido se retira en el local o se envía a domicilio. La persona elige la sucursal. Después ve el código (tres letras de la sucursal y seis dígitos, por ejemplo `MOR482913`), el estado, la hora estimada y el historial. Con cuenta puede repetir un pedido anterior y, si ya se entregó o se retiró, reportar un problema.
+El pedido se retira en el local o se envía a domicilio. La persona elige la sucursal. Después ve el código (tres letras de la sucursal y seis dígitos, por ejemplo `MOR482913`), el estado, la hora estimada y el historial. Con cuenta puede repetir un pedido anterior y, si ya se entregó o se retiró, reportar un problema. Es uno por pedido y solo del dueño. Si el motivo es otro, tiene que contar qué pasó. La respuesta del local se lee en ese pedido. Hasta abrirla, figura «Nueva respuesta».
 
 En el checkout se elige un medio de pago simulado: efectivo, tarjeta o transferencia. La transferencia muestra datos de demostración. No se cobra y el medio no se guarda en el pedido.
 
 ## Qué hace el administrador
 
-Hay dos roles. **Super admin** opera todo el local. **Solo pedidos** ve el inicio (pedidos de hoy, facturación de hoy, estados y ventas de la semana), el listado de pedidos, los reclamos y los cupones de reclamo. Puede resolver un reclamo. No cambia el estado de un pedido ni lo cancela, y no entra a la carta, el stock, los parámetros, los clientes, los administradores ni los reportes de productos.
+Hay dos roles. **Super admin** opera todo el local. **Solo pedidos** ve el inicio (pedidos de hoy, facturación de hoy, estados y ventas de la semana), el listado de pedidos, los reclamos y los cupones de reclamo. Resuelve un reclamo igual que el super admin: escribe la respuesta y puede cargar el cupón. Si el cupón no se usó, puede reabrir el reclamo. No cambia el estado de un pedido ni lo cancela, y no entra a la carta, el stock, los parámetros, los clientes, los administradores ni los reportes de productos.
 
 El inicio del super admin muestra el día: cuántos pedidos entraron, cuánto se facturó, los pedidos por estado y las ventas de los últimos siete días.
 
@@ -59,7 +59,7 @@ Las promociones de la carta son de dos tipos: un porcentaje sobre el pedido (con
 
 La fidelización suma un sello por pedido que llega a un mínimo, al crearlo. Si se cancela, se revierte. Al llegar a 10 sellos, ese pedido lleva un descuento sorpresa: el cliente ve el premio y el importe, no el porcentaje. El top de clientes premia a los tres que más gastaron desde que se inició la campaña, con un descuento de un solo uso. El porcentaje de los dos premios lo edita el administrador y no se publica. La carta y las dos campañas compiten. Gana un solo descuento.
 
-Al resolver un reclamo, el administrador puede cargar un importe. El cliente recibe un cupón de un solo uso, válido 3 meses. En el próximo pedido se suma al descuento que ya ganó, sin dejar el total de productos en negativo.
+Al resolver un reclamo, el super admin o el rol solo pedidos escribe una respuesta y puede cargar un importe. El código del cupón es `REC-` y seis caracteres. El monto va de $1 a $500.000, y en el detalle se puede copiar el total cobrado del pedido. El cliente recibe un cupón de un solo uso, válido 3 meses. En el próximo pedido se suma al descuento que ya ganó, sin dejar el total de productos en negativo. Si el cupón todavía no se usó, la solución se puede cambiar y el cliente vuelve a ver «Nueva respuesta». Si se reabre el reclamo, el cupón deja de descontarse hasta que se resuelve de nuevo. Si ya se usó, queda fija.
 
 ## Estados
 
@@ -81,8 +81,8 @@ Cada cambio queda en un historial con fecha y quién lo hizo. El cliente y el ad
 | `/branches` | Sucursales activas y el mapa con un marcador por local |
 | `/account` | Nombre, contraseña y baja de la cuenta |
 | `/account/addresses` | Direcciones con calle, ciudad, provincia, código postal, alias y pin |
-| `/orders`, `/orders/:id` | Historial, repetir, seguimiento y cancelar |
-| `/claims` | Reclamos de pedidos ya entregados o retirados |
+| `/orders`, `/orders/:id` | Historial, repetir, seguimiento, cancelar y la respuesta del reclamo |
+| `/claims` | Reclamos del cliente. Abierto: todavía no hay cupón, o el cupón no se usó. Cerrado: el cupón ya se usó |
 
 ## Pantallas de administración
 
@@ -100,8 +100,8 @@ Cada cambio queda en un historial con fecha y quién lo hizo. El cliente y el ad
 | `/admin/promotions` | Porcentaje y 2x1 |
 | `/admin/campaigns` | Fidelización y top de clientes |
 | `/admin/reports` | Filtro, gráficos y CSV |
-| `/admin/incidents` | Reclamos. Al resolver se puede cargar el cupón |
-| `/admin/incident-coupons` | Cupones de reclamo |
+| `/admin/incidents` | Reclamos. Super admin y solo pedidos escriben la respuesta, cargan el cupón o copian el total cobrado. El listado se filtra por estado |
+| `/admin/incident-coupons` | Cupones de reclamo. Los ven los dos roles |
 
 ## Qué no entra
 
@@ -120,6 +120,9 @@ Cada cambio queda en un historial con fecha y quién lo hizo. El cliente y el ad
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.5 | 12/11/2026 | El cupón es `REC-` y seis caracteres, de $1 a $500.000. Cambiar la solución avisa de nuevo. Reabierto, el cupón no se descuenta |
+| 2.4 | 12/11/2026 | El reclamo pide respuesta, avisa «Nueva respuesta» y se puede reabrir si el cupón no se usó. El rol solo pedidos también resuelve y carga el importe |
+| 2.3 | 12/11/2026 | Se quita la frase de que no hay una tercera aplicación para repartidores |
 | 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11 |
 | 1.4 | 12/10/2026 | Feedback del profesor: el cliente elige sucursal, mapa de pin, mail opcional. La promo con condición queda en el Sprint 5 |
 | 1.3 | 07/10/2026 | Política de promociones del Sprint 4 (una por pedido, aplicada al confirmar) |

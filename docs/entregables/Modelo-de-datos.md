@@ -2,8 +2,8 @@
 
 **Proyecto:** Mordi, pedidos de una casa de comidas rápidas
 **Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
-**Versión:** 2.2
-**Actualizado:** 11/11/2026
+**Versión:** 2.4
+**Actualizado:** 12/11/2026
 **Fuente:** sección homónima de `Carpeta.md`
 
 Una base PostgreSQL. Las cantidades de dinero son decimales de dos posiciones. Las claves son identificadores opacos; el código del pedido es otro dato, único, para decirlo en el local.
@@ -90,7 +90,14 @@ HistorialEstado {
 }
 Reclamo {
   string reason
+  string message
   string status
+  string response
+  string couponCode
+  decimal couponAmount
+  datetime couponCreatedAt
+  datetime resolvedAt
+  datetime responseSeenAt
 }
 Parametro {
   string key
@@ -116,7 +123,7 @@ Parametro {
 | Pedido | Línea, Historial, Promoción, Reclamo | La línea congela precio y nombre del adicional. La promoción guarda el nombre, para que editarla después no cambie el pedido. Un reclamo como máximo. |
 | Promoción | Producto | Solo en el 2x1: el producto que sale gratis. |
 
-El cupón de reclamo no es una promoción de la carta: vive en el reclamo, con código, importe y vencimiento a los 3 meses. Los reportes no se guardan: se calculan sobre pedidos y stock. El premio de fidelización y el del top de clientes no son una fila de Promoción: el pedido guarda el nombre («Premio Fidelidad», «Premio Top 3») y el descuento.
+El cupón de reclamo no es una promoción de la carta: vive en el reclamo, con código, importe y fecha de alta. El código es `REC-` y seis caracteres. El importe va de $1 a $500.000. Vence a los 3 meses de esa fecha. `response` es el texto que lee el cliente, de hasta 500 caracteres. `responseSeenAt` queda vacío hasta que abre el pedido, y vuelve a vacío si cambian la respuesta o el monto. Con el reclamo abierto el cupón no se descuenta. El pedido que usa el cupón apunta a ese reclamo. Si ese pedido se cancela, el cupón vuelve a quedar libre. Los reportes no se guardan: se calculan sobre pedidos y stock. El premio de fidelización y el del top de clientes no son una fila de Promoción: el pedido guarda el nombre («Premio Fidelidad», «Premio Top 3») y el descuento.
 
 ---
 
@@ -129,13 +136,17 @@ El cupón de reclamo no es una promoción de la carta: vive en el reclamo, con c
 | Pedido, estado | `pending`, `confirmed`, `preparing`, `ready`, `on_the_way`, `delivered`, `cancelled` |
 | Promoción | `percent` o `two_for_one` |
 | Administrador | `super_admin` o `orders_viewer` |
-| Reclamo | abierto o resuelto |
+| Reclamo, motivo | `missing_item`, `wrong_order`, `late`, `cold`, `other` |
+| Reclamo, estado | `open` o `resolved` |
+| Cupón de reclamo | `available`, `used` o `expired`. Si ya se usó, sigue usado aunque venza |
 | Franja | día 0 = lunes … 6 = domingo; `slot` 0 o 1 |
 
 ## Historial
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.4 | 12/11/2026 | El cupón documenta el código `REC-`, el tope del importe y que `responseSeenAt` se vacía al editar la solución |
+| 2.3 | 12/11/2026 | El reclamo guarda mensaje, respuesta, cupón, visto por el cliente y el pedido que canjeó el cupón |
 | 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11 |
 | 1.1 | 01/11/2026 | Ciudad, provincia y CP en Address y en Branch (HU-34) |
 | 1.0 | 07/10/2026 | Modelo de carpeta al cierre del Sprint 3 |

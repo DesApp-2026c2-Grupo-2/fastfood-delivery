@@ -2,8 +2,8 @@
 
 **Proyecto:** Mordi, pedidos de una casa de comidas rápidas
 **Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
-**Versión:** 2.2
-**Actualizado:** 11/11/2026
+**Versión:** 2.4
+**Actualizado:** 12/11/2026
 **Fuente:** sección homónima de `Carpeta.md`
 
 Cada decisión es la regla que usa el sistema hoy.
@@ -33,11 +33,11 @@ Cada decisión es la regla que usa el sistema hoy.
 | D19 | Clientes en el admin | Alta, edición y baja lógica. Deshabilitado no inicia sesión. Sus pedidos quedan. |
 | D20 | Administradores | Un solo alta: listar, crear, editar y borrar. El administrador inicial no se borra. El rol es super admin o solo pedidos. |
 | D21 | Reportes | Filtro por fecha y sucursal. Un cancelado no suma en las ventas. Un pendiente sí. «Sin stock» respeta la sucursal y no las fechas. |
-| D22 | Reclamo | Uno por pedido, solo si está entregado o retirado, y solo el dueño. Motivos: faltó algo, pedido equivocado, llegó tarde, llegó frío, otro. |
+| D22 | Reclamo | Uno por pedido, solo si está entregado o retirado, y solo el dueño. Motivos: faltó algo, pedido equivocado, llegó tarde, llegó frío, otro. Si el motivo es otro, el mensaje es obligatorio. El mensaje y la respuesta pueden tener hasta 500 caracteres. El super admin o el rol solo pedidos escribe la respuesta al resolver. El cliente la lee en el pedido. Hasta que lo abre, ve «Nueva respuesta». Si se cambia la respuesta o el monto, vuelve a verla. En sus reclamos, abierto es el que no tiene cupón o cuyo cupón no se usó; cerrado es el que ya se usó. Si el cupón no se usó, se puede reabrir y cambiar la solución. Al reabrir, el cupón deja de descontarse hasta que se resuelve de nuevo. Si ya se usó, queda fija. |
 | D23 | Contraseña | Token de 30 minutos, un solo uso. Sin correo configurado, la pantalla muestra el token. Un email inexistente recibe la misma respuesta genérica. |
 | D24 | Sin stock | En la pantalla de Stock, el producto con disponible 0 sube al tope de la lista y se muestra en rojo, con el borde marcado. El reporte de productos sin stock los lista aparte. No hay un mail ni un número de «stock mínimo» distinto de cero. |
 | D25 | Aderezos | Al confirmar, si el carrito tiene hamburguesas o guarniciones y ningún aderezo, se pregunta «¿Sumamos aderezos?». El tope de cada uno es 2 por hamburguesa y 2 por guarnición. El valor que aparece es la mitad de ese tope, redondeada para abajo, para economizar condimentos. Llegar al máximo exige que el cliente pulse «más», a conciencia. Puede seguir sin aderezos. Mayonesa, mostaza y ketchup salen $0. No se venden sueltos: van con la comida. |
-| D26 | Cupón de reclamo | Al resolver un reclamo, el administrador puede cargar un importe. El cliente recibe un cupón, válido 3 meses, de un solo uso. En el próximo pedido se suma al descuento que ya ganó la promo o la campaña, sin dejar el total de productos en negativo. Si tiene varios, se usa el que vence antes, salvo que elija otro. Un cupón por pedido. |
+| D26 | Cupón de reclamo | Al resolver un reclamo, el super admin o el rol solo pedidos puede cargar un importe de $1 a $500.000. El código es `REC-` y seis caracteres. En el detalle se puede copiar el total cobrado del pedido. El cliente recibe un cupón, válido 3 meses, de un solo uso. En el próximo pedido se suma al descuento que ya ganó la promo o la campaña, sin dejar el total de productos en negativo. Si tiene varios, se usa el que vence antes, salvo que elija otro. Un cupón por pedido. Mientras el reclamo está abierto, ese cupón no se descuenta. |
 
 ## 2.1 Cómo se elige la promoción
 
@@ -144,6 +144,8 @@ Si el carrito ya tenía aderezos, la pregunta no vuelve a aparecer. «Continuar 
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.4 | 12/11/2026 | D22 y D26: código `REC-`, tope del importe, aviso al cambiar la solución y cupón pausado si el reclamo se reabre |
+| 2.3 | 12/11/2026 | D22 y D26: respuesta al cliente, reabrir si el cupón no se usó, y el rol solo pedidos también carga el importe |
 | 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11 |
 | 1.4 | 11/11/2026 | D59: el rol solo pedidos también resuelve reclamos y carga el cupón |
 | 1.3 | 11/11/2026 | D59: el rol solo pedidos también consulta reclamos y sus cupones |

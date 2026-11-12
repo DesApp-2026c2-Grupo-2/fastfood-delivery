@@ -1,7 +1,7 @@
 # Documentación
 
-**Versión:** 1.11  
-**Actualizado:** 11/11/2026
+**Versión:** 1.12  
+**Actualizado:** 12/11/2026
 
 La carpeta está partida para no mezclar material de trabajo, sprints, carpeta de la materia y docs técnicos.
 
@@ -36,7 +36,7 @@ Un archivo por sprint. El resumen de incrementos para la carpeta está en `entre
 
 ## entregables/
 
-**Lo que se entrega el 12/11 es un solo PDF:** `Mordi-Carpeta-Grupo2.pdf`. Tiene portada con los cinco integrantes e índice, y adentro los ocho documentos de la materia, cada uno desde una hoja nueva. Sale de `Carpeta.md`. Los ocho Markdown sueltos (`Alcance-funcional.md`, `Supuestos-y-decisiones.md`, `Requerimientos-funcionales.md`, `Historias-de-usuario.md`, `Incrementos-de-los-sprints.md`, `Modelo-de-datos.md`, `Diseno-de-APIs.md`, `Testing-y-automatizacion.md`) dicen lo mismo que esa carpeta, versión 2.2.
+**Lo que se entrega el 12/11 es un solo PDF:** `Mordi-Carpeta-Grupo2.pdf`. Tiene portada con los cinco integrantes e índice, y adentro los ocho documentos de la materia, cada uno desde una hoja nueva. Sale de `Carpeta.md`. Los ocho Markdown sueltos (`Alcance-funcional.md`, `Supuestos-y-decisiones.md`, `Requerimientos-funcionales.md`, `Historias-de-usuario.md`, `Incrementos-de-los-sprints.md`, `Modelo-de-datos.md`, `Diseno-de-APIs.md`, `Testing-y-automatizacion.md`) dicen lo mismo que esa carpeta, versión 2.5.
 
 El Markdown es la fuente. La carpeta que se sube se genera así (hace falta Word para el PDF):
 
@@ -74,6 +74,7 @@ Al editar un doc: subir la versión, poner la fecha de hoy y agregar una fila al
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.12 | 12/11/2026 | La carpeta que se entrega es la 2.5 |
 | 1.11 | 11/11/2026 | El PDF de la entrega se llama `Mordi-Carpeta-Grupo2.pdf` |
 | 1.10 | 11/11/2026 | Los ocho Markdown de `entregables/` quedan alineados con `Carpeta.md` 2.2 |
 | 1.9 | 11/11/2026 | Los ocho Word de la entrega 12/11 quedan en `entregables/entrega-12-11/`, aparte de `Carpeta.pdf` |

@@ -2,8 +2,8 @@
 
 **Proyecto:** Mordi, pedidos de una casa de comidas rápidas
 **Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
-**Versión:** 2.2
-**Actualizado:** 11/11/2026
+**Versión:** 2.5
+**Actualizado:** 12/11/2026
 **Entrega de esta carpeta:** 12/11/2026
 **Review:** 19/11/2026 · **Presentación final:** 27/11/2026
 
@@ -18,7 +18,7 @@ Hay dos aplicaciones y una base PostgreSQL. La API es la misma para las dos.
 | Cliente | Cualquier persona, con cuenta o como invitado | `frontend` |
 | Administración | Super admin, o un administrador que solo ve pedidos | `backend/admin`, se abre en `/admin` |
 
-La administrativa no es una pantalla del servidor. Es otra aplicación React, separada de la API. No hay una tercera aplicación para repartidores.
+La administrativa no es una pantalla del servidor. Es otra aplicación React, separada de la API.
 
 ## Qué hace el cliente
 
@@ -28,13 +28,13 @@ Con cuenta se puede registrar, iniciar sesión, recuperar la contraseña, editar
 
 Al pasar a confirmar, si hay hamburguesas o guarniciones y todavía no hay aderezos, se pregunta si se suman. El valor inicial es la mitad del máximo.
 
-El pedido se retira en el local o se envía a domicilio. La persona elige la sucursal. Después ve el código (tres letras de la sucursal y seis dígitos, por ejemplo `MOR482913`), el estado, la hora estimada y el historial. Con cuenta puede repetir un pedido anterior y, si ya se entregó o se retiró, reportar un problema.
+El pedido se retira en el local o se envía a domicilio. La persona elige la sucursal. Después ve el código (tres letras de la sucursal y seis dígitos, por ejemplo `MOR482913`), el estado, la hora estimada y el historial. Con cuenta puede repetir un pedido anterior y, si ya se entregó o se retiró, reportar un problema. Es uno por pedido y solo del dueño. Si el motivo es otro, tiene que contar qué pasó. La respuesta del local se lee en ese pedido. Hasta abrirla, figura «Nueva respuesta».
 
 En el checkout se elige un medio de pago simulado: efectivo, tarjeta o transferencia. La transferencia muestra datos de demostración. No se cobra y el medio no se guarda en el pedido.
 
 ## Qué hace el administrador
 
-Hay dos roles. **Super admin** opera todo el local. **Solo pedidos** ve el inicio (pedidos de hoy, facturación de hoy, estados y ventas de la semana), el listado de pedidos, los reclamos y los cupones de reclamo. Puede resolver un reclamo. No cambia el estado de un pedido ni lo cancela, y no entra a la carta, el stock, los parámetros, los clientes, los administradores ni los reportes de productos.
+Hay dos roles. **Super admin** opera todo el local. **Solo pedidos** ve el inicio (pedidos de hoy, facturación de hoy, estados y ventas de la semana), el listado de pedidos, los reclamos y los cupones de reclamo. Resuelve un reclamo igual que el super admin: escribe la respuesta y puede cargar el cupón. Si el cupón no se usó, puede reabrir el reclamo. No cambia el estado de un pedido ni lo cancela, y no entra a la carta, el stock, los parámetros, los clientes, los administradores ni los reportes de productos.
 
 El inicio del super admin muestra el día: cuántos pedidos entraron, cuánto se facturó, los pedidos por estado y las ventas de los últimos siete días.
 
@@ -62,7 +62,7 @@ Las promociones de la carta son de dos tipos: un porcentaje sobre el pedido (con
 
 La fidelización suma un sello por pedido que llega a un mínimo, al crearlo. Si se cancela, se revierte. Al llegar a 10 sellos, ese pedido lleva un descuento sorpresa: el cliente ve el premio y el importe, no el porcentaje. El top de clientes premia a los tres que más gastaron desde que se inició la campaña, con un descuento de un solo uso. El porcentaje de los dos premios lo edita el administrador y no se publica. La carta y las dos campañas compiten. Gana un solo descuento.
 
-Al resolver un reclamo, el administrador puede cargar un importe. El cliente recibe un cupón de un solo uso, válido 3 meses. En el próximo pedido se suma al descuento que ya ganó, sin dejar el total de productos en negativo.
+Al resolver un reclamo, el super admin o el rol solo pedidos escribe una respuesta y puede cargar un importe. El código del cupón es `REC-` y seis caracteres. El monto va de $1 a $500.000, y en el detalle se puede copiar el total cobrado del pedido. El cliente recibe un cupón de un solo uso, válido 3 meses. En el próximo pedido se suma al descuento que ya ganó, sin dejar el total de productos en negativo. Si el cupón todavía no se usó, la solución se puede cambiar y el cliente vuelve a ver «Nueva respuesta». Si se reabre el reclamo, el cupón deja de descontarse hasta que se resuelve de nuevo. Si ya se usó, queda fija.
 
 ## Estados
 
@@ -84,8 +84,8 @@ Cada cambio queda en un historial con fecha y quién lo hizo. El cliente y el ad
 | `/branches` | Sucursales activas y el mapa con un marcador por local |
 | `/account` | Nombre, contraseña y baja de la cuenta |
 | `/account/addresses` | Direcciones con calle, ciudad, provincia, código postal, alias y pin |
-| `/orders`, `/orders/:id` | Historial, repetir, seguimiento y cancelar |
-| `/claims` | Reclamos de pedidos ya entregados o retirados |
+| `/orders`, `/orders/:id` | Historial, repetir, seguimiento, cancelar y la respuesta del reclamo |
+| `/claims` | Reclamos del cliente. Abierto: todavía no hay cupón, o el cupón no se usó. Cerrado: el cupón ya se usó |
 
 ## Pantallas de administración
 
@@ -103,8 +103,8 @@ Cada cambio queda en un historial con fecha y quién lo hizo. El cliente y el ad
 | `/admin/promotions` | Porcentaje y 2x1 |
 | `/admin/campaigns` | Fidelización y top de clientes |
 | `/admin/reports` | Filtro, gráficos y CSV |
-| `/admin/incidents` | Reclamos. Al resolver se puede cargar el cupón |
-| `/admin/incident-coupons` | Cupones de reclamo |
+| `/admin/incidents` | Reclamos. Super admin y solo pedidos escriben la respuesta, cargan el cupón o copian el total cobrado. El listado se filtra por estado |
+| `/admin/incident-coupons` | Cupones de reclamo. Los ven los dos roles |
 
 ## Qué no entra
 
@@ -149,11 +149,11 @@ Cada decisión es la regla que usa el sistema hoy.
 | D19 | Clientes en el admin | Alta, edición y baja lógica. Deshabilitado no inicia sesión. Sus pedidos quedan. |
 | D20 | Administradores | Un solo alta: listar, crear, editar y borrar. El administrador inicial no se borra. El rol es super admin o solo pedidos. |
 | D21 | Reportes | Filtro por fecha y sucursal. Un cancelado no suma en las ventas. Un pendiente sí. «Sin stock» respeta la sucursal y no las fechas. |
-| D22 | Reclamo | Uno por pedido, solo si está entregado o retirado, y solo el dueño. Motivos: faltó algo, pedido equivocado, llegó tarde, llegó frío, otro. |
+| D22 | Reclamo | Uno por pedido, solo si está entregado o retirado, y solo el dueño. Motivos: faltó algo, pedido equivocado, llegó tarde, llegó frío, otro. Si el motivo es otro, el mensaje es obligatorio. El mensaje y la respuesta pueden tener hasta 500 caracteres. El super admin o el rol solo pedidos escribe la respuesta al resolver. El cliente la lee en el pedido. Hasta que lo abre, ve «Nueva respuesta». Si se cambia la respuesta o el monto, vuelve a verla. En sus reclamos, abierto es el que no tiene cupón o cuyo cupón no se usó; cerrado es el que ya se usó. Si el cupón no se usó, se puede reabrir y cambiar la solución. Al reabrir, el cupón deja de descontarse hasta que se resuelve de nuevo. Si ya se usó, queda fija. |
 | D23 | Contraseña | Token de 30 minutos, un solo uso. Sin correo configurado, la pantalla muestra el token. Un email inexistente recibe la misma respuesta genérica. |
 | D24 | Sin stock | En la pantalla de Stock, el producto con disponible 0 sube al tope de la lista y se muestra en rojo, con el borde marcado. El reporte de productos sin stock los lista aparte. No hay un mail ni un número de «stock mínimo» distinto de cero. |
 | D25 | Aderezos | Al confirmar, si el carrito tiene hamburguesas o guarniciones y ningún aderezo, se pregunta «¿Sumamos aderezos?». El tope de cada uno es 2 por hamburguesa y 2 por guarnición. El valor que aparece es la mitad de ese tope, redondeada para abajo, para economizar condimentos. Llegar al máximo exige que el cliente pulse «más», a conciencia. Puede seguir sin aderezos. Mayonesa, mostaza y ketchup salen $0. No se venden sueltos: van con la comida. |
-| D26 | Cupón de reclamo | Al resolver un reclamo, el administrador puede cargar un importe. El cliente recibe un cupón, válido 3 meses, de un solo uso. En el próximo pedido se suma al descuento que ya ganó la promo o la campaña, sin dejar el total de productos en negativo. Si tiene varios, se usa el que vence antes, salvo que elija otro. Un cupón por pedido. |
+| D26 | Cupón de reclamo | Al resolver un reclamo, el super admin o el rol solo pedidos puede cargar un importe de $1 a $500.000. El código es `REC-` y seis caracteres. En el detalle se puede copiar el total cobrado del pedido. El cliente recibe un cupón, válido 3 meses, de un solo uso. En el próximo pedido se suma al descuento que ya ganó la promo o la campaña, sin dejar el total de productos en negativo. Si tiene varios, se usa el que vence antes, salvo que elija otro. Un cupón por pedido. Mientras el reclamo está abierto, ese cupón no se descuenta. |
 
 ## 2.1 Cómo se elige la promoción
 
@@ -282,6 +282,7 @@ Si el carrito ya tenía aderezos, la pregunta no vuelve a aparecer. «Continuar 
 | RF-CLI-06 | Consultar los pedidos anteriores, con detalle, importe, fecha y estado. | Cliente |
 | RF-CLI-07 | Confirmar un pedido nuevo, con cuenta o como invitado. El invitado deja nombre, correo y, si es envío, una dirección. | Cliente o visitante |
 | RF-CLI-08 | Dar de baja la cuenta con la contraseña, anonimizar los datos personales y conservar los pedidos. Rechazar la baja si hay un pedido en curso. | Cliente |
+| RF-CLI-09 | Reportar un problema de un pedido entregado o retirado, uno por pedido y solo el dueño. Si el motivo es otro, el mensaje es obligatorio. El mensaje puede tener hasta 500 caracteres. Leer la respuesta en el pedido. Hasta abrirla, figura «Nueva respuesta». Si cambian la solución, vuelve a figurar. En reclamos, abierto es sin cupón o con cupón sin usar; cerrado es el cupón ya usado. | Cliente |
 
 ## Administradores
 
@@ -290,7 +291,7 @@ Hay un solo alta de administradores. Listar, crear, editar y borrar son la misma
 | ID | El sistema deberá | Actor |
 |---|---|---|
 | RF-ADM-01 | Nacer con un administrador precargado, capaz de entrar a la aplicación administrativa. Ese usuario no se borra. | Sistema |
-| RF-ADM-02 | Autenticar administradores y separar super admin de solo pedidos. Quien solo ve pedidos consulta pedidos, reclamos y cupones, y puede resolver un reclamo. No cambia el estado ni cancela. | Administrador |
+| RF-ADM-02 | Autenticar administradores y separar super admin de solo pedidos. Quien solo ve pedidos consulta pedidos, reclamos y cupones, escribe la respuesta, resuelve el reclamo y puede cargar el cupón. No cambia el estado ni cancela. | Administrador |
 | RF-ADM-03 | Listar, crear, editar y borrar administradores, y asignarles el rol. | Super admin |
 | RF-ADM-04 | Ofrecer la administración como otra aplicación (`backend/admin`), con la misma base que la del cliente. | Administrador |
 | RF-ADM-05 | Dar de alta, editar y desactivar promociones de la carta: porcentaje, con mínimo opcional, o 2x1 de un producto. | Super admin |
@@ -300,7 +301,7 @@ Hay un solo alta de administradores. Listar, crear, editar y borrar son la misma
 | RF-ADM-09 | Editar radio, tiempos de la hora estimada, precio por kilómetro, mínimo de envío gratis, meta y premio de sellos, y premio del Top 3. Un pedido ya confirmado no se recalcula. | Super admin |
 | RF-ADM-10 | Listar pedidos, buscar por código o cliente, y avanzar el estado según la máquina. Solo el super admin cambia el estado o cancela. | Administrador |
 | RF-ADM-11 | Listar clientes, buscarlos, ver el detalle y darlos de alta, de baja lógica o editarlos. Un cliente deshabilitado no inicia sesión. Sus pedidos quedan. | Super admin |
-| RF-ADM-12 | Ver reclamos abiertos primero, marcarlos resueltos y, si corresponde, cargar el importe del cupón. | Super admin |
+| RF-ADM-12 | Ver reclamos abiertos primero, con filtro por estado. Al resolver, escribir la respuesta (hasta 500 caracteres) y, si corresponde, cargar el importe del cupón o copiar el total cobrado. Si se cambia la respuesta o el monto, el cliente vuelve a ver «Nueva respuesta». Si el cupón no se usó, reabrir y cambiar la solución: mientras está abierto, el cupón no se descuenta. Si ya se usó, dejarla fija. | Super admin o solo pedidos |
 
 ## Sucursales
 
@@ -367,7 +368,7 @@ Hay un solo alta de administradores. Listar, crear, editar y borrar son la misma
 | RF-PRM-02 | Aplicar al pedido la promoción o el premio de campaña que más descuenta, y mostrar cuáles otras habrían aplicado. El descuento no supera el subtotal y queda congelado. El cupón de reclamo se suma a ese descuento. | Sistema |
 | RF-CAM-01 | Sumar un sello por pedido que llega al mínimo, al crearlo. Al llegar a 10, aplicar el descuento sorpresa en ese pedido y revertir el sello si se cancela. El porcentaje no se publica. | Sistema |
 | RF-CAM-02 | Al cerrar el Top 3, otorgar un descuento de un solo uso a los tres que más gastaron. Compite igual que los sellos. | Super admin |
-| RF-CUP-01 | Al resolver un reclamo, poder cargar un importe. El cupón vale 3 meses, es de un solo uso y se suma al descuento ya ganado, sin dejar el total de productos en negativo. | Super admin |
+| RF-CUP-01 | Al resolver un reclamo, poder cargar un importe de $1 a $500.000. Lo hacen el super admin y el rol solo pedidos. El código es `REC-` y seis caracteres. El cupón vale 3 meses, es de un solo uso y se suma al descuento ya ganado, sin dejar el total de productos en negativo. Con el reclamo abierto, no se descuenta. | Super admin o solo pedidos |
 | RF-ENV-01 | Cobrar el envío con el precio por kilómetro y el mínimo de envío gratis. En retiro el envío es 0. El importe queda congelado. | Sistema |
 
 ## Reportes
@@ -418,7 +419,7 @@ Definición de terminada: funciona en la aplicación del cliente o en la adminis
 | Visitante | Persona sin cuenta. Ve el catálogo, arma un carrito en el navegador y puede confirmar como invitado. |
 | Cliente | Usuario con cuenta. |
 | Super admin | Opera todo el local. |
-| Solo pedidos | Ve pedidos, reclamos y cupones. Puede resolver un reclamo. No cambia el estado ni cancela. |
+| Solo pedidos | Ve pedidos, reclamos y cupones. Escribe la respuesta, resuelve el reclamo y puede cargar el cupón. No cambia el estado ni cancela. |
 | Sistema | Reserva stock, elige la promoción, calcula el envío y la hora. |
 
 ## HU-01 — Registro e inicio de sesión
@@ -566,7 +567,7 @@ Como cliente, quiero volver a pedir lo de la vez anterior, para no armarlo de ce
 
 Como administrador, quiero avanzar el pedido, para que el cliente vea el mismo estado que el local y el stock se resuelva al final.
 
-La acción es una sola: el administrador elige el estado siguiente. Las consecuencias son las de HU-10 para el cliente y para el stock, y las de HU-11 si elige Cancelado. Quien tiene el rol solo pedidos ve el estado y no tiene el botón. Si lo intenta por la API, recibe 403. Resolver un reclamo sí puede.
+La acción es una sola: el administrador elige el estado siguiente. Las consecuencias son las de HU-10 para el cliente y para el stock, y las de HU-11 si elige Cancelado. Quien tiene el rol solo pedidos ve el estado y no tiene el botón. Si lo intenta por la API, recibe 403. Resolver un reclamo, escribir la respuesta y cargar el cupón sí puede.
 
 **Situación inicial.** Pedido de retiro en Listo para retirar, con stock reservado.
 
@@ -671,7 +672,7 @@ Como administrador de solo pedidos, quiero consultar la operación sin tocar la 
 1. El menú es Inicio, Pedidos, Reclamos y Cupones de reclamos.
 2. En el inicio ve los pedidos de hoy, la facturación de hoy, los estados y las ventas de la semana. No ve los paneles de carta, stock, parámetros ni reportes de productos.
 3. No hay botones para avanzar el estado ni para cancelar. La API de cambio de estado responde 403.
-4. Ve los reclamos y los cupones, y puede marcar un reclamo resuelto.
+4. Ve los reclamos y los cupones. Escribe la respuesta, marca el reclamo resuelto y puede cargar el importe del cupón. Si el cupón no se usó, puede reabrir. Si ya se usó, la solución queda fija.
 
 ## HU-28 — Reportes con filtro, gráfico y CSV
 
@@ -728,9 +729,12 @@ Como visitante, quiero leer quiénes son y ver las sucursales en un mapa, para s
 Como cliente, quiero reportar un problema de un pedido que ya recibí, para que el local lo resuelva.
 
 1. Uno por pedido, solo si está entregado o retirado, y solo el dueño.
-2. Motivos: faltó algo, pedido equivocado, llegó tarde, llegó frío, otro.
-3. El administrador ve los abiertos primero y los marca resueltos.
-4. Al resolver puede cargar un importe. El cliente recibe un cupón de 3 meses y un solo uso, que se suma al descuento del próximo pedido.
+2. Motivos: faltó algo, pedido equivocado, llegó tarde, llegó frío, otro. Si es otro, hay que contar qué pasó.
+3. El super admin y el rol solo pedidos ven los abiertos primero. Al resolver escriben la respuesta y pueden cargar un importe, o copiar el total cobrado del pedido.
+4. El cliente lee la respuesta en el pedido. Hasta que lo abre, ve «Nueva respuesta». Si cambian la respuesta o el monto, la vuelve a ver.
+5. El cupón dura 3 meses, es de un solo uso, el código es `REC-` y seis caracteres, y el monto va de $1 a $500.000. Se suma al descuento del próximo pedido.
+6. En Reclamos, abierto es el que todavía no tiene cupón o cuyo cupón no se usó. Cerrado es el que ya se usó.
+7. Si el cupón no se usó, se puede reabrir y cambiar la solución. Al reabrir, el cupón deja de descontarse. Si ya se usó, queda fija.
 
 ## HU-37 — Horario de la sucursal
 
@@ -846,7 +850,14 @@ HistorialEstado {
 }
 Reclamo {
   string reason
+  string message
   string status
+  string response
+  string couponCode
+  decimal couponAmount
+  datetime couponCreatedAt
+  datetime resolvedAt
+  datetime responseSeenAt
 }
 Parametro {
   string key
@@ -872,7 +883,7 @@ Parametro {
 | Pedido | Línea, Historial, Promoción, Reclamo | La línea congela precio y nombre del adicional. La promoción guarda el nombre, para que editarla después no cambie el pedido. Un reclamo como máximo. |
 | Promoción | Producto | Solo en el 2x1: el producto que sale gratis. |
 
-El cupón de reclamo no es una promoción de la carta: vive en el reclamo, con código, importe y vencimiento a los 3 meses. Los reportes no se guardan: se calculan sobre pedidos y stock. El premio de fidelización y el del top de clientes no son una fila de Promoción: el pedido guarda el nombre («Premio Fidelidad», «Premio Top 3») y el descuento.
+El cupón de reclamo no es una promoción de la carta: vive en el reclamo, con código, importe y fecha de alta. El código es `REC-` y seis caracteres. El importe va de $1 a $500.000. Vence a los 3 meses de esa fecha. `response` es el texto que lee el cliente, de hasta 500 caracteres. `responseSeenAt` queda vacío hasta que abre el pedido, y vuelve a vacío si cambian la respuesta o el monto. Con el reclamo abierto el cupón no se descuenta. El pedido que usa el cupón apunta a ese reclamo. Si ese pedido se cancela, el cupón vuelve a quedar libre. Los reportes no se guardan: se calculan sobre pedidos y stock. El premio de fidelización y el del top de clientes no son una fila de Promoción: el pedido guarda el nombre («Premio Fidelidad», «Premio Top 3») y el descuento.
 
 ---
 
@@ -885,7 +896,9 @@ El cupón de reclamo no es una promoción de la carta: vive en el reclamo, con c
 | Pedido, estado | `pending`, `confirmed`, `preparing`, `ready`, `on_the_way`, `delivered`, `cancelled` |
 | Promoción | `percent` o `two_for_one` |
 | Administrador | `super_admin` o `orders_viewer` |
-| Reclamo | abierto o resuelto |
+| Reclamo, motivo | `missing_item`, `wrong_order`, `late`, `cold`, `other` |
+| Reclamo, estado | `open` o `resolved` |
+| Cupón de reclamo | `available`, `used` o `expired`. Si ya se usó, sigue usado aunque venza |
 | Franja | día 0 = lunes … 6 = domingo; `slot` 0 o 1 |
 
 # Diseño de APIs
@@ -899,8 +912,8 @@ La API está en `/api`. Estos ocho recursos son los que arman el pedido, el prec
 | Direcciones | `GET /api/addresses`, `POST /api/addresses`, `PATCH /api/addresses/:id`, `POST /api/geocode` |
 | Catálogo | `GET /api/categories`, `GET /api/products`, `GET /api/products/:id`, `GET /api/products/:id/extras`, `GET /api/promotions/active`, `GET /api/promotions/banner` |
 | Sucursales | `GET /api/branches`, `GET /api/branches/available` |
-| Pedido | `POST /api/orders/guest`, `GET /api/orders`, `POST /api/orders/:id/cancel`, `POST /api/orders/:id/incident` |
-| Administración | pedidos, stock y liberación de reservado, parámetros, productos y sus adicionales, sucursales, clientes, administradores, promociones, campañas, reclamos, `GET /api/admin/reports/products` |
+| Pedido | `POST /api/orders/guest`, `GET /api/orders`, `POST /api/orders/:id/cancel`, `POST /api/orders/:id/incident`, `POST /api/orders/:id/incident/seen` |
+| Administración | pedidos, stock y liberación de reservado, parámetros, productos y sus adicionales, sucursales, clientes, administradores, promociones, campañas, `GET /api/admin/incidents`, `GET /api/admin/incidents/coupons`, `PATCH /api/admin/incidents/:id`, `GET /api/admin/reports/products` |
 
 Precios del catálogo usados abajo: hamburguesa doble `prod-doble` a $20.000, gaseosa cola `prod-cola` a $2.000.
 
@@ -1034,6 +1047,8 @@ Salida:
 
 Ese pedido se confirmó a las 21:00, dentro del horario, así que `scheduledFor` va vacío. A las 23:30 la misma sucursal está cerrada. Confirmar sin aceptar responde 409, con el código `BRANCH_CLOSED` y la pregunta de programarlo. Si el cliente acepta, la entrada lleva `"scheduleWhenClosed": true` y la salida trae `"scheduledFor": "2026-11-12T10:00:00.000-03:00"`. La estimada se cuenta desde esa hora.
 
+Si el cliente con cuenta elige un cupón de reclamo, la entrada lleva `couponIncidentId` con el id de ese reclamo. Si no lo manda y tiene cupones vigentes, entra el que vence antes. El invitado no tiene cupón.
+
 Si `branchId` es Mordi Norte, la salida es un 409 y no hay fila nueva:
 
 ```json
@@ -1083,7 +1098,7 @@ Entrada, el paso en el que el stock se descuenta:
 
 Salida: el pedido con `status` «delivered». En la sucursal, esas unidades salen de `reserved` y no vuelven a `available`.
 
-Si el pedido estaba en Pendiente y el cuerpo es `{ "status": "cancelled" }`, la reserva vuelve a `available`. Si estaba en En preparación y se pide cancelar, responde 409 y el stock no se toca. Quien tiene el rol solo pedidos recibe 403 en este recurso. Sí puede hacer `GET /api/admin/orders` y consultar o resolver reclamos.
+Si el pedido estaba en Pendiente y el cuerpo es `{ "status": "cancelled" }`, la reserva vuelve a `available`. Si estaba en En preparación y se pide cancelar, responde 409 y el stock no se toca. Quien tiene el rol solo pedidos recibe 403 en este recurso. Sí puede hacer `GET /api/admin/orders`, listar reclamos y cupones, resolver, cargar el importe y reabrir si el cupón no se usó.
 
 ## 7.7 Reportes de pedidos
 
@@ -1126,6 +1141,34 @@ No lleva cuerpo. Con el carrito de HU-12 (una papa) y un pedido de una doble má
 
 Si la doble ya no se vende, `items` solo tiene las papas y `skipped` nombra la hamburguesa. No se crea un pedido nuevo en este paso.
 
+## 7.9 Reclamo y cupón
+
+`POST /api/orders/:id/incident` · el dueño, con sesión. Uno por pedido, y solo si está entregado o retirado. Si el motivo es `other`, el mensaje es obligatorio. El mensaje puede tener hasta 500 caracteres.
+
+```json
+{ "reason": "cold", "message": "Llegó fría" }
+```
+
+`POST /api/orders/:id/incident/seen` · el dueño. No lleva cuerpo. Marca que ya vio la respuesta. Hasta entonces el pedido figura con «Nueva respuesta». Si después cambian la respuesta o el monto, vuelve a figurar.
+
+`GET /api/admin/incidents` · super admin o solo pedidos. Los abiertos van primero. Con `?status=open` o `?status=resolved` queda solo ese estado. `GET /api/admin/incidents/coupons` lista los cupones. `GET /api/admin/incidents/:id` es el detalle, y desde ahí se puede copiar el total cobrado del pedido como importe del cupón.
+
+`PATCH /api/admin/incidents/:id` · los dos roles.
+
+```json
+{ "status": "resolved", "response": "Te dejamos un cupón.", "couponAmount": 5000 }
+```
+
+`response` es obligatoria al resolver y puede tener hasta 500 caracteres. `couponAmount` es opcional: un monto de $1 a $500.000 crea o actualiza el cupón, y `null` lo quita si todavía no se usó. El código sale `REC-` y seis caracteres. El cupón vence a los 3 meses. Si se cambia la respuesta o el monto, la respuesta vuelve a quedar no vista.
+
+Reabrir, si el cupón no se usó:
+
+```json
+{ "status": "open" }
+```
+
+Mientras el reclamo está abierto, el cupón no se descuenta. Vuelve a aplicar al resolverlo de nuevo. Si el cliente ya usó el cupón, el mismo PATCH responde 409 y la solución queda como estaba.
+
 ---
 
 # Testing y automatización
@@ -1148,8 +1191,8 @@ Los tests son de la API, en `backend`. `npm test` prepara la base `fastfood_test
 | `delivery-fees.e2e.test.ts` | Precio por km, cuadra de 100 m iniciada, envío congelado, y envío gratis justo en el mínimo y un peso abajo. |
 | `loyalty-top3.e2e.test.ts` | Sello al crear, premio al llegar a la meta, reverso al cancelar, porcentaje que no se publica, y Top 3 de un solo uso. |
 | `reports.test.ts` | Un pedido de otro día o de otra sucursal queda afuera del filtro. El pendiente suma y el cancelado no. El tiempo promedio sale de dos entregas. Sin stock respeta la sucursal y no las fechas. |
-| `admin-roles.e2e.test.ts` | El rol solo pedidos ve pedidos, reclamos y cupones, y puede resolver un reclamo. Cambiar el estado o cancelar responde 403. El administrador inicial no se baja de rol. |
-| `incidents.e2e.test.ts` | No se reporta el pedido de otro ni uno que no se entregó. Es uno por pedido. El cupón lo ve solo ese cliente, se descuenta una vez y, si hay varios, entra el que vence antes. |
+| `admin-roles.e2e.test.ts` | El rol solo pedidos ve pedidos, reclamos y cupones, resuelve un reclamo y puede cargar el cupón. Cambiar el estado o cancelar responde 403. El administrador inicial no se baja de rol. |
+| `incidents.e2e.test.ts` | No se reporta el pedido de otro ni uno que no se entregó. Es uno por pedido. El cupón lo ve solo ese cliente, se descuenta una vez y, si hay varios, entra el que vence antes. Cambiar la solución la vuelve a marcar como no leída. |
 | `customers.e2e.test.ts` | Alta, edición y baja lógica. Deshabilitado no inicia sesión y sus pedidos quedan. Un cancelado no cuenta como compra. |
 | `account.e2e.test.ts` | Perfil, baja de cuenta y alta de administradores. |
 | `address-alias.e2e.test.ts` | El alias de una dirección. |
@@ -1184,6 +1227,9 @@ Hasta el 11/11 la carpeta eran ocho documentos. Esta tabla sigue ese recorrido y
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.5 | 12/11/2026 | El cupón es `REC-` y seis caracteres, de $1 a $500.000. Cambiar la solución avisa de nuevo. Reabierto, el cupón no se descuenta |
+| 2.4 | 12/11/2026 | Reclamos y cupones: respuesta al cliente, aviso de nueva respuesta, reabrir si el cupón no se usó, y el rol solo pedidos también resuelve y carga el importe |
+| 2.3 | 12/11/2026 | Se quita la frase de que no hay una tercera aplicación para repartidores |
 | 2.2 | 11/11/2026 | El modelo incluye el dibujo de las entidades principales y sus relaciones. |
 | 2.1 | 11/11/2026 | El rol solo pedidos también ve reclamos y cupones. Testing lista la suite que corre hoy, contra la base y sin base. |
 | 2.0 | 11/11/2026 | La carpeta queda en los ocho documentos, cada uno desde una hoja nueva, con los cinco integrantes en la portada. |

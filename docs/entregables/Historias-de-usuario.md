@@ -2,8 +2,8 @@
 
 **Proyecto:** Mordi, pedidos de una casa de comidas rápidas
 **Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
-**Versión:** 2.2
-**Actualizado:** 11/11/2026
+**Versión:** 2.4
+**Actualizado:** 12/11/2026
 **Fuente:** sección homónima de `Carpeta.md`
 
 Cada historia dice quién la usa y para qué. En las que mueven plata o stock hay un caso feliz y al menos un caso que no debe salir bien. El ejemplo trae situación inicial, acción y resultado. Los precios son los del catálogo de demostración.
@@ -24,7 +24,7 @@ Definición de terminada: funciona en la aplicación del cliente o en la adminis
 | Visitante | Persona sin cuenta. Ve el catálogo, arma un carrito en el navegador y puede confirmar como invitado. |
 | Cliente | Usuario con cuenta. |
 | Super admin | Opera todo el local. |
-| Solo pedidos | Ve pedidos, reclamos y cupones. Puede resolver un reclamo. No cambia el estado ni cancela. |
+| Solo pedidos | Ve pedidos, reclamos y cupones. Escribe la respuesta, resuelve el reclamo y puede cargar el cupón. No cambia el estado ni cancela. |
 | Sistema | Reserva stock, elige la promoción, calcula el envío y la hora. |
 
 ## HU-01 — Registro e inicio de sesión
@@ -172,7 +172,7 @@ Como cliente, quiero volver a pedir lo de la vez anterior, para no armarlo de ce
 
 Como administrador, quiero avanzar el pedido, para que el cliente vea el mismo estado que el local y el stock se resuelva al final.
 
-La acción es una sola: el administrador elige el estado siguiente. Las consecuencias son las de HU-10 para el cliente y para el stock, y las de HU-11 si elige Cancelado. Quien tiene el rol solo pedidos ve el estado y no tiene el botón. Si lo intenta por la API, recibe 403. Resolver un reclamo sí puede.
+La acción es una sola: el administrador elige el estado siguiente. Las consecuencias son las de HU-10 para el cliente y para el stock, y las de HU-11 si elige Cancelado. Quien tiene el rol solo pedidos ve el estado y no tiene el botón. Si lo intenta por la API, recibe 403. Resolver un reclamo, escribir la respuesta y cargar el cupón sí puede.
 
 **Situación inicial.** Pedido de retiro en Listo para retirar, con stock reservado.
 
@@ -277,7 +277,7 @@ Como administrador de solo pedidos, quiero consultar la operación sin tocar la 
 1. El menú es Inicio, Pedidos, Reclamos y Cupones de reclamos.
 2. En el inicio ve los pedidos de hoy, la facturación de hoy, los estados y las ventas de la semana. No ve los paneles de carta, stock, parámetros ni reportes de productos.
 3. No hay botones para avanzar el estado ni para cancelar. La API de cambio de estado responde 403.
-4. Ve los reclamos y los cupones, y puede marcar un reclamo resuelto.
+4. Ve los reclamos y los cupones. Escribe la respuesta, marca el reclamo resuelto y puede cargar el importe del cupón. Si el cupón no se usó, puede reabrir. Si ya se usó, la solución queda fija.
 
 ## HU-28 — Reportes con filtro, gráfico y CSV
 
@@ -334,9 +334,12 @@ Como visitante, quiero leer quiénes son y ver las sucursales en un mapa, para s
 Como cliente, quiero reportar un problema de un pedido que ya recibí, para que el local lo resuelva.
 
 1. Uno por pedido, solo si está entregado o retirado, y solo el dueño.
-2. Motivos: faltó algo, pedido equivocado, llegó tarde, llegó frío, otro.
-3. El administrador ve los abiertos primero y los marca resueltos.
-4. Al resolver puede cargar un importe. El cliente recibe un cupón de 3 meses y un solo uso, que se suma al descuento del próximo pedido.
+2. Motivos: faltó algo, pedido equivocado, llegó tarde, llegó frío, otro. Si es otro, hay que contar qué pasó.
+3. El super admin y el rol solo pedidos ven los abiertos primero. Al resolver escriben la respuesta y pueden cargar un importe, o copiar el total cobrado del pedido.
+4. El cliente lee la respuesta en el pedido. Hasta que lo abre, ve «Nueva respuesta». Si cambian la respuesta o el monto, la vuelve a ver.
+5. El cupón dura 3 meses, es de un solo uso, el código es `REC-` y seis caracteres, y el monto va de $1 a $500.000. Se suma al descuento del próximo pedido.
+6. En Reclamos, abierto es el que todavía no tiene cupón o cuyo cupón no se usó. Cerrado es el que ya se usó.
+7. Si el cupón no se usó, se puede reabrir y cambiar la solución. Al reabrir, el cupón deja de descontarse. Si ya se usó, queda fija.
 
 ## HU-37 — Horario de la sucursal
 
@@ -354,6 +357,8 @@ El administrador puede cargar el día corrido o partido, con hasta dos franjas. 
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.4 | 12/11/2026 | HU-36: código del cupón, tope del importe, aviso al editar la solución y cupón pausado al reabrir |
+| 2.3 | 12/11/2026 | HU-36 y HU-24: respuesta, aviso de nueva respuesta, reabrir, y el rol solo pedidos también carga el cupón |
 | 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11. Todas las historias de la carpeta están hechas |
 | 2.0 | 07/10/2026 | Se adopta la numeración real de las fichas. HU-01 a HU-19 quedan hechas; HU-20 a HU-22 eran el Sprint 4 |
 | 1.0 | 07/09/2026 | Versión inicial |

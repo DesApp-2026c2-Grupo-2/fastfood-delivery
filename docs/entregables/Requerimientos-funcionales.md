@@ -2,8 +2,8 @@
 
 **Proyecto:** Mordi, pedidos de una casa de comidas rápidas
 **Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
-**Versión:** 2.2
-**Actualizado:** 11/11/2026
+**Versión:** 2.4
+**Actualizado:** 12/11/2026
 **Fuente:** sección homónima de `Carpeta.md`
 
 «El sistema deberá» describe lo que Mordi hace. El identificador es el de la carpeta desde el inicio del cuatrimestre: no se reutiliza ni se cambia de significado. Stock, promociones y reportes de operación forman parte del producto, no de una lista aparte para más adelante.
@@ -28,6 +28,7 @@
 | RF-CLI-06 | Consultar los pedidos anteriores, con detalle, importe, fecha y estado. | Cliente |
 | RF-CLI-07 | Confirmar un pedido nuevo, con cuenta o como invitado. El invitado deja nombre, correo y, si es envío, una dirección. | Cliente o visitante |
 | RF-CLI-08 | Dar de baja la cuenta con la contraseña, anonimizar los datos personales y conservar los pedidos. Rechazar la baja si hay un pedido en curso. | Cliente |
+| RF-CLI-09 | Reportar un problema de un pedido entregado o retirado, uno por pedido y solo el dueño. Si el motivo es otro, el mensaje es obligatorio. El mensaje puede tener hasta 500 caracteres. Leer la respuesta en el pedido. Hasta abrirla, figura «Nueva respuesta». Si cambian la solución, vuelve a figurar. En reclamos, abierto es sin cupón o con cupón sin usar; cerrado es el cupón ya usado. | Cliente |
 
 ## Administradores
 
@@ -36,7 +37,7 @@ Hay un solo alta de administradores. Listar, crear, editar y borrar son la misma
 | ID | El sistema deberá | Actor |
 |---|---|---|
 | RF-ADM-01 | Nacer con un administrador precargado, capaz de entrar a la aplicación administrativa. Ese usuario no se borra. | Sistema |
-| RF-ADM-02 | Autenticar administradores y separar super admin de solo pedidos. Quien solo ve pedidos consulta pedidos, reclamos y cupones, y puede resolver un reclamo. No cambia el estado ni cancela. | Administrador |
+| RF-ADM-02 | Autenticar administradores y separar super admin de solo pedidos. Quien solo ve pedidos consulta pedidos, reclamos y cupones, escribe la respuesta, resuelve el reclamo y puede cargar el cupón. No cambia el estado ni cancela. | Administrador |
 | RF-ADM-03 | Listar, crear, editar y borrar administradores, y asignarles el rol. | Super admin |
 | RF-ADM-04 | Ofrecer la administración como otra aplicación (`backend/admin`), con la misma base que la del cliente. | Administrador |
 | RF-ADM-05 | Dar de alta, editar y desactivar promociones de la carta: porcentaje, con mínimo opcional, o 2x1 de un producto. | Super admin |
@@ -46,7 +47,7 @@ Hay un solo alta de administradores. Listar, crear, editar y borrar son la misma
 | RF-ADM-09 | Editar radio, tiempos de la hora estimada, precio por kilómetro, mínimo de envío gratis, meta y premio de sellos, y premio del Top 3. Un pedido ya confirmado no se recalcula. | Super admin |
 | RF-ADM-10 | Listar pedidos, buscar por código o cliente, y avanzar el estado según la máquina. Solo el super admin cambia el estado o cancela. | Administrador |
 | RF-ADM-11 | Listar clientes, buscarlos, ver el detalle y darlos de alta, de baja lógica o editarlos. Un cliente deshabilitado no inicia sesión. Sus pedidos quedan. | Super admin |
-| RF-ADM-12 | Ver reclamos abiertos primero, marcarlos resueltos y, si corresponde, cargar el importe del cupón. | Super admin |
+| RF-ADM-12 | Ver reclamos abiertos primero, con filtro por estado. Al resolver, escribir la respuesta (hasta 500 caracteres) y, si corresponde, cargar el importe del cupón o copiar el total cobrado. Si se cambia la respuesta o el monto, el cliente vuelve a ver «Nueva respuesta». Si el cupón no se usó, reabrir y cambiar la solución: mientras está abierto, el cupón no se descuenta. Si ya se usó, dejarla fija. | Super admin o solo pedidos |
 
 ## Sucursales
 
@@ -113,7 +114,7 @@ Hay un solo alta de administradores. Listar, crear, editar y borrar son la misma
 | RF-PRM-02 | Aplicar al pedido la promoción o el premio de campaña que más descuenta, y mostrar cuáles otras habrían aplicado. El descuento no supera el subtotal y queda congelado. El cupón de reclamo se suma a ese descuento. | Sistema |
 | RF-CAM-01 | Sumar un sello por pedido que llega al mínimo, al crearlo. Al llegar a 10, aplicar el descuento sorpresa en ese pedido y revertir el sello si se cancela. El porcentaje no se publica. | Sistema |
 | RF-CAM-02 | Al cerrar el Top 3, otorgar un descuento de un solo uso a los tres que más gastaron. Compite igual que los sellos. | Super admin |
-| RF-CUP-01 | Al resolver un reclamo, poder cargar un importe. El cupón vale 3 meses, es de un solo uso y se suma al descuento ya ganado, sin dejar el total de productos en negativo. | Super admin |
+| RF-CUP-01 | Al resolver un reclamo, poder cargar un importe de $1 a $500.000. Lo hacen el super admin y el rol solo pedidos. El código es `REC-` y seis caracteres. El cupón vale 3 meses, es de un solo uso y se suma al descuento ya ganado, sin dejar el total de productos en negativo. Con el reclamo abierto, no se descuenta. | Super admin o solo pedidos |
 | RF-ENV-01 | Cobrar el envío con el precio por kilómetro y el mínimo de envío gratis. En retiro el envío es 0. El importe queda congelado. | Sistema |
 
 ## Reportes
@@ -148,6 +149,8 @@ Calificar un pedido, avisar por correo cada cambio de estado, y la aplicación d
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.4 | 12/11/2026 | El cupón tiene código `REC-`, importe de $1 a $500.000, y no se descuenta mientras el reclamo está abierto |
+| 2.3 | 12/11/2026 | RF-CLI-09 para el reclamo del cliente. RF-ADM-12 y RF-CUP-01 también los cumple el rol solo pedidos |
 | 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11 |
 | 1.2 | 07/10/2026 | Estado al cierre del Sprint 3 (35/40 obligatorios y stock). Cerrada la consulta de RF-ADM-05: las promociones se aplican al confirmar en el Sprint 4 |
 | 1.1 | 03/10/2026 | Asignación a sprints según lo cubierto en S2 y S3; cerradas las consultas de RF-ADM-06, RF-ADM-08/09 y RF-CLI-03 |
