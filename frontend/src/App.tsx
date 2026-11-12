@@ -47,6 +47,7 @@ export default function App() {
               <Route path="/account/addresses" element={<AddressesPage />} />
               <Route path="/account/addresses/:id" element={<AddressesPage />} />
               <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/claims" element={<OrdersPage variant="claims" />} />
               <Route path="/orders/:id" element={<OrderDetailPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/products" replace />} />

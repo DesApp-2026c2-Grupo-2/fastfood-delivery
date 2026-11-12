@@ -1,8 +1,8 @@
 # API de clientes y costo de envío
 
 **Proyecto:** Pedidos en casas de comidas rápidas (Mordi)  
-**Versión:** 1.0  
-**Actualizado:** 28/10/2026  
+**Versión:** 1.2
+**Actualizado:** 11/11/2026
 **Fuente:** `backend/src/` (`customers/`, `delivery-fees/`, `parameters/`, `orders/`, `auth/`, `admins/`)  
 **Decisiones:** D54 a D60 de `docs/entregables/Supuestos-y-decisiones.md`
 
@@ -194,7 +194,7 @@ Migración `20261027150000_admin_roles`: los admins que ya existían quedan como
 | Rol | Puede |
 |---|---|
 | `super_admin` | Todo el backoffice, como hasta ahora |
-| `orders_viewer` | `GET /api/admin/orders`, `GET /api/admin/orders/:id`, `GET /api/admin/order-statuses`, el canal en tiempo real de pedidos y su perfil (`/api/me`). **No** cambia estados ni cancela |
+| `orders_viewer` | `GET /api/admin/orders`, `GET /api/admin/orders/:id`, `GET /api/admin/order-statuses`, reclamos y sus cupones (`GET` y `PATCH /api/admin/incidents`), el canal en tiempo real de pedidos y su perfil (`/api/me`). **No** cambia estados de pedidos ni cancela |
 
 Cualquier otra ruta de admin con `orders_viewer` responde **403** `Tu rol solo permite consultar pedidos`.
 
@@ -206,9 +206,10 @@ Cualquier otra ruta de admin con `orders_viewer` responde **403** `Tu rol solo p
 { "id": "…", "email": "pedidos@mordi.com", "name": "Lucía", "role": "admin", "adminRole": "orders_viewer" }
 ```
 
-Con `orders_viewer` el admin debería mostrar solo la sección de pedidos, sin los botones de cambiar estado ni de
-cancelar. Un cambio de rol rige en la próxima llamada, sin volver a iniciar sesión: conviene releer `/api/auth/me`
-al entrar y, ante un 403, volver a la sección de pedidos.
+Con `orders_viewer` el admin muestra Inicio, Pedidos, Reclamos y Cupones. En pedidos no hay botones de cambiar
+estado ni de cancelar. En un reclamo ve el caso, responde, carga el cupón y puede reabrir. Un cambio de rol rige
+en la próxima llamada, sin volver a iniciar sesión: conviene releer `/api/auth/me` al entrar y, ante un 403, volver
+a Pedidos.
 
 ### ABM de admins — campo nuevo `adminRole`
 
@@ -220,3 +221,11 @@ al entrar y, ante un 403, volver a la sección de pedidos.
 | Rol inexistente | 400 `El rol debe ser super_admin u orders_viewer` |
 | Cambiar el propio rol | 409 `No podés cambiar tu propio rol` |
 | Bajar de rol al admin inicial | 409 `El administrador inicial tiene que seguir siendo super admin` |
+
+## Historial
+
+| Versión | Fecha | Qué cambió |
+|---|---|---|
+| 1.2 | 11/11/2026 | `orders_viewer` también resuelve reclamos (`PATCH /api/admin/incidents/:id`) |
+| 1.1 | 11/11/2026 | `orders_viewer` consulta reclamos y sus cupones |
+| 1.0 | 28/10/2026 | Contrato de clientes, envío y roles de admin |

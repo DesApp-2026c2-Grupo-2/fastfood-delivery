@@ -15,6 +15,7 @@ import {
 import 'leaflet/dist/leaflet.css';
 import type { ActiveBranch } from '../api/types';
 import { formatBranchAddress } from '../lib/address';
+import { openStatusLabel } from '../lib/branch-status';
 
 const DEFAULT_CENTER: [number, number] = [-34.6037, -58.3816];
 const DEFAULT_ZOOM = 11;
@@ -75,6 +76,8 @@ function popupContent(branch: ActiveBranch): HTMLElement {
   add('strong', branch.name);
   add('span', formatBranchAddress(branch));
   add('span', branch.openingHours, 'branch-popup-meta');
+  const status = openStatusLabel(branch.openNow, branch.nextOpenAt);
+  if (status) add('span', status, 'branch-popup-meta');
   const phone = add('a', branch.phone) as HTMLAnchorElement;
   phone.href = `tel:${branch.phone.replace(/\s/g, '')}`;
   if (branch.withinRadius === true) add('span', 'Te cubre', 'branch-popup-badge');

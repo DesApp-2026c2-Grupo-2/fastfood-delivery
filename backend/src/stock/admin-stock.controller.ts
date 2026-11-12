@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateStockDto } from './dto/update-stock.dto';
@@ -13,6 +13,11 @@ export class AdminStockController {
   @Get()
   findAll(@Param('branchId') branchId: string) {
     return this.stockService.listForBranch(branchId);
+  }
+
+  @Post(':productId/release')
+  release(@Param('branchId') branchId: string, @Param('productId') productId: string) {
+    return this.stockService.releaseReserved(branchId, productId);
   }
 
   @Put(':productId')

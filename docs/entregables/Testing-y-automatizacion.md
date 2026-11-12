@@ -1,83 +1,63 @@
 # Testing y automatización
 
-**Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
-**Versión:** 1.1  
-**Actualizado:** 01/11/2026  
-**Estado:** al cierre del Sprint 3 hay tests de backend del flujo de pedido, del stock y de la cuenta. No hay tests de frontend ni un pipeline que los corra en cada pull request.
+**Proyecto:** Mordi, pedidos de una casa de comidas rápidas
+**Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
+**Versión:** 2.4
+**Actualizado:** 12/11/2026
+**Fuente:** sección homónima de `Carpeta.md`
 
----
+Los tests son de la API, en `backend`. `npm test` prepara la base `fastfood_test` y corre ahí, un archivo por vez. No escriben la base de la aplicación y no hace falta tener el servidor levantado: los de integración arrancan Nest en el propio test.
 
-## 1. Cómo se corren
+## Contra la base
 
-Hace falta PostgreSQL (el de `docker compose` en la raíz) y el `.env` del backend.
-
-```bash
-cd backend
-npm test
-```
-
-Eso ejecuta Jest con `backend/test/jest-e2e.json`, un archivo por vez (`--runInBand`). El patrón es `test/**/*.test.ts`. No hace falta levantar `npm run start:dev`: los de integración arrancan la aplicación Nest en el propio test.
-
-Los de punta a punta usan la base real. Conviene correrlos sobre una base de desarrollo, no sobre la de producción.
-
-## 2. Qué está automatizado
-
-### Integración (API contra la base)
-
-| Archivo | Qué cubre | Historias |
-|---|---|---|
-| `sprint1.e2e.test.ts` | Login y confirmar pedido, con cuenta y como invitado | HU-01, HU-08 |
-| `auth-token.e2e.test.ts` | Emisión del JWT, `/api/auth/me` y rutas protegidas (401 / rol) | HU-01, HU-02 |
-| `extras.e2e.test.ts` | Adicionales en el detalle, en el carrito y al confirmar (cuenta e invitado) | HU-07 |
-| `orders-lifecycle.e2e.test.ts` | Historial, seguimiento, hora estimada, demora, cambio de estado, cancelar y repetir | HU-09 a HU-13 |
-| `account.e2e.test.ts` | Perfil, recuperar contraseña y ABM de administradores | HU-14, HU-15, HU-16 |
-| `stock.e2e.test.ts` | Carga de stock, reserva al confirmar, 409 sin stock, liberar al cancelar, descontar al entregar | HU-17, HU-18 |
-| `parameters-branches.e2e.test.ts` | Parámetros, sucursales dentro del radio, asignación al confirmar y catálogo de estados | HU-19 |
-| `address-alias.e2e.test.ts` | Alias de una dirección | HU-06 |
-| `address-province.e2e.test.ts` | Ciudad, provincia y CP en la dirección propia, en el detalle del cliente del admin y en la sucursal: alta, edición, borrado, CPA en mayúsculas y 400 con provincia o CP inválidos. La dirección del invitado con esos campos se prueba en `fulfillment.e2e.test.ts` | HU-34 |
-
-### Sin base (funciones puras)
-
-| Archivo | Qué cubre |
+| Archivo | Qué fija |
 |---|---|
-| `geocode.test.ts` | Armado de la consulta a Nominatim (libre, estructurada e inversa), el paso a texto libre si la estructurada no encuentra, la provincia llevada a las 24 y el redondeo de coordenadas |
-| `admin-rules.test.ts` | Ajuste masivo de stock (sumar, restar, poner en 0, tope) y los textos de demora del admin |
+| `sprint1.e2e.test.ts` | Login y confirmar, con cuenta y como invitado. |
+| `auth-token.e2e.test.ts` | El token, `/api/auth/me` y una ruta protegida que responde 401. |
+| `catalog.e2e.test.ts` | Alta de categoría y producto, slug, imagen, producto desactivado que el público no ve, y que un cliente no administra el catálogo. |
+| `extras.e2e.test.ts` | Adicionales en el detalle, en el carrito y al confirmar. |
+| `orders-lifecycle.e2e.test.ts` | Historial, seguimiento, hora estimada fija, demora, cambio de estado, cancelar y repetir. |
+| `stock.e2e.test.ts` | Reserva, faltante que no crea el pedido, dos pedidos a la vez por la última unidad, liberación al cancelar, descuento al entregar, y el admin que devuelve el reservado a disponible. Ese último paso inhabilita el carrito que ya tenía el producto, también el del invitado. |
+| `promotions.e2e.test.ts` | Porcentual, 2x1 que reserva la unidad gratis, mínimo, promo vencida, empate que se queda con la más nueva, y la cotización con la misma regla. |
+| `fulfillment.e2e.test.ts` | Retiro, domicilio y sucursal fuera del radio. |
+| `parameters-branches.e2e.test.ts` | Radio, hora estimada que no se recalcula, sucursales dentro y fuera del radio, y la sucursal que eligió el cliente aunque haya otra más cerca. |
+| `delivery-fees.e2e.test.ts` | Precio por km, cuadra de 100 m iniciada, envío congelado, y envío gratis justo en el mínimo y un peso abajo. |
+| `loyalty-top3.e2e.test.ts` | Sello al crear, premio al llegar a la meta, reverso al cancelar, porcentaje que no se publica, y Top 3 de un solo uso. |
+| `reports.test.ts` | Un pedido de otro día o de otra sucursal queda afuera del filtro. El pendiente suma y el cancelado no. El tiempo promedio sale de dos entregas. Sin stock respeta la sucursal y no las fechas. |
+| `admin-roles.e2e.test.ts` | El rol solo pedidos ve pedidos, reclamos y cupones, resuelve un reclamo y puede cargar el cupón. Cambiar el estado o cancelar responde 403. El administrador inicial no se baja de rol. |
+| `incidents.e2e.test.ts` | No se reporta el pedido de otro ni uno que no se entregó. Es uno por pedido. El cupón lo ve solo ese cliente, se descuenta una vez y, si hay varios, entra el que vence antes. Cambiar la solución la vuelve a marcar como no leída. |
+| `customers.e2e.test.ts` | Alta, edición y baja lógica. Deshabilitado no inicia sesión y sus pedidos quedan. Un cancelado no cuenta como compra. |
+| `account.e2e.test.ts` | Perfil, baja de cuenta y alta de administradores. |
+| `address-alias.e2e.test.ts` | El alias de una dirección. |
+| `address-province.e2e.test.ts` | Provincia, código postal, alta, edición y un valor inválido que responde 400. |
 
-Esos dos no reemplazan una prueba de punta a punta: fijan reglas que la pantalla usa.
+## Sin base
 
-## 3. Qué se considera cubierto por un test
+Estos no reemplazan una prueba de punta a punta. Fijan una regla que la pantalla o el arranque usan.
 
-El criterio del grupo, desde el Sprint 3, es que el hilo de negocio tenga al menos el caso feliz y el caso que no debe crear el pedido:
-
-- Confirmar con stock y dentro del radio.
-- Sin stock (`OUT_OF_STOCK`) y sin cobertura.
-- Liberar al cancelar y descontar al entregar.
-- Hora estimada fija y demora (a tiempo, demorado, entregado tarde).
-- Reset de contraseña: token válido, y token vencido o ya usado.
-- Un cliente no opera rutas de admin.
-
-La definición de terminada de cada historia sigue pidiendo, además, probar la pantalla en el celular. Eso hoy es manual, en el review.
-
-## 4. Qué no está automatizado
-
-| Hueco | Notas |
+| Archivo | Qué fija |
 |---|---|
-| Frontend cliente y admin | No hay tests de componentes ni de páginas. |
-| Integración continua | No hay un workflow que corra `npm test` al abrir un pull request. |
-| Geocodificación en vivo | El test no llama a Nominatim. Prueba la URL y el manejo de “no encontrada”. |
-| Pusher | El refresco en tiempo real se ve en la demo, no en Jest. |
-| Promociones y reportes | Entran en el Sprint 4. La ficha ya pide tests de porcentual, cupón 2x1, cupón inválido, descuento que no pasa el subtotal y promo vencida. |
-| Carga y concurrencia | El caso de dos clientes pidiendo la última unidad está en la regla de negocio; no hay un test que los dispare en paralelo. |
+| `branch-hours.test.ts` | Franja abierta, próxima apertura, día partido, domingo que salta al lunes, y el rechazo de una tercera franja o de dos franjas que se pisan. |
+| `geocode.test.ts` | Hasta cinco candidatos en Argentina, provincia llevada a uno de los 24 nombres, búsqueda estructurada y, si no encuentra, la libre. No llama a Nominatim en vivo. |
+| `admin-rules.test.ts` | Ajuste de stock (sumar, restar, poner en 0) y los textos de demora. |
+| `password.test.ts` | Un admin sin rol explícito sale con rol vacío. Un cliente sin sellos sale en cero. |
+| `upload-dir.test.ts` | La carpeta de imágenes, y el reemplazo por `/tmp` si no se puede crear. |
+| `database-url.test.ts` | Sin `DATABASE_URL` la API no arranca. En Neon completa ssl y los timeouts. |
+| `pusher.service.test.ts` | Sin credenciales no publica. Con credenciales firma el canal del rol y, si Pusher falla, el pedido igual sigue. |
+| `prisma-exception.filter.test.ts` | Un valor único repetido es 409, un registro que ya no está es 404 y una referencia inválida es 400. |
 
-## 5. Qué sigue
+## Qué no cubre un test
 
-En el Sprint 4, los tests nuevos van junto con HU-20 a HU-22, en el mismo comando `npm test`. No se abre una suite de frontend hasta que el precio promocional esté estable.
+No hay tests del navegador ni un pipeline que los corra al integrar. Quien integra corre `npm test` en la máquina antes de sumar el cambio a la rama principal.
 
-Un pipeline en el repositorio queda como mejora del Sprint 5, junto con el cierre de la carpeta. Hasta entonces, quien mergea corre `npm test` en local antes de integrar.
+La pregunta de aderezos es de la pantalla: no tiene un test de API. El cálculo de franjas sí está en `branch-hours.test.ts`. Confirmar el pedido con `scheduleWhenClosed` no tiene un caso propio en la suite.
 
 ## Historial
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
-| 1.1 | 01/11/2026 | `address-province.e2e.test.ts` y geocode estructurado e inverso (HU-34) |
-| 1.0 | 07/10/2026 | Inventario de tests al cierre del Sprint 3 y huecos que quedan |
+| 2.4 | 12/11/2026 | El test de reclamos también fija que cambiar la solución la vuelve a marcar como no leída |
+| 2.3 | 12/11/2026 | El rol solo pedidos también carga el cupón al resolver un reclamo |
+| 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11 |
+| 1.1 | 01/11/2026 | address-province.e2e.test.ts y geocode estructurado e inverso (HU-34) |
+| 1.0 | 07/10/2026 | Inventario de tests al cierre del Sprint 3 |

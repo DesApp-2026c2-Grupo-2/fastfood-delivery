@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api/client';
 import type { Cart } from '../api/types';
+import { useSession } from '../auth/SessionContext';
 import { getToken, isCustomer } from '../auth/session';
 import { getGuestCart } from './guestCart';
 
@@ -16,24 +17,36 @@ function countItems(cart: Cart): number {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const { user } = useSession();
+  const sessionKey = user?.id ?? '';
+  const [sessionKeySeen, setSessionKeySeen] = useState(sessionKey);
   const [count, setCount] = useState(0);
+  const requestId = useRef(0);
+
+  // Al cambiar de cuenta (o cerrar sesión) el conteo anterior no puede seguir en el header.
+  if (sessionKey !== sessionKeySeen) {
+    setSessionKeySeen(sessionKey);
+    requestId.current += 1;
+    setCount(sessionKey ? 0 : countItems(getGuestCart()));
+  }
 
   const refresh = useCallback(async () => {
+    const id = ++requestId.current;
     try {
-      if (isCustomer()) {
-        const cart = await api<Cart>('/cart', { token: getToken() ?? '' });
-        setCount(countItems(cart));
-      } else {
-        setCount(countItems(getGuestCart()));
-      }
+      const next = isCustomer()
+        ? countItems(await api<Cart>('/cart', { token: getToken() ?? '' }))
+        : countItems(getGuestCart());
+      if (id !== requestId.current) return;
+      setCount(next);
     } catch {
+      if (id !== requestId.current) return;
       setCount(0);
     }
   }, []);
 
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, sessionKey]);
 
   return <CartContext.Provider value={{ count, refresh }}>{children}</CartContext.Provider>;
 }

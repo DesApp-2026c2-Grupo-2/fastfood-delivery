@@ -3,9 +3,11 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsInt,
+  IsISO8601,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -36,6 +38,11 @@ export class GuestOrderItemDto {
 
   @ExtraIds()
   extraIds?: string[];
+
+  // Cuándo se agregó la línea. Si falta y hubo una liberación, el carrito se toma como anterior.
+  @IsOptional()
+  @IsISO8601()
+  addedAt?: string;
 }
 
 export class CreateGuestOrderDto {
@@ -90,4 +97,8 @@ export class CreateGuestOrderDto {
   @ValidateNested({ each: true })
   @Type(() => GuestOrderItemDto)
   items!: GuestOrderItemDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  scheduleWhenClosed?: boolean;
 }

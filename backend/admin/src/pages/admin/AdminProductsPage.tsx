@@ -19,7 +19,8 @@ type FormState = {
   available: boolean;
   categoryIds: string[];
   existingImageUrls: string[];
-  // Adicionales que ofrece el producto (HU-30).
+  // Adicionales que ofrece el producto (HU-30). offersExtras abre la lista; en No no se ofrece ninguno.
+  offersExtras: boolean;
   extraIds: string[];
 };
 
@@ -34,6 +35,7 @@ const emptyForm: FormState = {
   available: true,
   categoryIds: [],
   existingImageUrls: [],
+  offersExtras: false,
   extraIds: [],
 };
 
@@ -165,7 +167,9 @@ export function AdminProductsPage() {
       const options = await api<ProductExtraOption[]>(`/admin/products/${productId}/extras`, { token });
       const offered = options.filter((option) => option.offered).map((option) => option.id);
       setSavedExtraIds(offered);
-      setForm((current) => (current.id === productId ? { ...current, extraIds: offered } : current));
+      setForm((current) =>
+        current.id === productId ? { ...current, extraIds: offered, offersExtras: offered.length > 0 } : current,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar los adicionales');
     } finally {
@@ -201,6 +205,7 @@ export function AdminProductsPage() {
         : product.imageUrl
           ? [product.imageUrl]
           : [],
+      offersExtras: false,
       extraIds: [],
     });
     setNewFiles([]);
@@ -234,6 +239,14 @@ export function AdminProductsPage() {
     });
   }
 
+  function setOffersExtras(offersExtras: boolean) {
+    setForm((current) => ({
+      ...current,
+      offersExtras,
+      extraIds: offersExtras ? current.extraIds : [],
+    }));
+  }
+
   function toggleExtra(extraId: string) {
     setForm((current) => ({
       ...current,
@@ -249,7 +262,8 @@ export function AdminProductsPage() {
    */
   async function saveExtras(productId: string) {
     const candidateIds = extraCandidates.map((extra) => extra.id);
-    const wanted = formIsExtra ? [] : form.extraIds.filter((id) => candidateIds.includes(id));
+    const wanted =
+      formIsExtra || !form.offersExtras ? [] : form.extraIds.filter((id) => candidateIds.includes(id));
     const before = form.id ? savedExtraIds : [];
     if (before === null || sameIds(wanted, before)) return;
     await api(`/admin/products/${productId}/extras`, {
@@ -285,6 +299,9 @@ export function AdminProductsPage() {
     if (!slug) return 'El slug no puede quedar vacío.';
     if (form.description.trim().length < 4) return 'La descripción es muy corta.';
     if (form.categoryIds.length === 0) return 'Elegí al menos una categoría.';
+    if (!formIsExtra && form.offersExtras && form.extraIds.length === 0) {
+      return 'Si ofrece adicionales, marcá al menos uno.';
+    }
     const price = Number(form.price);
     if (!Number.isFinite(price) || price < 0) return 'El precio tiene que ser un número mayor o igual a 0.';
     if (form.existingImageUrls.length + newFiles.length === 0) return 'Subí al menos una imagen.';
@@ -404,181 +421,224 @@ export function AdminProductsPage() {
           </p>
         ) : null}
 
-        <form id="product-form" className="card form product-form" onSubmit={onSubmit} noValidate>
-          <label>
-            Nombre
-            <input
-              value={form.name}
-              onChange={(event) => onNameChange(event.target.value)}
-              maxLength={120}
-              placeholder="Hamburguesa clásica"
-              autoComplete="off"
-            />
-          </label>
-          <label>
-            Slug
-            <input
-              value={form.slug}
-              onChange={(event) => onSlugChange(event.target.value)}
-              maxLength={80}
-              placeholder="hamburguesa-clasica"
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </label>
-          <p className="field-hint">
-            URL amigable: minúsculas, números y guiones. Se arma solo a partir del nombre, y lo podés editar.
-          </p>
-          {form.id ? (
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => {
-                setForm((current) => ({ ...current, slug: slugify(current.name) }));
-                setSlugLocked(false);
-              }}
-            >
-              Generar slug desde el nombre
-            </button>
-          ) : null}
-          <label>
-            Descripción
-            <textarea
-              value={form.description}
-              onChange={(event) => setForm({ ...form, description: event.target.value })}
-              maxLength={2000}
-              rows={3}
-            />
-          </label>
-          <fieldset className="tag-fieldset">
-            <legend>Categorías</legend>
-            <div className="tag-picker" role="group" aria-label="Categorías">
-              {categories.map((category) => {
-                const selected = form.categoryIds.includes(category.id);
-                return (
-                  <button
-                    key={category.id}
-                    type="button"
-                    className={selected ? 'tag-choice is-on' : 'tag-choice'}
-                    aria-pressed={selected}
-                    onClick={() => toggleCategory(category.id)}
+        <form id="product-form" className="card form product-form product-editor" onSubmit={onSubmit} noValidate>
+          <div className="product-editor-grid">
+            <div className="product-editor-col product-editor-col--main">
+              <div className="product-editor-panel">
+                <h2>Producto</h2>
+                <div className="product-editor-identity">
+                  <label>
+                    Nombre
+                    <input
+                      value={form.name}
+                      onChange={(event) => onNameChange(event.target.value)}
+                      maxLength={120}
+                      placeholder="Hamburguesa clásica"
+                      autoComplete="off"
+                    />
+                  </label>
+                  <div className="product-editor-slug">
+                    <label>
+                      Slug
+                      <input
+                        value={form.slug}
+                        onChange={(event) => onSlugChange(event.target.value)}
+                        maxLength={80}
+                        placeholder="hamburguesa-clasica"
+                        title="Se arma solo desde el nombre. Minúsculas, números y guiones."
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                    </label>
+                    {form.id ? (
+                      <button
+                        type="button"
+                        className="secondary product-editor-inline"
+                        onClick={() => {
+                          setForm((current) => ({ ...current, slug: slugify(current.name) }));
+                          setSlugLocked(false);
+                        }}
+                      >
+                        Generar
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="product-editor-price">
+                  <label>
+                    Precio (ARS)
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={form.price}
+                      onChange={(event) => setForm({ ...form, price: event.target.value })}
+                    />
+                  </label>
+                  <label
+                    className="checkbox product-editor-available"
+                    title="Si no está disponible, el cliente no lo ve en el catálogo."
                   >
-                    <SvgIcon name={selected ? 'check' : 'tag'} className="tag-choice-icon" />
-                    {category.name}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="field-hint">Tocá una o más. Quedan como tags del producto.</p>
-          </fieldset>
-          {formIsExtra ? null : (
-            <fieldset className="tag-fieldset">
-              <legend>Adicionales que se ofrecen</legend>
-              {extrasLoading ? (
-                <p className="muted">Cargando adicionales…</p>
-              ) : extraCandidates.length === 0 ? (
-                <p className="field-hint">
-                  Todavía no hay adicionales. Son los productos con la categoría Adicional.
-                </p>
-              ) : (
-                <>
-                  <div className="tag-picker" role="group" aria-label="Adicionales que se ofrecen">
-                    {extraCandidates.map((extra) => {
-                      const selected = form.extraIds.includes(extra.id);
+                    <input
+                      type="checkbox"
+                      checked={form.available}
+                      onChange={(event) => setForm({ ...form, available: event.target.checked })}
+                    />
+                    Disponible
+                  </label>
+                </div>
+                <label>
+                  Descripción
+                  <textarea
+                    value={form.description}
+                    onChange={(event) => setForm({ ...form, description: event.target.value })}
+                    maxLength={2000}
+                    rows={2}
+                  />
+                </label>
+              </div>
+
+              <div className="product-editor-panel">
+                <h2 id="product-categories-heading">Categorías</h2>
+                <fieldset className="tag-fieldset" aria-labelledby="product-categories-heading">
+                  <div className="tag-picker" role="group" aria-label="Categorías">
+                    {categories.map((category) => {
+                      const selected = form.categoryIds.includes(category.id);
                       return (
                         <button
-                          key={extra.id}
+                          key={category.id}
                           type="button"
                           className={selected ? 'tag-choice is-on' : 'tag-choice'}
                           aria-pressed={selected}
-                          onClick={() => toggleExtra(extra.id)}
+                          onClick={() => toggleCategory(category.id)}
                         >
                           <SvgIcon name={selected ? 'check' : 'tag'} className="tag-choice-icon" />
-                          {extra.name} · {formatPrice(extra.price)}
-                          {extra.available ? null : <span className="tag-choice-note">no disponible</span>}
+                          {category.name}
                         </button>
                       );
                     })}
                   </div>
-                  <div className="row">
-                    <button
-                      type="button"
-                      className="secondary"
-                      onClick={() => setForm((current) => ({ ...current, extraIds: extraCandidates.map((extra) => extra.id) }))}
-                    >
-                      Marcar todos
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary"
-                      onClick={() => setForm((current) => ({ ...current, extraIds: [] }))}
-                    >
-                      Ninguno
-                    </button>
-                  </div>
-                  <p className="field-hint">
-                    El cliente elige entre los marcados que estén disponibles. Sin ninguno marcado, el producto no ofrece
-                    adicionales.
-                  </p>
-                </>
-              )}
-            </fieldset>
-          )}
-          <label>
-            Precio (ARS)
-            <input
-              type="text"
-              inputMode="decimal"
-              value={form.price}
-              onChange={(event) => setForm({ ...form, price: event.target.value })}
-            />
-          </label>
-          <div className="file-field">
-            <span>Imágenes</span>
-            <label className="file-button">
-              <SvgIcon name="upload" className="file-button-icon" />
-              <span>{canAddMoreImages ? 'Subir fotos' : 'Llegaste al máximo'}</span>
-              <input
-                className="sr-only"
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                multiple
-                disabled={!canAddMoreImages}
-                onChange={onFilesSelected}
-              />
-            </label>
-          </div>
-          <p className="field-hint">
-            Podés subir hasta {MAX_IMAGES} fotos (JPG, PNG, WEBP o GIF). {totalImages}/{MAX_IMAGES}.
-          </p>
-          {totalImages > 0 ? (
-            <div className="image-preview-grid">
-              {form.existingImageUrls.map((url) => (
-                <div key={url} className="image-preview-item">
-                  <img src={mediaUrl(url)} alt="" />
-                  <button type="button" className="image-remove" onClick={() => removeExistingImage(url)} aria-label="Quitar imagen">
-                    <SvgIcon name="close" />
-                  </button>
-                </div>
-              ))}
-              {filePreviews.map((url, index) => (
-                <div key={`${url}-${index}`} className="image-preview-item">
-                  <img src={url} alt="" />
-                  <button type="button" className="image-remove" onClick={() => removeNewFile(index)} aria-label="Quitar imagen">
-                    <SvgIcon name="close" />
-                  </button>
-                </div>
-              ))}
+                  <p className="field-hint">Podés marcar más de una.</p>
+                </fieldset>
+              </div>
             </div>
-          ) : null}
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={form.available}
-              onChange={(event) => setForm({ ...form, available: event.target.checked })}
-            />
-            Disponible (si no, no se muestra en el catálogo del cliente)
-          </label>
+
+            <div className="product-editor-col">
+              <div className="product-editor-panel">
+                <h2>Fotos</h2>
+                <label className="file-button">
+                  <SvgIcon name="upload" className="file-button-icon" />
+                  <span>{canAddMoreImages ? 'Subir fotos' : 'Llegaste al máximo'}</span>
+                  <input
+                    className="sr-only"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    multiple
+                    disabled={!canAddMoreImages}
+                    onChange={onFilesSelected}
+                  />
+                </label>
+                <p className="field-hint">
+                  Hasta {MAX_IMAGES} · {totalImages}/{MAX_IMAGES}. JPG, PNG, WEBP o GIF.
+                </p>
+                {totalImages > 0 ? (
+                  <div className="image-preview-grid">
+                    {form.existingImageUrls.map((url) => (
+                      <div key={url} className="image-preview-item">
+                        <img src={mediaUrl(url)} alt="" />
+                        <button type="button" className="image-remove" onClick={() => removeExistingImage(url)} aria-label="Quitar imagen">
+                          <SvgIcon name="close" />
+                        </button>
+                      </div>
+                    ))}
+                    {filePreviews.map((url, index) => (
+                      <div key={`${url}-${index}`} className="image-preview-item">
+                        <img src={url} alt="" />
+                        <button type="button" className="image-remove" onClick={() => removeNewFile(index)} aria-label="Quitar imagen">
+                          <SvgIcon name="close" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              {formIsExtra ? null : (
+                <div className="product-editor-panel">
+                  <h2 id="product-extras-heading">Adicionales</h2>
+                  <fieldset className="tag-fieldset" aria-labelledby="product-extras-heading">
+                    {extrasLoading ? (
+                      <p className="muted">Cargando adicionales…</p>
+                    ) : extraCandidates.length === 0 ? (
+                      <p className="field-hint">
+                        Todavía no hay adicionales. Son los productos con la categoría Adicional.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="tag-picker" role="group" aria-label="¿Ofrece adicionales?">
+                          <button
+                            type="button"
+                            className={form.offersExtras ? 'tag-choice' : 'tag-choice is-on'}
+                            aria-pressed={!form.offersExtras}
+                            onClick={() => setOffersExtras(false)}
+                          >
+                            No
+                          </button>
+                          <button
+                            type="button"
+                            className={form.offersExtras ? 'tag-choice is-on' : 'tag-choice'}
+                            aria-pressed={form.offersExtras}
+                            onClick={() => setOffersExtras(true)}
+                          >
+                            Sí
+                          </button>
+                        </div>
+                        {form.offersExtras ? (
+                          <>
+                            <div className="tag-picker" role="group" aria-label="Adicionales que se ofrecen">
+                              {extraCandidates.map((extra) => {
+                                const selected = form.extraIds.includes(extra.id);
+                                return (
+                                  <button
+                                    key={extra.id}
+                                    type="button"
+                                    className={selected ? 'tag-choice is-on' : 'tag-choice'}
+                                    aria-pressed={selected}
+                                    onClick={() => toggleExtra(extra.id)}
+                                  >
+                                    <SvgIcon name={selected ? 'check' : 'tag'} className="tag-choice-icon" />
+                                    {extra.name} · {formatPrice(extra.price)}
+                                    {extra.available ? null : <span className="tag-choice-note">no disponible</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div className="row">
+                              <button
+                                type="button"
+                                className="secondary product-editor-inline"
+                                onClick={() =>
+                                  setForm((current) => ({
+                                    ...current,
+                                    extraIds: extraCandidates.map((extra) => extra.id),
+                                  }))
+                                }
+                              >
+                                Marcar todos
+                              </button>
+                            </div>
+                            <p className="field-hint">El cliente elige entre los marcados que estén disponibles.</p>
+                          </>
+                        ) : (
+                          <p className="field-hint">Este producto no ofrece adicionales.</p>
+                        )}
+                      </>
+                    )}
+                  </fieldset>
+                </div>
+              )}
+
+            </div>
+          </div>
           <div className="row">
             <button type="submit" disabled={saving || categories.length === 0}>
               {saving ? 'Guardando…' : form.id ? 'Guardar cambios' : 'Crear producto'}

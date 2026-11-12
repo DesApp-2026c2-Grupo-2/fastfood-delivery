@@ -3,6 +3,9 @@ import type { User } from '../api/types';
 const TOKEN_KEY = 'admin_token';
 const USER_KEY = 'admin_user';
 
+export const ORDERS_VIEWER_FORBIDDEN = 'Tu rol solo permite consultar pedidos';
+export const ORDERS_ONLY_EVENT = 'mordi-admin-orders-only';
+
 function read(key: string): string | null {
   return sessionStorage.getItem(key) ?? localStorage.getItem(key);
 }
@@ -37,6 +40,26 @@ export function getUser(): User | null {
   } catch {
     return null;
   }
+}
+
+function sessionStore(): Storage | null {
+  if (sessionStorage.getItem(TOKEN_KEY)) return sessionStorage;
+  if (localStorage.getItem(TOKEN_KEY)) return localStorage;
+  return null;
+}
+
+export function saveUser(user: User) {
+  sessionStore()?.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export function isOrdersViewer() {
+  return getUser()?.adminRole === 'orders_viewer';
+}
+
+export function markOrdersOnly() {
+  const user = getUser();
+  if (user) saveUser({ ...user, adminRole: 'orders_viewer' });
+  queueMicrotask(() => window.dispatchEvent(new Event(ORDERS_ONLY_EVENT)));
 }
 
 export function clearSession() {

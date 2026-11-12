@@ -16,14 +16,48 @@ import {
 } from '../../lib/geocode';
 import { formatCoordinate, requestDevicePosition } from '../../lib/geolocation';
 
+type DayHours = {
+  enabled: boolean;
+  opensAt: string;
+  closesAt: string;
+  split: boolean;
+  opensAt2: string;
+  closesAt2: string;
+};
+
 type FormState = AddressParts & {
   name: string;
   latitude: string;
   longitude: string;
   openingHours: string;
+  hours: DayHours[];
   phone: string;
   active: boolean;
 };
+
+const DAY_NAMES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+type ErrorAnchor = 'name' | 'address' | 'phone' | 'latitude' | 'longitude' | 'hours';
+
+function defaultHours(enabled: boolean): DayHours[] {
+  return Array.from({ length: 7 }, () => ({
+    enabled,
+    opensAt: '10:00',
+    closesAt: '23:00',
+    split: false,
+    opensAt2: '19:00',
+    closesAt2: '23:00',
+  }));
+}
+
+function withSplit(day: DayHours, split: boolean): DayHours {
+  if (!split) return { ...day, split: false };
+  if (day.closesAt <= day.opensAt2) return { ...day, split: true };
+  if (day.opensAt >= '16:00') {
+    return { ...day, split: true, opensAt: '11:00', closesAt: '15:00', opensAt2: day.opensAt, closesAt2: day.closesAt };
+  }
+  return { ...day, split: true, closesAt: day.opensAt < '15:00' ? '15:00' : day.opensAt, opensAt2: '19:00', closesAt2: '23:00' };
+}
 
 const emptyForm: FormState = {
   name: '',
@@ -34,6 +68,7 @@ const emptyForm: FormState = {
   latitude: '',
   longitude: '',
   openingHours: 'Lun-Dom 10:00-23:00',
+  hours: defaultHours(true),
   phone: '',
   active: true,
 };
@@ -74,6 +109,21 @@ function onlyStreet(parts: AddressParts) {
   return !parts.city.trim() && !parts.province && !parts.postalCode.trim();
 }
 
+function hoursFromBranch(branch: Branch): DayHours[] {
+  const days = defaultHours(false);
+  const sorted = [...(branch.hours ?? [])].sort((a, b) => a.weekday - b.weekday || (a.slot ?? 0) - (b.slot ?? 0));
+  for (const hour of sorted) {
+    if (hour.weekday < 0 || hour.weekday > 6) continue;
+    const day = days[hour.weekday];
+    if (!day.enabled) {
+      days[hour.weekday] = { ...day, enabled: true, opensAt: hour.opensAt, closesAt: hour.closesAt, split: false };
+    } else {
+      days[hour.weekday] = { ...day, split: true, opensAt2: hour.opensAt, closesAt2: hour.closesAt };
+    }
+  }
+  return days;
+}
+
 function branchToForm(branch: Branch): FormState {
   return {
     name: branch.name,
@@ -84,6 +134,7 @@ function branchToForm(branch: Branch): FormState {
     latitude: String(toNumber(branch.latitude)),
     longitude: String(toNumber(branch.longitude)),
     openingHours: branch.openingHours,
+    hours: branch.hours?.length ? hoursFromBranch(branch) : defaultHours(false),
     phone: branch.phone,
     active: branch.active,
   };
@@ -95,6 +146,13 @@ export function AdminBranchFormPage() {
   const token = getToken() ?? '';
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState('');
+  const [errorAnchor, setErrorAnchor] = useState<ErrorAnchor | null>(null);
+  const [invalidDay, setInvalidDay] = useState<number | null>(null);
+  const [errorOffscreen, setErrorOffscreen] = useState(false);
+  const [errorNonce, setErrorNonce] = useState(0);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  const anchorRefs = useRef<Partial<Record<ErrorAnchor, HTMLElement | null>>>({});
+  const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [loading, setLoading] = useState(Boolean(id));
   const [missing, setMissing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -111,11 +169,24 @@ export function AdminBranchFormPage() {
   // Si el pin se mueve de nuevo antes de que vuelva la dirección, solo cuenta el último punto.
   const pinRequestRef = useRef(0);
 
+  function reportError(message: string, anchor: ErrorAnchor | null = null, day: number | null = null) {
+    setError(message);
+    setErrorAnchor(anchor);
+    setInvalidDay(day);
+    if (message) setErrorNonce((current) => current + 1);
+  }
+
+  function clearError() {
+    setError('');
+    setErrorAnchor(null);
+    setInvalidDay(null);
+  }
+
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
     setLoading(true);
-    setError('');
+    clearError();
     api<Branch>(`/admin/branches/${id}`, { token })
       .then((branch) => {
         if (!cancelled) setForm(branchToForm(branch));
@@ -133,6 +204,31 @@ export function AdminBranchFormPage() {
       cancelled = true;
     };
   }, [id, token]);
+
+  useEffect(() => {
+    const node = errorRef.current;
+    if (!node || !error) {
+      setErrorOffscreen(false);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      setErrorOffscreen(!entry.isIntersecting);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [error]);
+
+  useEffect(() => {
+    if (!errorNonce || missing) return;
+    const node =
+      (invalidDay != null ? dayRefs.current[invalidDay] : null) ??
+      (errorAnchor ? anchorRefs.current[errorAnchor] : null);
+    if (!node) return;
+    const rect = node.getBoundingClientRect();
+    const pad = 72;
+    if (rect.top >= pad && rect.bottom <= window.innerHeight - pad) return;
+    node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [errorNonce, invalidDay, errorAnchor, missing]);
 
   function clearCandidates() {
     setCandidates([]);
@@ -184,7 +280,7 @@ export function AdminBranchFormPage() {
   async function placePin(latitude: number, longitude: number) {
     setPin(latitude, longitude);
     clearCandidates();
-    setError('');
+    clearError();
     setLocationHint('Punto marcado. Buscando la dirección de ese punto…');
     const result = await fillFromPin(latitude, longitude);
     if (result === 'stale') return;
@@ -198,14 +294,14 @@ export function AdminBranchFormPage() {
   async function searchCoordinates() {
     const parts = typedAddress(formParts(form), autoFilledRef.current);
     if (!parts.street.trim()) {
-      setError('Escribí la calle y el número para buscar las coordenadas.');
+      reportError('Escribí la calle y el número para buscar las coordenadas.');
       setLocationHint('');
       return;
     }
 
     const suggestOnly = onlyStreet(parts);
     setGeocoding(true);
-    setError('');
+    clearError();
     setLocationHint('');
     try {
       const list = await searchBranchAddress(parts, token);
@@ -229,7 +325,7 @@ export function AdminBranchFormPage() {
       );
     } catch (err) {
       clearCandidates();
-      setError(err instanceof Error ? err.message : 'No se pudo buscar la dirección');
+      reportError(err instanceof Error ? err.message : 'No se pudo buscar la dirección');
     } finally {
       setGeocoding(false);
     }
@@ -237,7 +333,7 @@ export function AdminBranchFormPage() {
 
   async function useDeviceLocation() {
     setLocating(true);
-    setError('');
+    clearError();
     setLocationHint('');
     clearCandidates();
     try {
@@ -251,10 +347,17 @@ export function AdminBranchFormPage() {
           : 'Ubicación cargada. No pudimos leer la dirección de ese punto: completala a mano.',
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No pudimos obtener tu ubicación; cargala a mano.');
+      reportError(err instanceof Error ? err.message : 'No pudimos obtener tu ubicación; cargala a mano.');
     } finally {
       setLocating(false);
     }
+  }
+
+  function patchDay(weekday: number, patch: Partial<DayHours>) {
+    setForm((current) => ({
+      ...current,
+      hours: current.hours.map((item, index) => (index === weekday ? { ...item, ...patch } : item)),
+    }));
   }
 
   async function onSubmit(event: FormEvent) {
@@ -262,28 +365,50 @@ export function AdminBranchFormPage() {
     const latitude = Number(form.latitude);
     const longitude = Number(form.longitude);
     if (!form.name.trim()) {
-      setError('Completá el nombre.');
+      reportError('Completá el nombre.', 'name');
       return;
     }
     const addressError = addressPartsError(formParts(form));
     if (addressError) {
-      setError(addressError);
+      reportError(addressError, 'address');
       return;
     }
-    if (!form.openingHours.trim()) {
-      setError('Completá el horario.');
+    const enabled = form.hours
+      .map((day, weekday) => ({ ...day, weekday }))
+      .filter((day) => day.enabled);
+    if (enabled.length === 0 && !form.openingHours.trim()) {
+      reportError('Marcá al menos un día o completá el texto de horario.', 'hours');
       return;
+    }
+    const timeOk = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+    for (const day of enabled) {
+      if (!timeOk(day.opensAt) || !timeOk(day.closesAt) || (day.split && (!timeOk(day.opensAt2) || !timeOk(day.closesAt2)))) {
+        reportError(`${DAY_NAMES[day.weekday]}: el horario tiene que ser HH:mm.`, 'hours', day.weekday);
+        return;
+      }
+      if (day.closesAt <= day.opensAt || (day.split && day.closesAt2 <= day.opensAt2)) {
+        reportError(`${DAY_NAMES[day.weekday]}: el cierre tiene que ser después de la apertura.`, 'hours', day.weekday);
+        return;
+      }
+      if (day.split && day.opensAt2 < day.closesAt) {
+        reportError(
+          `${DAY_NAMES[day.weekday]}: la segunda franja tiene que empezar cuando termina la primera.`,
+          'hours',
+          day.weekday,
+        );
+        return;
+      }
     }
     if (!form.phone.trim()) {
-      setError('Completá el teléfono.');
+      reportError('Completá el teléfono.', 'phone');
       return;
     }
     if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
-      setError('Latitud inválida (-90 a 90).');
+      reportError('Latitud inválida (-90 a 90).', 'latitude');
       return;
     }
     if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-      setError('Longitud inválida (-180 a 180).');
+      reportError('Longitud inválida (-180 a 180).', 'longitude');
       return;
     }
 
@@ -295,13 +420,17 @@ export function AdminBranchFormPage() {
       postalCode: normalizePostalCode(form.postalCode),
       latitude,
       longitude,
-      openingHours: form.openingHours.trim(),
+      openingHours: enabled.length > 0 ? form.openingHours.trim() || 'Horario por día' : form.openingHours.trim(),
+      hours: enabled.flatMap(({ weekday, opensAt, closesAt, split, opensAt2, closesAt2 }) => {
+        const first = { weekday, opensAt, closesAt };
+        return split ? [first, { weekday, opensAt: opensAt2, closesAt: closesAt2 }] : [first];
+      }),
       phone: form.phone.trim(),
       active: form.active,
     };
 
     setSaving(true);
-    setError('');
+    clearError();
     try {
       if (id) {
         await api(`/admin/branches/${id}`, {
@@ -319,7 +448,7 @@ export function AdminBranchFormPage() {
         navigate('/admin/branches', { state: { notice: `Sucursal “${payload.name}” creada.` } });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar');
+      reportError(err instanceof Error ? err.message : 'No se pudo guardar');
       setSaving(false);
     }
   }
@@ -352,7 +481,7 @@ export function AdminBranchFormPage() {
       </header>
 
       {error ? (
-        <p className="error" role="alert">
+        <p className="error branch-alert" role="alert" ref={errorRef}>
           {error}
         </p>
       ) : null}
@@ -360,7 +489,7 @@ export function AdminBranchFormPage() {
       <form className="card form branch-form" onSubmit={onSubmit} noValidate>
         <div className="branch-form-grid">
           <div className="branch-form-col">
-            <label>
+            <label ref={(node) => { anchorRefs.current.name = node; }}>
               Nombre
               <input
                 value={form.name}
@@ -369,14 +498,16 @@ export function AdminBranchFormPage() {
                 placeholder="Mordi Centro"
               />
             </label>
-            <AddressFields
-              value={formParts(form)}
-              onChange={(patch) => {
-                setForm((current) => ({ ...current, ...patch }));
-                if (patch.street !== undefined) clearCandidates();
-              }}
-              disabled={saving}
-            />
+            <div ref={(node) => { anchorRefs.current.address = node; }}>
+              <AddressFields
+                value={formParts(form)}
+                onChange={(patch) => {
+                  setForm((current) => ({ ...current, ...patch }));
+                  if (patch.street !== undefined) clearCandidates();
+                }}
+                disabled={saving}
+              />
+            </div>
             <p className="field-hint">
               Con solo la calle y el número, la búsqueda sugiere direcciones: elegí la del local. Con ciudad, provincia o
               CP busca más preciso.
@@ -437,7 +568,7 @@ export function AdminBranchFormPage() {
           </div>
           <div className="branch-form-col">
             <div className="row">
-              <label>
+              <label ref={(node) => { anchorRefs.current.latitude = node; }}>
                 Latitud
                 <input
                   value={form.latitude}
@@ -446,7 +577,7 @@ export function AdminBranchFormPage() {
                   placeholder="-34.6037"
                 />
               </label>
-              <label>
+              <label ref={(node) => { anchorRefs.current.longitude = node; }}>
                 Longitud
                 <input
                   value={form.longitude}
@@ -456,16 +587,7 @@ export function AdminBranchFormPage() {
                 />
               </label>
             </div>
-            <label>
-              Horarios
-              <input
-                value={form.openingHours}
-                onChange={(event) => setForm((current) => ({ ...current, openingHours: event.target.value }))}
-                maxLength={200}
-                placeholder="Lun-Dom 10:00-23:00"
-              />
-            </label>
-            <label>
+            <label ref={(node) => { anchorRefs.current.phone = node; }}>
               Teléfono
               <input
                 value={form.phone}
@@ -482,7 +604,98 @@ export function AdminBranchFormPage() {
               />
               Sucursal activa (puede recibir pedidos nuevos)
             </label>
-            <div className="row">
+          </div>
+          <fieldset className="hours-grid" ref={(node) => { anchorRefs.current.hours = node; }}>
+              <legend>Horarios</legend>
+              {form.hours.map((day, weekday) => (
+                <div
+                  className={invalidDay === weekday ? 'hours-day is-invalid' : 'hours-day'}
+                  key={DAY_NAMES[weekday]}
+                  ref={(node) => {
+                    dayRefs.current[weekday] = node;
+                  }}
+                >
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={day.enabled}
+                      onChange={(event) => patchDay(weekday, { enabled: event.target.checked })}
+                    />
+                    {DAY_NAMES[weekday]}
+                  </label>
+                  <input
+                    className="hours-time"
+                    inputMode="numeric"
+                    aria-label={`${DAY_NAMES[weekday]} abre`}
+                    value={day.opensAt}
+                    placeholder="10:00"
+                    maxLength={5}
+                    disabled={!day.enabled}
+                    onChange={(event) => patchDay(weekday, { opensAt: event.target.value })}
+                  />
+                  <span className="hours-dash" aria-hidden="true">
+                    –
+                  </span>
+                  <input
+                    className="hours-time"
+                    inputMode="numeric"
+                    aria-label={`${DAY_NAMES[weekday]} cierra`}
+                    value={day.closesAt}
+                    placeholder="15:00"
+                    maxLength={5}
+                    disabled={!day.enabled}
+                    onChange={(event) => patchDay(weekday, { closesAt: event.target.value })}
+                  />
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={day.split}
+                      disabled={!day.enabled}
+                      onChange={(event) => patchDay(weekday, withSplit(day, event.target.checked))}
+                    />
+                    Partido
+                  </label>
+                  <input
+                    className="hours-time"
+                    inputMode="numeric"
+                    aria-label={`${DAY_NAMES[weekday]} segunda apertura`}
+                    value={day.opensAt2}
+                    placeholder="19:00"
+                    maxLength={5}
+                    disabled={!day.enabled || !day.split}
+                    onChange={(event) => patchDay(weekday, { opensAt2: event.target.value })}
+                  />
+                  <span className="hours-dash" aria-hidden="true">
+                    –
+                  </span>
+                  <input
+                    className="hours-time"
+                    inputMode="numeric"
+                    aria-label={`${DAY_NAMES[weekday]} segundo cierre`}
+                    value={day.closesAt2}
+                    placeholder="23:00"
+                    maxLength={5}
+                    disabled={!day.enabled || !day.split}
+                    onChange={(event) => patchDay(weekday, { closesAt2: event.target.value })}
+                  />
+                </div>
+              ))}
+            </fieldset>
+            {form.hours.some((day) => day.enabled) ? (
+              <p className="field-hint hours-note">Si el pedido entra con la sucursal cerrada, se puede dejar para la próxima apertura.</p>
+            ) : (
+              <label className="hours-note">
+                Texto de horario
+                <input
+                  value={form.openingHours}
+                  onChange={(event) => setForm((current) => ({ ...current, openingHours: event.target.value }))}
+                  maxLength={200}
+                  placeholder="Lun-Dom 10:00-23:00"
+                />
+                <span className="field-hint">Sin días marcados se muestra este texto y el pedido no se frena.</span>
+              </label>
+            )}
+            <div className="row hours-note">
               <button type="submit" disabled={busy}>
                 {saving ? 'Guardando…' : id ? 'Guardar cambios' : 'Crear sucursal'}
               </button>
@@ -490,9 +703,13 @@ export function AdminBranchFormPage() {
                 Cancelar
               </button>
             </div>
-          </div>
         </div>
       </form>
+      {error && errorOffscreen ? (
+        <p className="error branch-alert-float" aria-hidden="true">
+          {error}
+        </p>
+      ) : null}
     </section>
   );
 }

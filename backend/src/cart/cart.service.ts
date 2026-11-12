@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { byName, ExtrasService } from '../extras/extras.service';
+import { isSauceProduct, withSaucesLast } from '../catalog/item-order';
 import { PrismaService } from '../prisma/prisma.service';
+import { StockService } from '../stock/stock.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 
@@ -9,7 +11,10 @@ const withRelations = {
   items: {
     include: {
       product: {
-        include: { images: { orderBy: { sortOrder: 'asc' as const }, take: 1 } },
+        include: {
+          images: { orderBy: { sortOrder: 'asc' as const }, take: 1 },
+          categories: { select: { slug: true } },
+        },
       },
       extras: {
         include: {
@@ -24,7 +29,7 @@ const withRelations = {
 type CartWithRelations = Prisma.CartGetPayload<{ include: typeof withRelations }>;
 
 function serialize(cart: CartWithRelations) {
-  const items = cart.items.map((item) => {
+  const items = withSaucesLast(cart.items, (item) => isSauceProduct(item.product)).map((item) => {
     const unitPrice = Number(item.product.price);
     const extras = item.extras
       .map(({ extra }) => ({
@@ -59,6 +64,7 @@ function serialize(cart: CartWithRelations) {
     items,
     itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
     total: items.reduce((sum, item) => sum + item.subtotal, 0),
+    purchaseBlocked: cart.purchaseBlocked,
   };
 }
 
@@ -67,6 +73,7 @@ export class CartService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly extrasService: ExtrasService,
+    private readonly stockService: StockService,
   ) {}
 
   async getCart(userId: string) {
@@ -124,12 +131,50 @@ export class CartService {
   }
 
   async removeItem(userId: string, itemId: string) {
-    await this.findOwnedItem(userId, itemId);
+    const item = await this.findOwnedItem(userId, itemId);
 
     await this.prisma.cartItem.delete({
       where: { id: itemId },
     });
+    const left = await this.prisma.cartItem.count({ where: { cartId: item.cartId } });
+    if (left === 0) {
+      await this.prisma.cart.update({ where: { id: item.cartId }, data: { purchaseBlocked: false } });
+    }
 
+    return this.getCart(userId);
+  }
+
+  /** Vacía el carrito y lo vuelve a habilitar: el cliente tiene que armarlo de nuevo. */
+  async reset(userId: string) {
+    const cart = await this.getOrCreateCart(userId);
+    await this.prisma.$transaction([
+      this.prisma.cartItem.deleteMany({ where: { cartId: cart.id } }),
+      this.prisma.cart.update({ where: { id: cart.id }, data: { purchaseBlocked: false } }),
+    ]);
+    return this.getCart(userId);
+  }
+
+  /**
+   * Al pasar el carrito de invitado a la cuenta: si se armó antes de una liberación, queda inhabilitado.
+   */
+  async applyReleaseBlock(
+    userId: string,
+    items: { productId: string; extraIds?: string[]; addedAt?: string }[],
+  ) {
+    const blocked = await this.stockService.isPurchaseBlocked(
+      items.map((item) => ({
+        productId: item.productId,
+        extraIds: item.extraIds,
+        addedAt: item.addedAt ? new Date(item.addedAt) : null,
+      })),
+    );
+    if (!blocked) return this.getCart(userId);
+
+    await this.prisma.cart.upsert({
+      where: { userId },
+      create: { userId, purchaseBlocked: true },
+      update: { purchaseBlocked: true },
+    });
     return this.getCart(userId);
   }
 

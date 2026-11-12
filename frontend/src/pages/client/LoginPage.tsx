@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import type { LoginResponse } from '../../api/types';
 import { useSession } from '../../auth/SessionContext';
 import { consumeAuthNotice, isCustomer, saveSession, SESSION_EXPIRED_MESSAGE } from '../../auth/session';
+import { useCart } from '../../cart/CartContext';
 import { mergeGuestCartIntoAccount } from '../../cart/guestCart';
 import { BrandLogo } from '../../components/BrandLogo';
 import { PasswordField } from '../../components/PasswordField';
@@ -19,6 +20,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { refresh: refreshSession } = useSession();
+  const { refresh: refreshCart } = useCart();
   const locationState = location.state as LocationState | null;
   const from = locationState?.from;
   const [storedNotice] = useState(() => consumeAuthNotice());
@@ -79,6 +81,7 @@ export function LoginPage() {
       } catch {
         /* el pedido se puede seguir armando desde la cuenta */
       }
+      await refreshCart();
       navigate(from && from !== '/login' ? from : '/products', { replace: true });
     } catch (err) {
       setApiError(err instanceof Error ? err.message : 'No se pudo iniciar sesión');

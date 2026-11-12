@@ -27,3 +27,15 @@ export function discountCaption(options: {
   if (kind && name) return `${kind} · ${name}`;
   return kind || name;
 }
+
+export function orderDiscountLabel(
+  line: { kind: 'promotion' | 'coupon'; name: string },
+  promo?: { type?: 'percent' | 'two_for_one' | null; value?: number | null },
+): string {
+  if (line.kind === 'coupon') {
+    const code = line.name.replace(/^Cupón\s+/, '');
+    return `Cupón de reclamo (${code})`;
+  }
+  const caption = discountCaption({ name: line.name, type: promo?.type, value: promo?.value });
+  return caption ? `Descuento (${caption})` : 'Descuento';
+}

@@ -27,6 +27,8 @@ export function AdminStockPage() {
   const [savingId, setSavingId] = useState('');
   const [bulkSaving, setBulkSaving] = useState<StockAdjustment | null>(null);
   const [pendingBulk, setPendingBulk] = useState<StockAdjustment | null>(null);
+  const [pendingRelease, setPendingRelease] = useState<StockLine[] | null>(null);
+  const [releasing, setReleasing] = useState(false);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -280,14 +282,72 @@ export function AdminStockPage() {
   }
 
   const selectedCount = lines.filter((line) => selected.has(line.productId)).length;
-  const busy = bulkSaving !== null || savingId !== '';
+  const releasable = lines.filter((line) => selected.has(line.productId) && line.reserved > 0);
+  const busy = bulkSaving !== null || savingId !== '' || releasing;
+
+  function releaseMessage(targets: StockLine[]) {
+    const units = targets.reduce((sum, line) => sum + line.reserved, 0);
+    const label = targets.length === 1 ? targets[0].productName : `${targets.length} productos`;
+    const unitLabel = units === 1 ? 'unidad reservada' : 'unidades reservadas';
+    return `¿Liberar ${units} ${unitLabel} de ${label}? Vuelven a estar disponibles y los pedidos en curso dejan de retenerlas. Si algún carrito las tiene, queda inhabilitado para comprar y el cliente tiene que armarlo de nuevo.`;
+  }
+
+  async function executeRelease(targets: StockLine[]) {
+    const withReserved = targets.filter((line) => line.reserved > 0);
+    if (!withReserved.length || releasing) return;
+
+    setReleasing(true);
+    setError('');
+    setNote('');
+    setSavedId('');
+    const settled = await Promise.allSettled(
+      withReserved.map((line) =>
+        api<StockLine & { cartsBlocked: number }>(`/admin/branches/${branchId}/stock/${line.productId}/release`, {
+          method: 'POST',
+          token,
+        }),
+      ),
+    );
+    let ok = 0;
+    let failed = 0;
+    let cartsBlocked = 0;
+    settled.forEach((result, index) => {
+      const productId = withReserved[index].productId;
+      if (result.status === 'fulfilled') {
+        ok += 1;
+        cartsBlocked += result.value.cartsBlocked;
+        remember(result.value);
+        setRowError((current) => ({ ...current, [productId]: '' }));
+      } else {
+        failed += 1;
+        const reason = result.reason;
+        setRowError((current) => ({
+          ...current,
+          [productId]: reason instanceof Error ? reason.message : 'No se pudo liberar',
+        }));
+      }
+    });
+    setReleasing(false);
+    if (failed === 0) {
+      setPendingRelease(null);
+      const carts =
+        cartsBlocked === 0
+          ? 'Ningún carrito lo tenía.'
+          : cartsBlocked === 1
+            ? '1 carrito quedó inhabilitado para comprar.'
+            : `${cartsBlocked} carritos quedaron inhabilitados para comprar.`;
+      setNote(ok === 1 ? `Se liberó el reservado. ${carts}` : `Se liberó el reservado de ${ok} productos. ${carts}`);
+    } else {
+      setError(`Se liberaron ${ok}. No se pudo liberar ${failed}.`);
+    }
+  }
 
   return (
     <section className="stack">
       <header className="page-head">
         <div>
           <h1>Stock</h1>
-          <p className="muted">Disponible por sucursal. Lo reservado no se edita.</p>
+          <p className="muted">Disponible por sucursal. El reservado se puede liberar: vuelve a estar a la venta.</p>
         </div>
       </header>
 
@@ -357,6 +417,17 @@ export function AdminStockPage() {
               />
             </label>
             <div className="row">
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy || releasable.length === 0}
+                onClick={() => {
+                  setError('');
+                  setPendingRelease(releasable);
+                }}
+              >
+                {releasing ? 'Liberando…' : 'Liberar reservado'}
+              </button>
               {stockAdjustments.map((adjustment) => (
                 <button
                   key={adjustment.id}
@@ -417,6 +488,19 @@ export function AdminStockPage() {
                   <div className="stock-line-name">
                     <strong>{line.productName}</strong>
                     <p className="muted">{meta}</p>
+                    {line.reserved > 0 ? (
+                      <button
+                        type="button"
+                        className="secondary stock-release"
+                        disabled={busy}
+                        onClick={() => {
+                          setError('');
+                          setPendingRelease([line]);
+                        }}
+                      >
+                        Liberar reservado
+                      </button>
+                    ) : null}
                   </div>
                   <div className="stock-edit">
                     <input
@@ -478,6 +562,21 @@ export function AdminStockPage() {
           }}
           onClose={() => {
             if (!bulkSaving) setPendingBulk(null);
+          }}
+        />
+      ) : null}
+
+      {pendingRelease ? (
+        <ConfirmModal
+          title="Liberar reservado"
+          message={releaseMessage(pendingRelease)}
+          confirmLabel="Liberar"
+          busyLabel="Liberando…"
+          busy={releasing}
+          error={error}
+          onConfirm={() => void executeRelease(pendingRelease)}
+          onClose={() => {
+            if (!releasing) setPendingRelease(null);
           }}
         />
       ) : null}

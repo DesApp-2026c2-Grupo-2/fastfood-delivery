@@ -1,136 +1,154 @@
 # Supuestos y decisiones de negocio
 
-**Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
-**Versión:** 1.1  
-**Actualizado:** 12/10/2026  
-**Estado:** decisiones vigentes al 12/10. El feedback del Sprint 3 cambia sucursal, mapa y el medio término. Promociones y reportes siguen sin estar construidos.  
-**Documentos relacionados:** `Alcance-funcional.md`, `Requerimientos-funcionales.md`, `docs/sprints/Ficha-Sprint-4.md`
+**Proyecto:** Mordi, pedidos de una casa de comidas rápidas
+**Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
+**Versión:** 2.4
+**Actualizado:** 12/11/2026
+**Fuente:** sección homónima de `Carpeta.md`
 
-El enunciado deja varias reglas al grupo. Esta lista es la que usa el sistema. Si una decisión cambia, se actualiza acá y en el alcance.
+Cada decisión es la regla que usa el sistema hoy.
 
----
-
-## 1. Producto y aplicaciones
-
-| # | Decisión | Valor vigente |
+| # | Decisión | Regla |
 |---|---|---|
-| D1 | Extensión | **Extensión 1** (stock, promociones, reportes extra). La Extensión 2 no es compromiso. |
-| D2 | Aplicaciones | Dos SPAs: cliente en `/frontend` y administración en `/backend/admin`. Misma API (`/backend`) y misma base PostgreSQL. |
-| D3 | Idioma | Documentación y textos de pantalla en español. Código, tablas, JSON y URLs en inglés. |
-| D4 | Moneda y zona | Precios en pesos (ARS), sin símbolo obligatorio en la API. Fechas en ISO-8601. El filtro de reportes del Sprint 4 va a usar el día de Argentina. |
-| D5 | Mapa | Hay un mapa chico para **confirmar el pin** (sucursal en el admin, dirección del cliente). Leaflet y teselas de OpenStreetMap, sin API key. El recorrido del pedido (`RF-GEO-03`) y la navegación siguen fuera. |
+| D1 | Moneda y horario | Precios en pesos. Las fechas de los reportes usan el día de Argentina. |
+| D2 | Dos aplicaciones | Cliente y administración, una base. El front administrativo está en `backend/admin`. |
+| D3 | Invitado | Puede confirmar sin cuenta. El pedido guarda nombre y correo. No suma sellos ni entra al Top 3. |
+| D4 | Carrito | Con cuenta, en el servidor. Sin cuenta, en el navegador. Recargar no lo vacía. La misma hamburguesa con otros adicionales es otra línea. |
+| D5 | Adicionales | Un adicional es un producto de la categoría Adicional. Cada producto ofrece solo los que el administrador marcó. El aderezo de precio 0 también es un adicional. |
+| D6 | Direcciones | Calle, ciudad, provincia y código postal. Un alias («Casa», «Trabajo»). El pin del mapa es la ubicación que se guarda. La búsqueda propone hasta cinco candidatos en Argentina. |
+| D7 | Elección de sucursal | La sucursal que prepara el pedido la elige el cliente, no la asigna la distancia. En domicilio elige entre las activas que caen en el rango (D7b), aunque haya otra más cerca. En retiro elige entre todas las activas. La distancia se muestra, ordena la lista y calcula el envío de la sucursal marcada. Primero aparecen las que tienen stock de todo el carrito. |
+| D7b | Rango de delivery | El administrador configura el radio de cobertura, en kilómetros, desde Parámetros. El valor inicial es 5 km; puede ir de 0,1 a 100. Una sucursal activa entra en la lista de domicilio solo si la distancia a la dirección es menor o igual a ese radio. Cambiarlo no mueve un pedido ya confirmado. El retiro no usa el radio. |
+| D8 | Sin cobertura | Si en domicilio ninguna sucursal activa cae dentro del rango, el botón de confirmar queda deshabilitado y no se crea el pedido. |
+| D9 | Sin stock | Se puede elegir una sucursal que no alcanza, pero confirmar responde error y no crea el pedido. El mensaje nombra el producto, lo pedido y lo disponible. |
+| D10 | Horario | El administrador carga, por día, hasta dos franjas (horario corrido o partido). Si el cliente pide fuera de la franja abierta, puede dejar el pedido programado para la próxima apertura de esa sucursal. La hora estimada se calcula desde esa apertura. Si no lo programa, el pedido no se crea: la respuesta pide confirmación. El stock se reserva al confirmar el programado (D11). Sin franjas cargadas, el local se toma como abierto y se muestra el texto de respaldo. |
+| D11 | Stock | Entero por sucursal y producto. Sin fila, cuenta como 0. Reservar al confirmar, liberar al cancelar, descontar al entregar o retirar. El administrador puede devolver el reservado a disponible. Un carrito de invitado armado antes de esa liberación queda inhabilitado: hay que vaciarlo y armarlo de nuevo. El 2x1 reserva también la unidad gratis. |
+| D12 | Una promoción | Porcentual o 2x1, o el premio de una campaña. Gana la de mayor descuento. Empate: la creada más tarde. El descuento no supera el subtotal y queda congelado en el pedido. El cupón de reclamo no entra en esta elección: se suma (D26). |
+| D13 | Sellos | Cada pedido que llega al mínimo suma un sello al crearlo. Al llegar a 10, ese pedido lleva un descuento sorpresa: el porcentaje lo configura el administrador y no se publica. El cliente ve el premio y el importe, no el número. Si cancela, el sello se revierte. El premio compite con las promociones de la carta y gana solo si descuenta más. |
+| D13b | Top 3 | Al cerrar la campaña, los tres clientes que más gastaron reciben un descuento de un solo uso. El porcentaje tampoco se publica. Compite igual que los sellos: gana el que más descuenta. |
+| D14 | Costo de delivery | El administrador configura dos números en Parámetros. El precio por kilómetro (inicial $0; $0 no cobra envío) y el mínimo de envío gratis (inicial $0, que deja la bonificación apagada). El envío es precio por km × distancia, por cuadra de 100 m iniciada. Si el subtotal ya descontado llega al mínimo, el envío es 0. En retiro es 0. El importe queda congelado en el pedido: cambiar el precio después no lo recalcula. |
+| D15 | Hora estimada | Se calcula una vez al confirmar (preparación base + minutos por ítem + traslado). En retiro la distancia es 0. No se recalcula si cambian los parámetros. |
+| D16 | Código | Tres letras del nombre de la sucursal + seis dígitos. «Mordi Centro» empieza con `MOR`. |
+| D17 | Pago | Simulado. No se guarda en el pedido y no hay pasarela. |
+| D18 | Baja de cuenta | Pide la contraseña. Si hay un pedido en curso, no deja. Los datos personales se anonimizan; los pedidos quedan. |
+| D19 | Clientes en el admin | Alta, edición y baja lógica. Deshabilitado no inicia sesión. Sus pedidos quedan. |
+| D20 | Administradores | Un solo alta: listar, crear, editar y borrar. El administrador inicial no se borra. El rol es super admin o solo pedidos. |
+| D21 | Reportes | Filtro por fecha y sucursal. Un cancelado no suma en las ventas. Un pendiente sí. «Sin stock» respeta la sucursal y no las fechas. |
+| D22 | Reclamo | Uno por pedido, solo si está entregado o retirado, y solo el dueño. Motivos: faltó algo, pedido equivocado, llegó tarde, llegó frío, otro. Si el motivo es otro, el mensaje es obligatorio. El mensaje y la respuesta pueden tener hasta 500 caracteres. El super admin o el rol solo pedidos escribe la respuesta al resolver. El cliente la lee en el pedido. Hasta que lo abre, ve «Nueva respuesta». Si se cambia la respuesta o el monto, vuelve a verla. En sus reclamos, abierto es el que no tiene cupón o cuyo cupón no se usó; cerrado es el que ya se usó. Si el cupón no se usó, se puede reabrir y cambiar la solución. Al reabrir, el cupón deja de descontarse hasta que se resuelve de nuevo. Si ya se usó, queda fija. |
+| D23 | Contraseña | Token de 30 minutos, un solo uso. Sin correo configurado, la pantalla muestra el token. Un email inexistente recibe la misma respuesta genérica. |
+| D24 | Sin stock | En la pantalla de Stock, el producto con disponible 0 sube al tope de la lista y se muestra en rojo, con el borde marcado. El reporte de productos sin stock los lista aparte. No hay un mail ni un número de «stock mínimo» distinto de cero. |
+| D25 | Aderezos | Al confirmar, si el carrito tiene hamburguesas o guarniciones y ningún aderezo, se pregunta «¿Sumamos aderezos?». El tope de cada uno es 2 por hamburguesa y 2 por guarnición. El valor que aparece es la mitad de ese tope, redondeada para abajo, para economizar condimentos. Llegar al máximo exige que el cliente pulse «más», a conciencia. Puede seguir sin aderezos. Mayonesa, mostaza y ketchup salen $0. No se venden sueltos: van con la comida. |
+| D26 | Cupón de reclamo | Al resolver un reclamo, el super admin o el rol solo pedidos puede cargar un importe de $1 a $500.000. El código es `REC-` y seis caracteres. En el detalle se puede copiar el total cobrado del pedido. El cliente recibe un cupón, válido 3 meses, de un solo uso. En el próximo pedido se suma al descuento que ya ganó la promo o la campaña, sin dejar el total de productos en negativo. Si tiene varios, se usa el que vence antes, salvo que elija otro. Un cupón por pedido. Mientras el reclamo está abierto, ese cupón no se descuenta. |
 
-## 2. Identidad y sesión
+## 2.1 Cómo se elige la promoción
 
-| # | Decisión | Valor vigente |
-|---|---|---|
-| D6 | Roles | `customer` y `admin`. Un cliente no entra al admin ni a `/api/admin/*`. |
-| D7 | Sesión | JWT en `Authorization: Bearer`. Dura lo que diga `JWT_EXPIRES_IN` (7 días por defecto). Si falta, venció o el usuario ya no existe, la API responde 401. El rol se lee de la base, no del token. |
-| D8 | Administrador inicial | Seed `admin@rapido.local`. No se puede borrar ni cambiarle el email. Sí se le puede cambiar la contraseña. |
-| D9 | Más administradores | Un admin puede crear, editar y borrar otros. El email no se repite entre clientes y admins. |
-| D10 | Datos del cliente | El nombre se edita. El email es de solo lectura. La contraseña se cambia con la actual y la nueva. |
-| D11 | Recuperar contraseña | Solo clientes. Token de 30 minutos, de un solo uso; se guarda el hash. Pedir otro invalida el anterior. Sin SMTP: en modo demo la API devuelve el token. Un email inexistente o de admin recibe la misma respuesta genérica. El correo real es opcional en el Sprint 4 (DEV-25): si no hay SMTP, el token en pantalla sigue siendo el flujo válido. |
-| D12 | Visitante | Puede ver el catálogo, armar un carrito en el navegador y confirmar un pedido invitado. Eso no reemplaza registro, sesión ni direcciones de cuenta. Al iniciar sesión o registrarse, el carrito invitado se pasa a la cuenta. Los pedidos de invitado no aparecen en el historial. |
+El administrador tiene cargadas, todas vigentes:
 
-## 3. Catálogo, carrito y configuraciones
+- **Martes 20:** 20% sobre el pedido, sin mínimo.
+- **2x1 Gaseosa Cola:** cada dos gaseosas cola, una sale gratis. El precio de la unidad es $2.000. Los adicionales de esas unidades, si los hubiera, se cobran igual.
+- **15% desde $30.000:** 15% solo si el subtotal llega a $30.000.
 
-| # | Decisión | Valor vigente |
-|---|---|---|
-| D13 | Producto no disponible | `available = false` no se lista ni se puede pedir. Tampoco un adicional que dejó de estar disponible. |
-| D14 | Categoría con productos | No se borra (409). |
-| D15 | Imagen | URL o archivo subido por el admin (jpeg, png, webp, gif). |
-| D16 | Configuraciones | Solo **adicionales de hamburguesa**. Un adicional es un producto de la categoría Adicional y se ofrece en los de Hamburguesas, por slug de categoría. No hay tamaños, sabores ni “quitar ingredientes”. Las observaciones de texto siguen existiendo y no son un adicional. |
-| D17 | Línea del carrito | Única por producto + adicionales. La misma hamburguesa con otros adicionales es otra línea. Los adicionales de una línea no se editan: se quita y se vuelve a agregar. |
-| D18 | Importe | `(precio del producto + suma de adicionales) × cantidad`. Al confirmar se congelan el precio del producto y el nombre y precio de cada adicional. |
-| D19 | Carrito autenticado | Uno por cliente, en el backend. Sobrevive recargar. |
+El descuento del 2x1 es `parte entera de (cantidad / 2) × precio del producto`. Con una sola unidad, el descuento es 0 y esa promo no compite.
 
-## 4. Sucursales, cobertura y direcciones
+**Pedido A.** Una hamburguesa doble y una gaseosa cola. Subtotal $22.000.
 
-| # | Decisión | Valor vigente |
-|---|---|---|
-| D20 | Datos de la sucursal | Nombre, dirección, latitud, longitud, horario, teléfono y activa/inactiva. |
-| D21 | Asignación | Desde el Sprint 4 la elige el **cliente**. Domicilio: sucursales activas dentro del radio; sin ninguna, no se confirma. Retiro: todas las activas, sin dirección. En los dos casos van primero las que tienen stock de todo el carrito. El servidor no vuelve a “la más cercana”. Hasta el Sprint 3 era la activa más cercana dentro del radio. |
-| D22 | Radio | Parámetro `coverage_radius_km`, 5 km por defecto, editable entre 0,1 y 100. Cambiarlo no mueve pedidos ya confirmados. |
-| D23 | Horario | Se guarda y se muestra. **No** se usa para asignar ni para impedir el pedido. |
-| D24 | Desempate | No hay. Si dos sucursales quedaran a la misma distancia, gana la que el cálculo devuelva primero. No se mira la cantidad de pedidos pendientes. |
-| D25 | Sucursal inactiva | No se asigna y no aparece en “sucursales disponibles”. |
-| D26 | Sucursales disponibles | En `/branches` hay dos listas: las activas dentro del radio y **todas** las activas. Las inactivas no se muestran. La que se usa en el pedido la elige el cliente en el checkout (D21). |
-| D27 | Dirección del cliente | Texto, alias opcional, latitud y longitud. La ubicación puede salir del dispositivo o cargarse a mano. Cada cliente solo ve las suyas. |
-| D28 | Dirección de sucursal y del cliente | Nominatim (OpenStreetMap), limitado a Argentina, devuelve **hasta 5** candidatos. Si no hay ninguno, la ubicación se marca con el pin del mapa. No es Google Places. |
+| Promoción | Descuento | ¿Compite? |
+|---|---:|---|
+| Martes 20 | $4.400 | Sí |
+| 2x1 Gaseosa Cola | $0 | No: hace falta una segunda gaseosa |
+| 15% desde $30.000 | $0 | No: el subtotal no llega |
 
-## 5. Pedido, estados y tiempo
+Se aplica Martes 20. El pedido queda en $17.600 de productos, más el envío si es a domicilio.
 
-| # | Decisión | Valor vigente |
-|---|---|---|
-| D29 | Estado inicial | `pending` al confirmar. |
-| D30 | Máquina | `pending → confirmed → preparing → ready → on_the_way → delivered`. `cancelled` solo desde `pending` o `confirmed`. No se salta estados. `delivered` y `cancelled` son finales. |
-| D31 | Quién cambia el estado | El administrador avanza la máquina. El cliente y el administrador pueden cancelar en los estados permitidos. |
-| D32 | Historial de estados | Cada cambio guarda estado, fecha y hora, y quién lo hizo cuando hay un usuario. |
-| D33 | Hora estimada | Se calcula **una vez** al confirmar y se guarda. No se recalcula en cada consulta ni si después cambian los parámetros. |
-| D34 | Fórmula | `preparación base + (unidades × minutos por ítem) + ceil(distancia km / km por minuto)`. Valores por defecto: 15 min, 3 min, 0,5 km/min (unos 30 km/h). |
-| D35 | Demora | Si el pedido sigue abierto y ya pasó la hora: minutos de atraso. Si se entregó tarde: diferencia entre la entrega y la hora estimada. Si se canceló, no hay demora. |
-| D36 | Repetir | Copia los ítems al carrito. No clona el pedido ni reserva stock. Si el carrito ya tiene productos, se **suman**. Un producto que ya no está disponible se omite. |
-| D37 | Tiempo real | El seguimiento puede refrescarse con Pusher cuando cambia el estado. No es la notificación por correo de la Extensión 2. |
+**Pedido B.** Dos hamburguesas dobles y dos gaseosas cola. Subtotal $44.000.
 
-## 6. Stock (Extensión 1, ya en uso)
+| Promoción | Descuento |
+|---|---:|
+| Martes 20 | $8.800 |
+| 2x1 Gaseosa Cola | $2.000 |
+| 15% desde $30.000 | $6.600 |
 
-| # | Decisión | Valor vigente |
-|---|---|---|
-| D38 | Unidad | Cantidad entera por sucursal y producto. El admin edita solo lo disponible (0 a 1.000.000). Lo reservado lo mueve el sistema. |
-| D39 | Sin fila | Cuenta como 0 en esa sucursal. Un producto puede tener stock en un local y nada en otro. |
-| D40 | Al confirmar | Si no alcanza (producto o adicional), 409 `OUT_OF_STOCK`, no se crea el pedido y el carrito queda. Si alcanza: disponible baja y reservado sube. |
-| D41 | Al cancelar | En `pending` o `confirmed`, la reserva vuelve a disponible. |
-| D42 | Al entregar | La reserva se descuenta y no vuelve a disponible. |
-| D43 | Pedidos anteriores al stock | No reservaron. Cancelarlos o entregarlos no toca el stock. |
-| D44 | Concurrencia | Si dos clientes piden la última unidad, uno confirma y el otro recibe 409. |
-| D45 | Alerta de mínimo | No está. Queda para el Sprint 5 si hay tiempo. |
+Se aplica Martes 20, que es la que más descuenta. En el carrito y en el checkout se ven las tres, y queda marcada solo Martes 20. Productos: $35.200.
 
-## 7. Promociones y reportes (cerradas, todavía no construidas)
+**Pedido C.** Tres gaseosas cola, sin otra cosa. Subtotal $6.000.
 
-El Sprint 4 las va a implementar así. Hoy el importe del pedido es solo el subtotal.
+| Promoción | Descuento |
+|---|---:|
+| Martes 20 | $1.200 |
+| 2x1 Gaseosa Cola | $2.000 (una unidad gratis; la tercera no alcanza para otra) |
+| 15% desde $30.000 | no compite |
 
-| # | Decisión | Valor para el Sprint 4 |
-|---|---|---|
-| D46 | Aplicación | El ABM no alcanza: una promoción vigente se aplica al confirmar y queda en el importe. |
-| D47 | Tipos | Porcentual, monto fijo o 2x1 de un producto. Sin combos, sin envío gratis y sin condición por cantidad de pedidos. Esa idea del profesor queda para el Sprint 5. |
-| D48 | Cupón | Código reutilizable mientras esté vigente. No es de un solo uso. |
-| D49 | Cuántas | Una por pedido. Si el cliente manda un cupón válido, gana ese. Si no, gana la automática que más descuenta. |
-| D50 | Congelada | El pedido guarda subtotal, descuento y el nombre de la promo. Editarla después no recalcula. Repetir no arrastra la promo vieja. |
-| D51 | 2x1 y stock | Se reservan todas las unidades pedidas, también la que sale gratis. Los adicionales de esas unidades se cobran. |
-| D52 | Reportes base | Más vendidos, menos vendidos, sin stock y mayor facturación. Cuentan los pedidos no cancelados, incluidos los `pending`. Los adicionales no entran en esos listados de productos. |
-| D53 | Reportes extra | Pedidos, clientes, sucursales y promociones: Sprint 5. |
+Se aplica el 2x1. Paga $4.000. Las dos promos que descuentan se muestran; gana la de $2.000.
 
-## 7b. Clientes y costo de envío (backend listo)
+**Sellos.** La meta es 10. Cada pedido de al menos $15.000 suma un sello en el momento de crearlo. El pedido que pone el décimo sello lleva un descuento sorpresa. En este ejemplo el administrador dejó el premio en 30%, y ese 30% no está en la tarjeta ni en la página de promociones.
 
-| # | Decisión | Valor |
-|---|---|---|
-| D54 | ABM de clientes | El admin consulta, edita nombre y email, y habilita o deshabilita clientes. El alta la hace el cliente al registrarse. La contraseña no se toca desde el admin. |
-| D55 | Baja de cliente | Lógica (`User.active`). Deshabilitado no inicia sesión (403), sus tokens dejan de valer (401) y recuperar contraseña lo trata como no registrado. Pedidos, direcciones e historial quedan. Se puede rehabilitar. |
-| D56 | “Compró” | Tiene al menos un pedido no cancelado. Cantidad de compras y total gastado cuentan solo esos. Los invitados no son clientes. |
-| D57 | Costo de envío | Precio por km × distancia sucursal–dirección en línea recta, cobrando cada cuadra (100 m) iniciada. El precio por km lo edita el admin como parámetro del sistema. Precio 0, envío gratis. Retiro no paga. |
-| D58 | Envío y promo | La promo descuenta solo los productos. Total = subtotal − descuento + envío. El envío se congela al confirmar, como la promo. |
-| D59 | Roles de admin | `super_admin`: todo el backoffice. `orders_viewer`: solo consulta pedidos (listado, detalle y estados), sin cambiar estados ni cancelar. Toda ruta de admin nueva es solo de super admin salvo que se abra a propósito. Los admins existentes pasaron a super admin y un alta sin rol también lo es. |
-| D60 | Cambios de rol | Los hace un super admin y rigen enseguida, sin volver a iniciar sesión. Nadie cambia su propio rol y el admin inicial no deja de ser super admin, así siempre queda uno. |
+**Pedido D, con sellos.** La clienta tiene 9 sellos y pide una hamburguesa doble ($20.000). Este pedido completa los 10, así que entra **Premio Fidelidad**: 30% de $20.000 = $6.000. Martes 20 descuenta $4.000. Gana el premio y el total de productos es $14.000. En el pedido se lee Premio Fidelidad y $6.000 de descuento, no «30%». Si además tuviera el premio Top 3 al 15% ($3.000), seguiría ganando el de los sellos, porque $6.000 es mayor. Si después cancela, vuelve a 9 sellos y el premio de ese pedido no queda.
 
-## 8. Qué se propuso al principio y no se hizo
+Si dos descuentos empatan, queda el de la promoción creada más tarde. Un premio de campaña solo gana si descuenta más que esa promoción.
 
-En el análisis del 20/08 había variantes que el grupo descartó. Quedan escritas para no reabrirlas sin una decisión nueva.
+**Cupón de reclamo.** Sobre el pedido B, ya con Martes 20, los productos quedan en $35.200. El cliente tiene un cupón de $5.000 por un reclamo resuelto. Ese cupón no compite: se suma. El descuento total es $8.800 + $5.000 = $13.800 y los productos quedan en $21.400. Si el cupón fuera de $40.000, solo se usarían $35.200, que es lo que queda después de la promo. Si tiene dos cupones, entra el que vence antes. Al cancelar el pedido, el cupón vuelve a estar disponible.
 
-| Propuesta inicial | Qué quedó |
+## 2.2 Rango y costo de delivery, con números
+
+Los dos se editan en Parámetros. En este ejemplo el administrador dejó el radio en 5 km, el kilómetro a $1.000 y el envío gratis desde $25.000 (sobre el subtotal ya descontado).
+
+La dirección del cliente queda a 2,34 km de Mordi Centro, a 4,1 km de Mordi Oeste y a 6,2 km de Mordi Sur.
+
+| Radio configurado | Sucursales que puede elegir en domicilio |
 |---|---|
-| Desempate de sucursal por menor cantidad de pedidos abiertos | No se usa (D24). |
-| No dejar pedir si la sucursal está cerrada según el horario | El horario solo se muestra (D23). |
-| Quitar ingredientes, extras genéricos y tamaños | Solo adicionales de hamburguesa (D16). |
-| Una sola SPA con rutas `/admin` | Dos aplicaciones (D2). |
-| Correo real para recuperar la contraseña | Token demostrable. El mail es opcional en el Sprint 4 y no reemplaza al token (D11). |
-| Mapa fuera del producto | Entra el pin para confirmar una dirección o una sucursal. El recorrido sigue fuera (D5). |
-| Sucursal siempre la más cercana | Desde el Sprint 4 la elige el cliente (D21). |
-| Estados editables desde el admin | Se listan; la máquina no se edita (D30). |
+| 5 km | Centro y Oeste. Sur no entra. |
+| 3 km | Solo Centro. |
+| 8 km | Centro, Oeste y Sur. |
+
+Si baja el radio a 3 km y la persona ya estaba por elegir Oeste, esa sucursal desaparece de la lista. Un pedido que ya se confirmó en Oeste sigue en Oeste.
+
+Con el radio en 5 km puede elegir Centro (2,34 km) u Oeste (4,1 km). El sistema no se queda con Centro por ser la más cercana. Si marca Oeste, el envío se calcula con los 4,1 km de Oeste: 4,1 km son 4,1 km ya cerrados en cuadras, `4,1 × 1.000 = $4.100`. Sur, a 6,2 km, no entra en la lista.
+
+El costo usa la sucursal elegida. Centro está a 2,34 km. La distancia se lleva a una cuadra de 100 m iniciada: 2,34 km son 2,4 km. Con el kilómetro a $1.000, el envío es `2,4 × 1.000 = $2.400`. Si el administrador pasa el kilómetro a $500, el mismo tramo pasa a $1.200. Si lo deja en $0, el envío no se cobra.
+
+Sobre el pedido A ($17.600 después del 20%) faltan $7.400 para el envío gratis. Se cobran $2.400. El total es $20.000.
+
+Sobre el pedido B ($35.200 después del 20%) el mínimo ya se pasó. El envío es $0 y el checkout dice «Envío gratis». El total es $35.200.
+
+En retiro los dos pedidos tienen envío $0, aunque no lleguen a $25.000.
+
+Si el mínimo está en 0, la regla de envío gratis está apagada y siempre se cobra la distancia. El valor inicial del sistema es $0 por kilómetro y mínimo 0: hasta que el administrador cargue un precio, el envío no suma.
+
+## 2.3 Stock y sucursal, con números
+
+El carrito pide dos hamburguesas dobles. El radio es 5 km. Las dos sucursales llegan a la dirección.
+
+| Sucursal | Disponible | ¿Puede armar el pedido? | Lugar en la lista |
+|---|---:|---|---|
+| Mordi Centro | 5 | Sí | Primera |
+| Mordi Norte | 1 | No: pide 2 y hay 1 | Segunda, con el faltante |
+
+Confirmar Mordi Norte no crea el pedido. El stock no se toca. Confirmar Mordi Centro crea el pedido en Pendiente: Centro pasa a 3 disponibles y 2 reservadas.
+
+Si después se cancela, Centro vuelve a 5 disponibles y 0 reservadas. Si se entrega, las 2 reservadas salen del stock: quedan 3 disponibles y 0 reservadas.
+
+Si la dirección está a 8 km de todas las sucursales activas, la lista de domicilio queda vacía, el botón no se puede apretar y no hay pedido.
+
+Mordi Centro abre de lunes a domingo, de 10:00 a 23:00. A las 21:00 del miércoles el checkout no ofrece programar: el pedido sale en el momento. A las 23:30 muestra «Mordi Centro está cerrada» y la opción de dejarlo para el jueves a las 10:00, que es la próxima apertura. Si el cliente acepta, el pedido queda programado para esa hora, la estimada se cuenta desde las 10:00 y el stock se reserva ya. Si no acepta, no se crea el pedido en Centro.
+
+## 2.4 Aderezos, con números
+
+El tope de cada aderezo es 2 por hamburguesa y 2 por guarnición. Lo que se muestra al preguntar es la mitad de ese tope, para abajo.
+
+Dos hamburguesas dobles y una porción de papas fritas: el tope es `(2 + 1) × 2 = 6` de mayonesa, 6 de mostaza y 6 de ketchup. Al abrir «¿Sumamos aderezos?» cada uno figura en 3. Para llevar 6 hay que pulsar «más» tres veces en ese aderezo. Los tres salen $0, así que el total del carrito no cambia.
+
+Una sola hamburguesa doble: el tope es 2 y el valor inicial es 1. El máximo pide un click más.
+
+Si el carrito ya tenía aderezos, la pregunta no vuelve a aparecer. «Continuar sin aderezos» sigue al checkout con la comida sola.
 
 ## Historial
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.4 | 12/11/2026 | D22 y D26: código `REC-`, tope del importe, aviso al cambiar la solución y cupón pausado si el reclamo se reabre |
+| 2.3 | 12/11/2026 | D22 y D26: respuesta al cliente, reabrir si el cupón no se usó, y el rol solo pedidos también carga el importe |
+| 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11 |
+| 1.4 | 11/11/2026 | D59: el rol solo pedidos también resuelve reclamos y carga el cupón |
+| 1.3 | 11/11/2026 | D59: el rol solo pedidos también consulta reclamos y sus cupones |
 | 1.2 | 27/10/2026 | ABM de clientes con baja lógica, costo de envío por km y roles de admin (D54 a D60) |
-| 1.1 | 12/10/2026 | Feedback del profesor: el cliente elige sucursal (retiro o domicilio, stock primero), mapa de pin, hasta 5 candidatos de dirección. La promo con condición no entra |
-| 1.0 | 07/10/2026 | Primera versión de carpeta, con las reglas en uso al cierre del Sprint 3 y las de promociones ya cerradas para el Sprint 4 |
+| 1.1 | 12/10/2026 | Feedback del profesor: el cliente elige sucursal, mapa de pin, hasta 5 candidatos de dirección |
+| 1.0 | 07/10/2026 | Primera versión de carpeta, con las reglas en uso al cierre del Sprint 3 |

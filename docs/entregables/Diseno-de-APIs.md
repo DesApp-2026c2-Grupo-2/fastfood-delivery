@@ -1,228 +1,283 @@
 # Diseño de APIs
 
-**Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
-**Versión:** 1.2  
-**Actualizado:** 01/11/2026  
-**Fuente:** controladores de `backend/src/`  
-**Estado:** contrato en uso al cierre del Sprint 3. Promociones y reportes no tienen rutas todavía.
+**Proyecto:** Mordi, pedidos de una casa de comidas rápidas
+**Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
+**Versión:** 2.4
+**Actualizado:** 12/11/2026
+**Fuente:** sección homónima de `Carpeta.md`
 
-Prefijo `/api`. JSON. Los textos de error vienen en `message`, en español, listos para mostrar.
+La API está en `/api`. Estos ocho recursos son los que arman el pedido, el precio, el stock y la lectura del local, y más abajo traen un ejemplo concreto. El resto sigue el mismo criterio: JSON, error con mensaje legible, y el que no tiene permiso recibe 401 o 403.
 
-Los ejemplos de cuerpo de stock, parámetros, perfil y recuperar contraseña están también en `docs/tecnica/API-sprint-3.md`. Los de historial y seguimiento, en `docs/tecnica/API-pedidos-cliente.md`. Este documento es el mapa completo.
-
----
-
-## 1. Autenticación
-
-El JWT viaja en `Authorization: Bearer <token>`.
-
-| Situación | Código |
+| Área | Recursos |
 |---|---|
-| Falta el token, venció o el usuario ya no existe | 401 |
-| El rol no corresponde (un cliente en `/api/admin/*`, un admin en un pedido de cliente) | 403 |
-| Validación de datos | 400 |
-| No existe, o es de otro cliente cuando no debe verse | 404 |
-| Regla de negocio (sin stock, categoría con productos, email repetido) | 409 |
+| Cuenta | `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/forgot-password`, `POST /api/auth/reset-password`, `GET /api/me`, `PATCH /api/me` |
+| Direcciones | `GET /api/addresses`, `POST /api/addresses`, `PATCH /api/addresses/:id`, `POST /api/geocode` |
+| Catálogo | `GET /api/categories`, `GET /api/products`, `GET /api/products/:id`, `GET /api/products/:id/extras`, `GET /api/promotions/active`, `GET /api/promotions/banner` |
+| Sucursales | `GET /api/branches`, `GET /api/branches/available` |
+| Pedido | `POST /api/orders/guest`, `GET /api/orders`, `POST /api/orders/:id/cancel`, `POST /api/orders/:id/incident`, `POST /api/orders/:id/incident/seen` |
+| Administración | pedidos, stock y liberación de reservado, parámetros, productos y sus adicionales, sucursales, clientes, administradores, promociones, campañas, `GET /api/admin/incidents`, `GET /api/admin/incidents/coupons`, `PATCH /api/admin/incidents/:id`, `GET /api/admin/reports/products` |
 
-`GET /api/auth/me` y `GET /api/me` devuelven `{ id, email, name, role }`.
+Precios del catálogo usados abajo: hamburguesa doble `prod-doble` a $20.000, gaseosa cola `prod-cola` a $2.000.
 
-## 2. Recursos públicos y de cliente
+## 7.1 Agregar al carrito
 
-| Método | Ruta | Auth | Para qué |
-|---|---|---|---|
-| POST | `/api/auth/register` | No | Crea un cliente y devuelve el JWT |
-| POST | `/api/auth/login` | No | Cliente o admin |
-| GET | `/api/auth/me` | JWT | Sesión actual |
-| POST | `/api/auth/forgot-password` | No | Inicia el reset. Siempre el mismo mensaje |
-| POST | `/api/auth/reset-password` | No | Body: `token`, `newPassword` |
-| GET | `/api/categories` | No | Categorías |
-| GET | `/api/categories/:id` | No | Una categoría |
-| GET | `/api/products` | No | Solo `available = true`. Filtro opcional `categoryId` |
-| GET | `/api/products/:id` | No | Detalle. 404 si no está disponible. Incluye `extras` |
-| GET | `/api/branches/available` | Opcional | Sucursales activas dentro del radio |
-| GET | `/api/branches` | Opcional | Todas las sucursales activas. Ubicación opcional para la distancia |
-| POST | `/api/geocode` | No | Dirección → hasta 5 candidatos (Nominatim, Argentina) |
-| POST | `/api/geocode/reverse` | No | Coordenadas → calle, ciudad, provincia y CP |
-| GET | `/api/me` | JWT | Perfil |
-| PATCH | `/api/me` | JWT | Nombre y/o contraseña. El email no se acepta |
-| GET, POST | `/api/me/addresses` | Cliente | Direcciones propias |
-| PATCH, DELETE | `/api/me/addresses/:id` | Cliente | Editar o borrar la propia |
-| GET | `/api/cart` | Cliente | Carrito, con total |
-| POST | `/api/cart/items` | Cliente | Agregar. Acepta `extraIds` |
-| PATCH, DELETE | `/api/cart/items/:id` | Cliente | Cantidad, observaciones, o quitar |
-| POST | `/api/orders` | Cliente | Confirmar el carrito |
-| POST | `/api/orders/guest` | No | Confirmar sin cuenta |
-| GET | `/api/orders` | Cliente | Historial propio |
-| GET | `/api/orders/:id` | Cliente | Seguimiento. 404 si es de otro |
-| POST | `/api/orders/:id/cancel` | Cliente | Cancelar si el estado lo permite |
-| POST | `/api/orders/:id/repeat` | Cliente | Copia ítems al carrito. No reserva stock |
-| GET | `/api/pusher/config` | JWT | Datos públicos de tiempo real |
-| POST | `/api/pusher/auth` | JWT | Autoriza el canal del pedido |
-| GET | `/api/health` | No | Salud del servicio |
+`POST /api/cart/items` · cliente con sesión.
 
-### Sucursales disponibles
+Entrada: tres gaseosas, con el carrito que ya tenía dos hamburguesas dobles.
 
-`GET /api/branches/available?addressId=` exige el JWT del dueño de esa dirección.  
-`GET /api/branches/available?lat=&lng=` no exige sesión.
-
-Responde `{ radiusKm, branches }`. Cada sucursal trae nombre, dirección, teléfono, horario, coordenadas y `distanceKm`. Solo activas dentro del radio, de la más cercana a la más lejana. Lista vacía: esa ubicación no tiene cobertura.
-
-### Todas las sucursales (DEV-22)
-
-`GET /api/branches` lista todas las activas, también las que no llegan a la ubicación. Las inactivas no aparecen. Acepta los mismos `addressId` o `lat` + `lng` que `/available`, pero son opcionales.
-
-Responde `{ radiusKm, branches }` con los campos de `/available` más `withinRadius`. Con ubicación, de la más cercana a la más lejana. Sin ubicación, por nombre, y `distanceKm` y `withinRadius` vienen `null`. Una ubicación a medias (`lat` sin `lng`) responde 400; `addressId` sin sesión, 401.
-
-En las dos listas, en las sucursales del checkout y en la sucursal de un pedido, `address` es la calle y el número. Al lado vienen `city`, `province` y `postalCode`, que pueden ser `null` en las sucursales cargadas antes de existir esos campos.
-
-### Dirección con ciudad, provincia y CP (HU-34)
-
-`POST` y `PATCH /api/me/addresses`, y la `address` de `POST /api/orders/guest`, aceptan además de `street`, `latitude` y `longitude`:
-
-| Campo | Regla |
-|---|---|
-| `city` | Texto, hasta 80 caracteres |
-| `province` | Una de las 24 (`Buenos Aires`, `Ciudad Autónoma de Buenos Aires`, `Córdoba`…). Otra cosa: 400 |
-| `postalCode` | 4 números (`1425`) o CPA (`C1425ABC`). Se guarda sin espacios y en mayúsculas. Otra cosa: 400 |
-
-Los tres son opcionales: las direcciones anteriores quedan con `null`. Vacío equivale a `null` y, en el `PATCH`, borra lo que había. Las respuestas de direcciones y de pedidos devuelven los tres.
-
-### Geocodificación
-
-`POST /api/geocode` acepta la búsqueda libre `{ address }` o los campos separados `{ street, city?, province?, postalCode? }`. Si además de la calle viene ciudad, provincia o CP, consulta a Nominatim en forma estructurada y, si no encuentra nada, repite la búsqueda como texto libre. Con la calle sola va directo al texto libre, y la pantalla muestra los candidatos para elegir en lugar de completar.
-
-Responde 200 con `{ latitude, longitude, displayName, candidates }`, hasta 5 candidatos. Cada candidato trae además `road`, `houseNumber`, `city`, `province` y `postcode`, para completar el formulario. `province` es una de las 24, o vacía si Nominatim trae otra cosa. Sin resultados: 400. Nominatim caído o lento: 502.
-
-`POST /api/geocode/reverse` con `{ latitude, longitude }` devuelve un solo resultado con los mismos campos. Lo usan “Usar mi ubicación” y el pin del mapa para completar calle, ciudad, provincia y CP.
-
-Las consultas a Nominatim salen de a una por segundo, sin importar quién las pida.
-
-### Recuperar contraseña
-
-`POST /api/auth/forgot-password` con `{ email }` responde 200 siempre, exista o no el email. En modo demo, y solo si el email es de un cliente, el cuerpo suma `demo.resetToken` y `demo.expiresAt`. El modo demo está apagado en producción salvo `PASSWORD_RESET_DEMO=true`.
-
-`POST /api/auth/reset-password` con un token inexistente, vencido o usado responde 400.
-
-## 3. Confirmación del pedido
-
-`POST /api/orders` (carrito del cliente) y `POST /api/orders/guest` (ítems, nombre, email y dirección en el cuerpo).
-
-Si sale bien, 201: el pedido queda `pending`, con sucursal, `estimatedDeliveryAt`, detalle e importe, y el carrito autenticado se vacía.
-
-Si sale mal, **no se crea el pedido**.
-
-| Caso | Código | `code` |
-|---|---|---|
-| Ninguna sucursal activa dentro del radio | 400 | `OUT_OF_COVERAGE` |
-| No hay stock del producto o de un adicional en la sucursal asignada | 409 | `OUT_OF_STOCK` |
-| El producto no admite adicionales, o un adicional no existe o no está disponible | 400 | — |
-
-`OUT_OF_STOCK` nombra los productos que faltan y trae `items` con lo pedido y lo disponible.
-
-### Asignación y hora estimada
-
-Sucursal: la activa más cercana (Haversine) cuya distancia sea menor o igual a `coverage_radius_km`.
-
-Hora, calculada una vez:
-
-```
-estimatedDeliveryAt = ahora
-  + eta_prep_base_min
-  + (unidades × eta_min_per_item)
-  + ceil(distanciaKm / eta_km_per_min)
+```json
+{ "productId": "prod-cola", "quantity": 3 }
 ```
 
-En los GET de pedidos, propios y de admin:
+Salida: el carrito completo. El total es el subtotal, todavía sin promoción ni envío (RF-CRT-03).
 
-| Estado | `etaMinutes` | `delayMinutes` |
-|---|---|---|
-| Abierto | Minutos que faltan (0 si ya pasó la hora) | Minutos de atraso (0 si todavía no llegó) |
-| `delivered` | `null` | Cuánto tarde se entregó (0 si llegó a tiempo) |
-| `cancelled` | `null` | `null` |
-
-### Stock al confirmar, cancelar y entregar
-
-| Momento | Efecto en la sucursal del pedido |
-|---|---|
-| Confirmar | `available -= cantidad`, `reserved += cantidad`, `stockReserved = true` |
-| Cancelar en `pending` o `confirmed` | Se revierte la reserva |
-| Pasar a `delivered` | `reserved -= cantidad`. No vuelve a `available` |
-| Repetir | Nada |
-
-Un producto o adicional sin fila de stock cuenta como 0. Los pedidos creados antes del stock tienen `stockReserved = false` y no lo mueven.
-
-### Adicionales
-
-`extraIds`: hasta 10, sin repetir. `unitPrice` es el precio base. `extrasTotal` es el recargo por unidad. `subtotal = (unitPrice + extrasTotal) × quantity`. En el pedido, nombre y precio del adicional quedan copiados.
-
-### Máquina de estados
-
-```
-pending    → confirmed | cancelled
-confirmed  → preparing | cancelled
-preparing  → ready
-ready      → on_the_way
-on_the_way → delivered
+```json
+{
+  "itemCount": 5,
+  "total": 46000,
+  "items": [
+    { "productId": "prod-doble", "quantity": 2, "unitPrice": 20000, "extras": [], "subtotal": 40000 },
+    { "productId": "prod-cola", "quantity": 3, "unitPrice": 2000, "extras": [], "subtotal": 6000 }
+  ]
+}
 ```
 
-`delivered` y `cancelled` no tienen siguiente. El detalle del cliente trae `canCancel`. El del admin trae `nextStatuses`.
+Si la cantidad de gaseosas pasa a 4, `total` es 48000. Un adicional que ese producto no ofrece responde 400 y no agrega la línea.
 
-## 4. Administración
+## 7.2 Cotizar la promoción
 
-Todas piden JWT de admin.
+`POST /api/promotions/quote` · con sesión o, el invitado, mandando las líneas.
 
-| Método | Ruta | Para qué |
-|---|---|---|
-| CRUD | `/api/admin/categories` | ABM. Borrar con productos: 409 |
-| CRUD | `/api/admin/products` | ABM. Imagen por URL |
-| POST | `/api/admin/uploads` | Sube hasta 8 imágenes (jpeg, png, webp, gif) |
-| CRUD | `/api/admin/branches` | ABM de sucursales. Acepta `city`, `province` y `postalCode`, con las reglas de la dirección |
-| POST | `/api/admin/branches/geocode` | El mismo cuerpo y la misma respuesta que `/api/geocode` |
-| GET | `/api/admin/branches/:branchId/stock` | Stock de todos los productos en esa sucursal |
-| PUT | `/api/admin/branches/:branchId/stock/:productId` | Body `{ "available": 20 }`. No se edita `reserved` |
-| GET, POST | `/api/admin/admins` | Listado y alta |
-| PATCH, DELETE | `/api/admin/admins/:id` | Editar o borrar. El inicial no se borra ni cambia de email |
-| GET, PATCH | `/api/admin/parameters` | Radio y constantes de ETA |
-| GET | `/api/admin/order-statuses` | Estados, etiqueta y transiciones. Solo lectura |
-| GET | `/api/admin/orders` | Listado, filtro por estado |
-| GET | `/api/admin/orders/:id` | Detalle, timeline, hora y demora |
-| POST | `/api/admin/orders/:id/status` | Avanza al siguiente estado válido |
-| POST | `/api/admin/orders/:id/cancel` | Cancela si está en `pending` o `confirmed` |
+Entrada del pedido C: tres gaseosas cola.
 
-### Parámetros
+```json
+{ "items": [{ "productId": "prod-cola", "quantity": 3 }] }
+```
 
-| Clave | Default | Rango |
-|---|---|---|
-| `coverage_radius_km` | 5 | 0,1 a 100 |
-| `eta_prep_base_min` | 15 | 0 a 240, entero |
-| `eta_min_per_item` | 3 | 0 a 60, entero |
-| `eta_km_per_min` | 0,5 | 0,05 a 10 |
+Salida: gana el 2x1. Las otras ofertas viajan en `offers` con `applied` en falso.
 
-`PATCH` manda solo las claves que cambian. Rigen para el próximo pedido.
+```json
+{
+  "subtotal": 6000,
+  "discountAmount": 2000,
+  "totalAmount": 4000,
+  "promotion": { "name": "2x1 Gaseosa Cola", "type": "two_for_one", "value": 0 },
+  "offers": [
+    { "name": "2x1 Gaseosa Cola", "discountAmount": 2000, "applied": true },
+    { "name": "Martes 20", "discountAmount": 1200, "applied": false }
+  ]
+}
+```
 
-### Stock
+Con la doble y la cola del pedido A, `promotion.name` es «Martes 20», `discountAmount` es 4400 y `totalAmount` es 17600. El envío no entra en esta cuenta.
 
-`GET` devuelve todos los productos, también los que no tienen fila (`available: 0`, `reserved: 0`). `PUT` crea la fila si no existía. `available` es un entero de 0 a 1.000.000.
+## 7.3 Sucursales para este carrito
 
-## 5. Lo que esta API todavía no tiene
+`POST /api/branches/checkout`
 
-Queda para el Sprint 4, ya diseñado en la ficha y todavía sin rutas:
+Entrada: domicilio, dos hamburguesas dobles, dirección ya guardada.
 
-| Método previsto | Ruta | Para qué |
-|---|---|---|
-| GET, POST | `/api/admin/promotions` | ABM |
-| GET, PATCH, DELETE | `/api/admin/promotions/:id` | Editar, desactivar o borrar si nadie la usó |
-| POST | `/api/promotions/quote` | Cotizar subtotal, descuento y total |
-| GET | `/api/admin/reports/products` | Los cuatro reportes de productos |
+```json
+{
+  "fulfillment": "delivery",
+  "addressId": "dir-casa",
+  "items": [{ "productId": "prod-doble", "quantity": 2 }]
+}
+```
 
-Al confirmar, el cuerpo va a aceptar `couponCode` opcional y la respuesta va a sumar `subtotal`, `discountAmount` y `promotionName`. Hoy `totalAmount` es el importe sin descuento.
+Salida: Centro puede, Norte no. El orden ya viene con las que pueden primero. Con Martes 20 el subtotal descontado es $32.000, así que el envío gratis aplica y las dos sucursales cobran $0. El envío de $2.400 de la sección 2.2 es el de un pedido que, ya descontado, no llega a $25.000.
 
-Los reportes extra del Sprint 5 no tienen ruta definida todavía.
+```json
+{
+  "fulfillment": "delivery",
+  "radiusKm": 5,
+  "freeDelivery": { "minSubtotal": 25000, "qualifies": true, "missing": 0 },
+  "branches": [
+    {
+      "name": "Mordi Centro",
+      "openingHours": "Lun-Dom 10:00-23:00",
+      "openNow": true,
+      "nextOpenAt": null,
+      "distanceKm": 2.34,
+      "deliveryFee": 0,
+      "canFulfill": true,
+      "missing": []
+    },
+    {
+      "name": "Mordi Norte",
+      "distanceKm": 3.1,
+      "deliveryFee": 0,
+      "canFulfill": false,
+      "missing": [{ "name": "Hamburguesa doble", "requested": 2, "available": 1 }]
+    }
+  ]
+}
+```
+
+Si ninguna sucursal cae dentro del radio, `branches` viene vacío. En retiro la lista trae todas las activas, `deliveryFee` 0 y no hace falta dirección. Si `openNow` es falso, cada sucursal trae `nextOpenAt`, la próxima apertura. El checkout ofrece programar el pedido para esa hora.
+
+## 7.4 Confirmar el pedido
+
+`POST /api/orders` · con cuenta. El invitado usa `POST /api/orders/guest` con nombre, correo y la dirección escrita. El medio de pago no viaja en este cuerpo: la pantalla de confirmación lo recuerda en esa visita y no lo guarda.
+
+Entrada del caso feliz de HU-08.
+
+```json
+{
+  "fulfillment": "delivery",
+  "addressId": "dir-casa",
+  "branchId": "suc-centro"
+}
+```
+
+Salida:
+
+```json
+{
+  "code": "MOR482913",
+  "status": "pending",
+  "fulfillment": "delivery",
+  "subtotal": 22000,
+  "discountAmount": 4400,
+  "promotionName": "Martes 20",
+  "deliveryFee": 2400,
+  "totalAmount": 20000,
+  "branch": { "name": "Mordi Centro" },
+  "scheduledFor": null
+}
+```
+
+Ese pedido se confirmó a las 21:00, dentro del horario, así que `scheduledFor` va vacío. A las 23:30 la misma sucursal está cerrada. Confirmar sin aceptar responde 409, con el código `BRANCH_CLOSED` y la pregunta de programarlo. Si el cliente acepta, la entrada lleva `"scheduleWhenClosed": true` y la salida trae `"scheduledFor": "2026-11-12T10:00:00.000-03:00"`. La estimada se cuenta desde esa hora.
+
+Si el cliente con cuenta elige un cupón de reclamo, la entrada lleva `couponIncidentId` con el id de ese reclamo. Si no lo manda y tiene cupones vigentes, entra el que vence antes. El invitado no tiene cupón.
+
+Si `branchId` es Mordi Norte, la salida es un 409 y no hay fila nueva:
+
+```json
+{
+  "statusCode": 409,
+  "code": "OUT_OF_STOCK",
+  "message": "No hay stock suficiente de \"Hamburguesa doble\" en Mordi Norte (quedan 1)",
+  "branch": { "name": "Mordi Norte" },
+  "items": [{ "name": "Hamburguesa doble", "requested": 2, "available": 1 }]
+}
+```
+
+## 7.5 Seguimiento
+
+`GET /api/orders/:id` · el dueño, con sesión. `:id` es la clave interna; `code` es el que se dice en el local.
+
+Cuando el administrador ya lo marcó entregado (HU-10):
+
+```json
+{
+  "code": "MOR482913",
+  "status": "delivered",
+  "fulfillment": "delivery",
+  "totalAmount": 20000,
+  "promotionName": "Martes 20",
+  "estimatedDeliveryAt": "2026-11-11T21:40:00.000Z",
+  "canCancel": false,
+  "history": [
+    { "status": "pending", "changedAt": "2026-11-11T20:10:00.000Z" },
+    { "status": "confirmed", "changedAt": "2026-11-11T20:14:00.000Z" },
+    { "status": "delivered", "changedAt": "2026-11-11T21:05:00.000Z" }
+  ]
+}
+```
+
+En un retiro entregado, la pantalla dice «Retirado» aunque el estado guardado sea `delivered`. Al entregar o al cancelar, la reserva de esa sucursal ya se resolvió: no queda stock apartado para ese pedido.
+
+## 7.6 El administrador cambia el estado
+
+`POST /api/admin/orders/:id/status` · solo super admin.
+
+Entrada, el paso en el que el stock se descuenta:
+
+```json
+{ "status": "delivered" }
+```
+
+Salida: el pedido con `status` «delivered». En la sucursal, esas unidades salen de `reserved` y no vuelven a `available`.
+
+Si el pedido estaba en Pendiente y el cuerpo es `{ "status": "cancelled" }`, la reserva vuelve a `available`. Si estaba en En preparación y se pide cancelar, responde 409 y el stock no se toca. Quien tiene el rol solo pedidos recibe 403 en este recurso. Sí puede hacer `GET /api/admin/orders`, listar reclamos y cupones, resolver, cargar el importe y reabrir si el cupón no se usó.
+
+## 7.7 Reportes de pedidos
+
+`GET /api/admin/reports/orders?from=2026-11-01&to=2026-11-11&branchId=suc-centro` · super admin.
+
+Sin `from`, `to` ni `branchId`, el corte es todo el historial y todas las sucursales. Las fechas son días de Argentina.
+
+```json
+{
+  "ordersByDay": [{ "date": "2026-11-11", "count": 4 }],
+  "ordersByStatus": [{ "status": "delivered", "count": 3 }, { "status": "cancelled", "count": 1 }],
+  "cancelled": { "count": 1, "percent": 25 },
+  "averageDeliveryMinutes": 48,
+  "salesByBranch": [{ "branchName": "Mordi Centro", "totalAmount": 60000 }],
+  "topCustomers": [{ "name": "Cliente de prueba", "orderCount": 3 }],
+  "topPromotions": [{ "promotionName": "Martes 20", "orderCount": 2, "totalDiscount": 8800 }]
+}
+```
+
+Un cancelado no entra en `salesByBranch` ni en el top de clientes. Un pendiente sí entra en las ventas. El mismo filtro en `GET /api/admin/reports/products` devuelve más vendidos, menos vendidos, mayor facturación y sin stock. La pantalla ofrece «Descargar CSV» de cada lista, con el filtro que está puesto.
+
+## 7.8 Repetir
+
+`POST /api/orders/MOR-id/repeat` · el dueño.
+
+No lleva cuerpo. Con el carrito de HU-12 (una papa) y un pedido de una doble más una papa, la salida trae el carrito ya sumado:
+
+```json
+{
+  "cart": {
+    "total": 26000,
+    "items": [
+      { "productId": "prod-papas", "quantity": 2, "subtotal": 6000 },
+      { "productId": "prod-doble", "quantity": 1, "subtotal": 20000 }
+    ]
+  },
+  "skipped": []
+}
+```
+
+Si la doble ya no se vende, `items` solo tiene las papas y `skipped` nombra la hamburguesa. No se crea un pedido nuevo en este paso.
+
+## 7.9 Reclamo y cupón
+
+`POST /api/orders/:id/incident` · el dueño, con sesión. Uno por pedido, y solo si está entregado o retirado. Si el motivo es `other`, el mensaje es obligatorio. El mensaje puede tener hasta 500 caracteres.
+
+```json
+{ "reason": "cold", "message": "Llegó fría" }
+```
+
+`POST /api/orders/:id/incident/seen` · el dueño. No lleva cuerpo. Marca que ya vio la respuesta. Hasta entonces el pedido figura con «Nueva respuesta». Si después cambian la respuesta o el monto, vuelve a figurar.
+
+`GET /api/admin/incidents` · super admin o solo pedidos. Los abiertos van primero. Con `?status=open` o `?status=resolved` queda solo ese estado. `GET /api/admin/incidents/coupons` lista los cupones. `GET /api/admin/incidents/:id` es el detalle, y desde ahí se puede copiar el total cobrado del pedido como importe del cupón.
+
+`PATCH /api/admin/incidents/:id` · los dos roles.
+
+```json
+{ "status": "resolved", "response": "Te dejamos un cupón.", "couponAmount": 5000 }
+```
+
+`response` es obligatoria al resolver y puede tener hasta 500 caracteres. `couponAmount` es opcional: un monto de $1 a $500.000 crea o actualiza el cupón, y `null` lo quita si todavía no se usó. El código sale `REC-` y seis caracteres. El cupón vence a los 3 meses. Si se cambia la respuesta o el monto, la respuesta vuelve a quedar no vista.
+
+Reabrir, si el cupón no se usó:
+
+```json
+{ "status": "open" }
+```
+
+Mientras el reclamo está abierto, el cupón no se descuenta. Vuelve a aplicar al resolverlo de nuevo. Si el cliente ya usó el cupón, el mismo PATCH responde 409 y la solución queda como estaba.
 
 ## Historial
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
-| 1.2 | 01/11/2026 | Ciudad, provincia y CP en direcciones y sucursales. Geocode estructurado y `POST /api/geocode/reverse` (HU-34) |
-| 1.1 | 15/10/2026 | Alta de `GET /api/branches`: todas las sucursales activas (DEV-22) |
+| 2.4 | 12/11/2026 | El reclamo documenta el tope de 500 caracteres, el filtro por estado, el código `REC-` y el cupón pausado al reabrir |
+| 2.3 | 12/11/2026 | Alta de reclamo, respuesta vista, listado y resolución. El rol solo pedidos también resuelve y carga el cupón |
+| 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11 |
+| 1.2 | 01/11/2026 | Ciudad, provincia y CP en direcciones y sucursales. Geocode estructurado e inverso (HU-34) |
+| 1.1 | 15/10/2026 | Alta de GET /api/branches: todas las sucursales activas |
 | 1.0 | 07/10/2026 | Mapa de la API al cierre del Sprint 3 |

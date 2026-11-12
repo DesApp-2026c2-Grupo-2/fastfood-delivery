@@ -1,7 +1,7 @@
 # Documentación
 
-**Versión:** 1.5  
-**Actualizado:** 12/10/2026
+**Versión:** 1.12  
+**Actualizado:** 12/11/2026
 
 La carpeta está partida para no mezclar material de trabajo, sprints, carpeta de la materia y docs técnicos.
 
@@ -36,28 +36,27 @@ Un archivo por sprint. El resumen de incrementos para la carpeta está en `entre
 
 ## entregables/
 
-La carpeta que pide la materia, al día del cierre del Sprint 3 (07/10/2026). **Lo que se entrega es el Word** (`.docx`). El Markdown es la fuente: si se edita, hay que volver a exportar.
+**Lo que se entrega el 12/11 es un solo PDF:** `Mordi-Carpeta-Grupo2.pdf`. Tiene portada con los cinco integrantes e índice, y adentro los ocho documentos de la materia, cada uno desde una hoja nueva. Sale de `Carpeta.md`. Los ocho Markdown sueltos (`Alcance-funcional.md`, `Supuestos-y-decisiones.md`, `Requerimientos-funcionales.md`, `Historias-de-usuario.md`, `Incrementos-de-los-sprints.md`, `Modelo-de-datos.md`, `Diseno-de-APIs.md`, `Testing-y-automatizacion.md`) dicen lo mismo que esa carpeta, versión 2.5.
+
+El Markdown es la fuente. La carpeta que se sube se genera así (hace falta Word para el PDF):
 
 ```bash
-python docs/interno/exportar-entregables-docx.py
+python docs/interno/exportar-entregables-docx.py --carpeta
 ```
 
-| Pedido de la materia | Word | Fuente |
+Eso escribe `Mordi-Carpeta-Grupo2.docx` y `Mordi-Carpeta-Grupo2.pdf`, con portada e índice. Los ocho Word de esta entrega salen con `--documentos`, en `entregables/entrega-12-11/`. El comando sin argumentos regenera los ocho Word sueltos desde los Markdown de `entregables/`, que están alineados con `Carpeta.md`.
+
+| Qué se sube | PDF | Fuente |
 |---|---|---|
-| Alcance funcional | `Alcance funcional.docx` | `Alcance-funcional.md` |
-| Supuestos y decisiones de negocio | `Supuestos y decisiones de negocio.docx` | `Supuestos-y-decisiones.md` |
-| Requerimientos funcionales | `Requerimientos funcionales.docx` | `Requerimientos-funcionales.md` |
-| Historias de usuario | `Historias de usuario.docx` | `Historias-de-usuario.md` |
-| Incrementos de los sprints | `Incrementos de los sprints.docx` | `Incrementos-de-los-sprints.md` |
-| Modelo de datos | `Modelo de datos.docx` | `Modelo-de-datos.md` |
-| Diseño de APIs | `Diseño de APIs.docx` | `Diseno-de-APIs.md` |
-| Testing y automatización | `Testing y automatización.docx` | `Testing-y-automatizacion.md` |
+| Carpeta completa (alcance, decisiones, requerimientos, historias, incrementos, modelo, APIs y testing) | `Mordi-Carpeta-Grupo2.pdf` | `Carpeta.md` |
+
+Esas ocho partes van como secciones de `Carpeta.md` y, con el mismo texto, en el Markdown de cada una.
 
 Las fichas de cada sprint siguen en `sprints/` (el detalle del planning). Los contratos con ejemplo de JSON siguen en `tecnica/`.
 
 ## tecnica/
 
-- `Diagrama-DER.md` — diagrama del Sprint 2. El modelo vigente está en `entregables/Modelo-de-datos.md`
+- `Diagrama-DER.md` — diagrama del Sprint 2. El modelo vigente está en `entregables/Modelo-de-datos.md` y en la sección homónima de `Carpeta.md`
 - `API-pedidos-cliente.md` — ejemplos de historial, seguimiento, cancelar y repetir
 - `API-sprint-3.md` — ejemplos de stock, parámetros, perfil, reset y sucursales disponibles
 
@@ -75,6 +74,13 @@ Al editar un doc: subir la versión, poner la fecha de hoy y agregar una fila al
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 1.12 | 12/11/2026 | La carpeta que se entrega es la 2.5 |
+| 1.11 | 11/11/2026 | El PDF de la entrega se llama `Mordi-Carpeta-Grupo2.pdf` |
+| 1.10 | 11/11/2026 | Los ocho Markdown de `entregables/` quedan alineados con `Carpeta.md` 2.2 |
+| 1.9 | 11/11/2026 | Los ocho Word de la entrega 12/11 quedan en `entregables/entrega-12-11/`, aparte de `Carpeta.pdf` |
+| 1.8 | 11/11/2026 | `Carpeta.pdf` reúne los ocho documentos, cada uno en su hoja, y la portada lista a los cinco integrantes |
+| 1.7 | 11/11/2026 | La entrega del 12/11 es `Carpeta.pdf`, un solo documento con portada e índice |
+| 1.6 | 11/11/2026 | La entrega del 12/11 es `Carpeta.docx`, un solo documento del producto |
 | 1.5 | 12/10/2026 | Reparto del Sprint 4: dos días por persona (`Plan-reparto-Sprint-4.md`) |
 | 1.4 | 07/10/2026 | La ficha del Sprint 4 también está en Word |
 | 1.3 | 07/10/2026 | Los ocho entregables también están en Word (`.docx`) |

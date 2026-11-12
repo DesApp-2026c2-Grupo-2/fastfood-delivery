@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsOptional, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { GuestOrderItemDto } from './create-guest-order.dto';
 
 /**
@@ -13,4 +13,10 @@ export class QuotePromotionDto {
   @ValidateNested({ each: true })
   @Type(() => GuestOrderItemDto)
   items?: GuestOrderItemDto[];
+
+  // Cupón de reclamo elegido. Si no llega, se usa el que vence antes.
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  couponIncidentId?: string;
 }

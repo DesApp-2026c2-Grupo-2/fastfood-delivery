@@ -6,7 +6,7 @@ import type { LoyaltyProgress, OrderSummary, RepeatOrderResult, User } from '../
 import { useCart } from '../../cart/CartContext';
 import { getToken, getUserId, isCustomer } from '../../auth/session';
 import { formatPrice } from '../../lib/money';
-import { orderStatusLabel } from '../../lib/order-status';
+import { orderStatusLabel, showPickupBadge } from '../../lib/order-status';
 import { BrandLogo } from '../../components/BrandLogo';
 import { LoyaltyStampsCard } from '../../components/LoyaltyStampsCard';
 
@@ -20,18 +20,29 @@ function formatDate(iso: string): string {
   });
 }
 
-export function OrdersPage() {
+type OrdersVariant = 'orders' | 'claims';
+
+export function OrdersPage({ variant = 'orders' }: { variant?: OrdersVariant }) {
   const token = getToken();
   const userId = getUserId();
+  const path = variant === 'claims' ? '/claims' : '/orders';
 
   if (!isCustomer() || !token || !userId) {
-    return <Navigate to="/login" replace state={{ from: '/orders' }} />;
+    return <Navigate to="/login" replace state={{ from: path }} />;
   }
 
-  return <OrdersContent token={token} userId={userId} />;
+  return <OrdersContent token={token} userId={userId} variant={variant} />;
 }
 
-function OrdersContent({ token, userId }: { token: string; userId: string }) {
+function OrdersContent({
+  token,
+  userId,
+  variant,
+}: {
+  token: string;
+  userId: string;
+  variant: OrdersVariant;
+}) {
   const navigate = useNavigate();
   const { count, refresh } = useCart();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
@@ -129,12 +140,24 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
     }
   }
 
+  const claims = variant === 'claims';
+  const groups = claims
+    ? [
+        { title: 'Abiertos', items: orders.filter((order) => order.claimOpen) },
+        { title: 'Cerrados', items: orders.filter((order) => order.hasIncident && !order.claimOpen) },
+      ].filter((group) => group.items.length > 0)
+    : [{ title: '', items: orders }];
+
   return (
     <section className="stack orders-page">
       <header className="page-head">
         <div>
-          <h1>Mis pedidos</h1>
-          <p className="muted addresses-intro">Seguí lo que ya pediste.</p>
+          <h1>{claims ? 'Reclamos' : 'Mis pedidos'}</h1>
+          <p className="muted addresses-intro">
+            {claims
+              ? 'Los abiertos todavía no tienen cupón, o el cupón no se usó. Los cerrados ya se usaron.'
+              : 'Seguí lo que ya pediste.'}
+          </p>
         </div>
       </header>
 
@@ -143,38 +166,60 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
           {error}
         </p>
       ) : null}
-      {loyalty ? <LoyaltyStampsCard loyalty={loyalty} context="profile" /> : null}
+      {!claims && loyalty ? <LoyaltyStampsCard loyalty={loyalty} context="profile" /> : null}
       {loading ? <p className="muted">Cargando…</p> : null}
 
-      {!loading && orders.length === 0 ? (
+      {!loading && groups.every((group) => group.items.length === 0) ? (
         <div className="empty address-empty">
-          <p>Todavía no hiciste ningún pedido.</p>
-          <Link to="/products">Ver el menú</Link>
+          {claims ? (
+            <>
+              <p>Todavía no hiciste ningún reclamo.</p>
+              <Link to="/orders">Ver mis pedidos</Link>
+            </>
+          ) : (
+            <>
+              <p>Todavía no hiciste ningún pedido.</p>
+              <Link to="/products">Ver el menú</Link>
+            </>
+          )}
         </div>
       ) : null}
 
-      {!loading && orders.length > 0 ? (
+      {!loading && groups.some((group) => group.items.length > 0) ? (
+        <div className="claims-groups">
+        {groups.map((group) => (
+        <section className="claims-group" key={group.title || 'orders'}>
+          {group.title ? <h2>{group.title}</h2> : null}
         <ul className="order-list">
-          {orders.map((order) => (
-            <li key={order.id} className="card order-card">
+          {group.items.map((order) => {
+            const detailTo = claims ? `/orders/${order.id}?from=claims` : `/orders/${order.id}`;
+            return (
+            <li key={order.id} className={order.scheduledFor ? 'card order-card order-card--scheduled' : 'card order-card'}>
               <div className="order-card-main">
                 <div className="order-card-title">
-                  <Link className="order-card-date" to={`/orders/${order.id}`}>
+                  <Link className="order-card-date" to={detailTo}>
                     <strong>{formatDate(order.createdAt)}</strong>
                     {order.code ? <span className="order-card-code">#{order.code}</span> : null}
                   </Link>
-                  {order.fulfillment === 'pickup' ? <span className="pickup-badge">Retiro</span> : null}
+                  {order.scheduledFor ? <span className="scheduled-badge">Programado</span> : null}
+                  {showPickupBadge(order.status, order.fulfillment) ? <span className="pickup-badge">Retiro</span> : null}
                   <span className={`badge badge--${order.status}`}>
                     {orderStatusLabel(order.status, order.fulfillment)}
                   </span>
+                  {order.hasIncident ? (
+                    <span className={order.resolutionUnseen ? 'badge claim-badge claim-badge--unseen' : 'badge claim-badge'}>
+                      {order.resolutionUnseen ? 'Nueva respuesta' : order.hasResolution ? 'Reclamo resuelto' : 'Reclamo enviado'}
+                    </span>
+                  ) : null}
+                  {order.claimCouponCode ? <span className="badge claim-badge">Cupón de reclamo</span> : null}
                 </div>
-                <Link className="order-card-detail" to={`/orders/${order.id}`}>
+                <Link className="order-card-detail" to={detailTo}>
                   {order.branch.name}
                   {' · '}
                   {order.itemCount === 1 ? '1 producto' : `${order.itemCount} productos`}
                 </Link>
                 <div className="order-card-actions">
-                  <Link className="text-action" to={`/orders/${order.id}`}>
+                  <Link className="text-action" to={detailTo}>
                     Ver detalle
                   </Link>
                   <button
@@ -199,13 +244,17 @@ function OrdersContent({ token, userId }: { token: string; userId: string }) {
                     <BrandLogo size={36} className="order-card-stamp__logo" alt="" />
                   </span>
                 ) : null}
-                <Link className="order-card-total" to={`/orders/${order.id}`}>
+                <Link className="order-card-total" to={detailTo}>
                   {formatPrice(order.totalAmount)}
                 </Link>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
+        </section>
+        ))}
+        </div>
       ) : null}
     </section>
   );

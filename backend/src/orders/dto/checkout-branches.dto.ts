@@ -48,4 +48,10 @@ export class CheckoutBranchesDto {
   @ValidateNested({ each: true })
   @Type(() => GuestOrderItemDto)
   items?: GuestOrderItemDto[];
+
+  // El mismo cupón elegido en el resumen, para que el envío gratis use ese descuento.
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  couponIncidentId?: string;
 }

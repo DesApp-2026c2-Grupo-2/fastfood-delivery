@@ -1,15 +1,18 @@
 import { type FormEvent, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import { isStatusBehind, useOrderStatusEvents, type OrderStatusChangedEvent } from '../../api/order-events';
 import { INCIDENT_REASONS, type Incident, type IncidentReason, type OrderDetail, type OrderStatus, type Product } from '../../api/types';import { getToken, getUserId } from '../../auth/session';
 import { formatAddress, formatBranchAddress } from '../../lib/address';
 import { discountCaption } from '../../lib/discount-label';
 import { formatDateTime, formatPrice } from '../../lib/money';
-import { orderStatusLabel } from '../../lib/order-status';
+import { orderDiscountLabel } from '../../lib/discount-label';
+import { orderStatusLabel, showPickupBadge } from '../../lib/order-status';
+import { notifyClaimsSeen } from '../../lib/use-open-claims';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { LoyaltyStampsCard } from '../../components/LoyaltyStampsCard';
 import { mediaUrl } from '../../lib/media';
+import { withSaucesLast } from '../../lib/sauces';
 
 function applyStatusEvent(order: OrderDetail | null, event: OrderStatusChangedEvent): OrderDetail | null {
   if (!order || isStatusBehind(event.status, order.status)) return order;
@@ -34,6 +37,10 @@ function applyStatusEvent(order: OrderDetail | null, event: OrderStatusChangedEv
 
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const fromClaims = searchParams.get('from') === 'claims';
+  const backTo = fromClaims ? '/claims' : '/orders';
+  const backLabel = fromClaims ? '← Reclamos' : '← Mis pedidos';
   const token = getToken() ?? '';
   const userId = getUserId();
   const [order, setOrder] = useState<OrderDetail | null>(null);
@@ -79,6 +86,20 @@ export function OrderDetailPage() {
       cancelled = true;
     };
   }, [id, token]);
+
+  useEffect(() => {
+    if (!id || !token || !order?.incident?.responseUnseen) return;
+    let cancelled = false;
+    void api<Incident>(`/orders/${id}/incident/seen`, { method: 'POST', token })
+      .then((incident) => {
+        if (!cancelled) setOrder((current) => (current ? { ...current, incident } : current));
+        notifyClaimsSeen();
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [id, token, order?.incident?.responseUnseen]);
 
   const isTerminal = order?.status === 'delivered' || order?.status === 'cancelled';
 
@@ -176,7 +197,7 @@ export function OrderDetailPage() {
         <p className="error" role="alert">
           {error || 'Pedido no encontrado'}
         </p>
-        <Link to="/orders">← Volver a mis pedidos</Link>
+        <Link to={backTo}>{fromClaims ? '← Volver a reclamos' : '← Volver a mis pedidos'}</Link>
       </section>
     );
   }
@@ -229,13 +250,14 @@ export function OrderDetailPage() {
     type: order.promotionType,
     value: order.promotionValue,
   });
+  const discountLines = order.discounts ?? [];
 
   return (
     <section className="tracking-page">
       <div className="detail-heading">
         <div className="detail-back-action">
-          <Link to="/orders" className="back-link">
-            ← Mis pedidos
+          <Link to={backTo} className="back-link">
+            {backLabel}
           </Link>
         </div>
 
@@ -247,10 +269,21 @@ export function OrderDetailPage() {
             </p>
           </div>
           <div className="order-status-marks">
-            {order.fulfillment === 'pickup' ? <span className="pickup-badge">Retiro</span> : null}
+            {order.scheduledFor ? <span className="scheduled-badge">Programado</span> : null}
+            {showPickupBadge(order.status, order.fulfillment) ? <span className="pickup-badge">Retiro</span> : null}
             <span className={`tracking-badge tracking-badge--${order.status}`}>
               {orderStatusLabel(order.status, order.fulfillment)}
             </span>
+            {order.claimCouponCode ? <span className="badge claim-badge">Cupón de reclamo</span> : null}
+            {order.incident ? (
+              <span className={order.incident.responseUnseen ? 'badge claim-badge claim-badge--unseen' : 'badge claim-badge'}>
+                {order.incident.responseUnseen
+                  ? 'Nueva respuesta'
+                  : order.incident.status === 'resolved'
+                    ? 'Reclamo resuelto'
+                    : 'Reclamo enviado'}
+              </span>
+            ) : null}
           </div>
         </header>
       </div>
@@ -259,18 +292,24 @@ export function OrderDetailPage() {
 
       {/* Bloque 1: Estado, ETA, Demora, Sucursal y Timeline */}
       <div className="tracking-card">
-        <div className="delivery-status-banner">
+        <div className={order.scheduledFor ? 'delivery-status-banner delivery-status-banner--scheduled' : 'delivery-status-banner'}>
           <div className="eta-block">
             <span className="banner-sublabel">Estado del pedido</span>
-            <strong className={`eta-time tracking-headline tracking-headline--${order.status}`}>
-              {orderStatusLabel(order.status, order.fulfillment)}
-            </strong>
+            <div className="eta-status-row">
+              <strong className={`eta-time tracking-headline tracking-headline--${order.status}`}>
+                {orderStatusLabel(order.status, order.fulfillment)}
+              </strong>
+              {order.scheduledFor ? <span className="scheduled-badge">Programado</span> : null}
+            </div>
             {order.status === 'cancelled' ? null : !isTerminal ? (
               isDelayed ? (
                 <>
                   <span className="banner-sublabel banner-sublabel--late">Demorado {currentDelayMinutes} min</span>
                   {estimatedTimeFormatted ? (
                     <small className="banner-note">Hora pactada: {estimatedTimeFormatted} hs</small>
+                  ) : null}
+                  {order.scheduledFor ? (
+                    <small className="banner-note banner-note--scheduled">Programado para {formatDateTime(order.scheduledFor)}</small>
                   ) : null}
                 </>
               ) : (
@@ -280,6 +319,9 @@ export function OrderDetailPage() {
                       ? `Llega aprox. ${estimatedTimeFormatted} hs`
                       : `Aprox. ${remainingMinutes} minutos`}
                   </span>
+                  {order.scheduledFor ? (
+                    <small className="banner-note banner-note--scheduled">Programado para {formatDateTime(order.scheduledFor)}</small>
+                  ) : null}
                   {estimatedTimeFormatted && remainingMinutes > 0 ? (
                     <small className="banner-note">en aprox. {remainingMinutes} minutos</small>
                   ) : null}
@@ -349,7 +391,7 @@ export function OrderDetailPage() {
         </dl>
 
         <div className="items-list">
-          {order.items.map((item) => {
+          {withSaucesLast(order.items, allProducts).map((item) => {
             const hasExtras = Array.isArray(item.extras) && item.extras.length > 0;
 
             let userNote = item.notes?.trim() || '';
@@ -415,7 +457,14 @@ export function OrderDetailPage() {
             <span>{formatPrice(order.subtotal)}</span>
           </div>
         ) : null}
-        {order.discountAmount > 0 ? (
+        {discountLines.length > 0
+          ? discountLines.map((line) => (
+              <div className="total-line" key={`${line.kind}-${line.name}`}>
+                <span>{orderDiscountLabel(line, { type: order.promotionType, value: order.promotionValue })}</span>
+                <span>−{formatPrice(line.amount)}</span>
+              </div>
+            ))
+          : order.discountAmount > 0 ? (
           <div className="total-line">
             <span>Descuento{promoCaption ? ` (${promoCaption})` : ''}</span>
             <span>−{formatPrice(order.discountAmount)}</span>
@@ -464,7 +513,6 @@ export function OrderDetailPage() {
           }}
         />
       ) : null}
-            {/* HU-36: reportar un problema con un pedido entregado o retirado */}
       {order.incident ? (
         <div className="tracking-card">
           <h2>Tu reclamo</h2>
@@ -478,6 +526,29 @@ export function OrderDetailPage() {
           </p>
           {order.incident.message ? <p className="muted">{order.incident.message}</p> : null}
           <small className="muted">Enviado el {formatDateTime(order.incident.createdAt)}</small>
+          {order.incident.status === 'resolved' ? (
+            <div className="incident-solution">
+              <h3>Solución</h3>
+              <p>{order.incident.response || 'Marcado como resuelto.'}</p>
+              {order.incident.coupon ? (
+                <div className="incident-coupon">
+                  <div>
+                    <strong>Cupón exclusivo {formatPrice(order.incident.coupon.amount)}</strong>
+                    <p className="muted">
+                      Código <code>{order.incident.coupon.code}</code>
+                      {order.incident.coupon.used
+                        ? '. Ya lo usaste.'
+                        : order.incident.coupon.status === 'expired'
+                          ? '. Venció.'
+                          : `. Se descuenta solo en tu cuenta hasta el ${formatDateTime(order.incident.coupon.expiresAt)}.`}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <p className="muted">Lo estamos revisando. Cuando haya una solución, la vas a ver acá.</p>
+          )}
         </div>
       ) : order.canReportIncident ? (
         reportOpen ? (

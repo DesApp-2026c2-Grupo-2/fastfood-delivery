@@ -1,5 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { AdminGuard } from '../auth/admin.guard';
+import { AdminGuard, AllowOrdersViewer } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ReportsService } from './reports.service';
 
@@ -18,6 +18,7 @@ export class ReportsController {
   }
 
   @Get('orders')
+  @AllowOrdersViewer()
   async getOrderReports(
     @Query('from') from?: string,
     @Query('to') to?: string,

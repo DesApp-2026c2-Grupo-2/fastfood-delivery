@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { ActiveBranch, ActiveBranchesResponse } from '../../api/types';
 import { formatBranchAddress } from '../../lib/address';
+import { openStatusLabel } from '../../lib/branch-status';
 
 const CONTACT_EMAIL = 'hola@mordi.com.ar';
 
@@ -73,6 +74,9 @@ export function ContactPage() {
                 <p className="branch-spot-address">{formatBranchAddress(branch)}</p>
                 <p className="branch-spot-meta">
                   <span>{branch.openingHours}</span>
+                  {openStatusLabel(branch.openNow, branch.nextOpenAt) ? (
+                    <span>{openStatusLabel(branch.openNow, branch.nextOpenAt)}</span>
+                  ) : null}
                   <a href={`tel:${branch.phone.replace(/\s/g, '')}`}>{branch.phone}</a>
                 </p>
               </li>

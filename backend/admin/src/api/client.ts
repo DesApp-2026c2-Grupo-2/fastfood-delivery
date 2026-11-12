@@ -1,5 +1,5 @@
 import { getApiUrl } from '../lib/api-url';
-import { markSessionExpired } from '../auth/session';
+import { markOrdersOnly, markSessionExpired, ORDERS_VIEWER_FORBIDDEN } from '../auth/session';
 
 const API_URL = getApiUrl();
 
@@ -41,7 +41,9 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     if (response.status === 401 && options.token) markSessionExpired();
-    throw new Error(readErrorMessage(body, response.status));
+    const message = readErrorMessage(body, response.status);
+    if (response.status === 403 && message === ORDERS_VIEWER_FORBIDDEN) markOrdersOnly();
+    throw new Error(message);
   }
   return body as T;
 }

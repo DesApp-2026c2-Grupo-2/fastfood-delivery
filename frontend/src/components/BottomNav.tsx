@@ -4,11 +4,22 @@ type BottomNavProps = {
   count: number;
   customer: boolean;
   userName?: string;
+  hasOpenClaims?: boolean;
+  claimsCount?: number;
+  highlightClaims?: boolean;
 };
 
-export function BottomNav({ count, customer, userName }: BottomNavProps) {
+export function BottomNav({
+  count,
+  customer,
+  userName,
+  hasOpenClaims = false,
+  claimsCount = 0,
+  highlightClaims = false,
+}: BottomNavProps) {
+  const accountClass = hasOpenClaims ? 'bottom-nav bottom-nav--account bottom-nav--claims' : 'bottom-nav bottom-nav--account';
   return (
-    <nav className={customer ? 'bottom-nav bottom-nav--account' : 'bottom-nav'} aria-label="Navegación principal">
+    <nav className={customer ? accountClass : 'bottom-nav'} aria-label="Navegación principal">
       <div className="bottom-nav-shop">
         <NavLink to="/products" className="bottom-nav-item" end>
           <MenuIcon />
@@ -32,10 +43,25 @@ export function BottomNav({ count, customer, userName }: BottomNavProps) {
             <PinIcon />
             <span>Direcciones</span>
           </NavLink>
-          <NavLink to="/orders" className="bottom-nav-item">
+          <NavLink
+            to="/orders"
+            className={({ isActive }) => `bottom-nav-item${isActive && !highlightClaims ? ' active' : ''}`}
+          >
             <OrdersIcon />
             <span>Pedidos</span>
           </NavLink>
+          {hasOpenClaims ? (
+            <NavLink
+              to="/claims"
+              className={({ isActive }) => `bottom-nav-item${isActive || highlightClaims ? ' active' : ''}`}
+            >
+              <span className="bottom-nav-icon-wrap">
+                <ClaimsIcon />
+                {claimsCount > 0 ? <span className="cart-badge bottom-nav-badge">{claimsCount}</span> : null}
+              </span>
+              <span>Reclamos</span>
+            </NavLink>
+          ) : null}
           <NavLink to="/account" className="bottom-nav-item" end>
             <span className="session-avatar bottom-nav-avatar" aria-hidden="true">
               {userName?.charAt(0).toUpperCase()}
@@ -67,6 +93,15 @@ function OrdersIcon() {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <rect x="4" y="4" width="16" height="16" rx="2" />
       <path d="M8 9h8M8 13h5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ClaimsIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M6 5h12a1 1 0 0 1 1 1v9l-3.2-2H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" strokeLinejoin="round" />
+      <path d="M8 17.5 5 20v-4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

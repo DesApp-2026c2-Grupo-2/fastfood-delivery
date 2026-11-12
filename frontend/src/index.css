@@ -394,6 +394,38 @@ textarea {
   min-width: 0;
 }
 
+.promo-offer--choice {
+  padding: 0;
+}
+
+.promo-offer-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.35rem 0.6rem;
+  align-items: center;
+  padding: 0.55rem 0.7rem;
+  cursor: pointer;
+}
+
+.promo-offer-choice input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.promo-offer--choice:hover {
+  border-color: #fdba74;
+}
+
+.promo-offer-expiry {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #57534e;
+}
+
 .promo-offer strong {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -552,7 +584,8 @@ button:disabled {
 }
 
 .promo-badge,
-.pickup-badge {
+.pickup-badge,
+.scheduled-badge {
   display: inline-flex;
   align-items: center;
   padding: 0.12rem 0.45rem;
@@ -564,6 +597,16 @@ button:disabled {
   letter-spacing: 0.03em;
   line-height: 1.3;
   box-shadow: 0 2px 0 #c2410c;
+}
+
+.scheduled-badge {
+  background: #1d4ed8;
+  box-shadow: 0 2px 0 #1e3a8a;
+}
+
+.order-card--scheduled {
+  border-color: #93c5fd;
+  box-shadow: 4px 4px 0 #bfdbfe;
 }
 
 .order-card-side {
@@ -2276,7 +2319,8 @@ h2 {
   align-items: flex-start;
 }
 
-.cart-link {
+.cart-link,
+.claims-link {
   position: relative;
 }
 .cart-badge {
@@ -2408,6 +2452,34 @@ a.order-card-total:hover,
 }
 
 .order-card-title .badge {
+  margin: 0;
+}
+
+.claims-groups {
+  display: grid;
+  gap: 1.35rem;
+}
+
+.claims-group h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1.15rem;
+}
+
+.claim-badge {
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1.5px solid #fdba74;
+}
+
+.claim-badge--unseen {
+  background: #ea580c;
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 0 #c2410c;
+}
+
+.order-status-marks .claim-badge,
+.order-card-title .claim-badge {
   margin: 0;
 }
 
@@ -2602,6 +2674,10 @@ a.order-card-total:hover,
     overflow: hidden;
   }
 
+  .bottom-nav--claims .bottom-nav-account {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .bottom-nav-account {
     background: #fff7ed;
     border: 1.5px solid #fed7aa;
@@ -2714,6 +2790,15 @@ a.order-card-total:hover,
 
     .bottom-nav-account {
       grid-column: 4 / span 3;
+    }
+
+    .bottom-nav--claims.bottom-nav--account,
+    .bottom-nav.bottom-nav--account.bottom-nav--claims {
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+
+    .bottom-nav--claims .bottom-nav-account {
+      grid-column: 4 / span 4;
     }
 
     .main {
@@ -3163,6 +3248,12 @@ a.order-card-total:hover,
   margin-top: 2px;
 }
 
+.banner-note--scheduled {
+  color: #1e3a8a;
+  font-weight: 800;
+  font-size: 0.92rem;
+}
+
 /* Tarjetas principales con padding generoso */
 .tracking-card {
   background: #ffffff;
@@ -3467,6 +3558,29 @@ a.order-card-total:hover,
   color: #9a3412;
 }
 
+.incident-solution {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: #fff7ed;
+  border: 1.5px solid #fed7aa;
+}
+
+.incident-solution h3 {
+  margin: 0;
+}
+
+.incident-solution p {
+  margin: 0;
+}
+
+.incident-coupon code {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
 .eta-banner {
   background: #fff7ed;
   border: 1.5px solid #fed7aa;
@@ -3728,6 +3842,26 @@ a.order-card-total:hover,
   justify-content: space-between;
   gap: 1.5rem;
   margin-bottom: 0.75rem;
+}
+
+.delivery-status-banner--scheduled {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.delivery-status-banner--scheduled .banner-sublabel {
+  color: #1d4ed8;
+}
+
+.delivery-status-banner--scheduled .banner-sublabel--late {
+  color: #c2410c;
+}
+
+.eta-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 @media (max-width: 600px) {
@@ -4116,16 +4250,19 @@ a.order-card-total:hover,
 .product-line-discount {
   display: grid;
   justify-items: end;
-  gap: 0.2rem;
-  margin: 0.85rem 0 0;
+  gap: 0.15rem;
+  margin: 0.35rem 0 0;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
 }
 
 .product-line-discount p {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   margin: 0;
   font-size: 0.92rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .product-action-footer {
@@ -4265,8 +4402,11 @@ a.order-card-total:hover,
 
 /* Píldora suave para el precio adentro del botón */
 .add-to-cart-price {
+  min-width: 11ch;
   font-size: 0.9rem;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
   background-color: rgba(0, 0, 0, 0.15);
   padding: 0.2rem 0.6rem;
   border-radius: 9999px;
@@ -5259,4 +5399,44 @@ a.order-card-total:hover,
 
 .modal-actions {
   justify-content: flex-end;
+}
+
+.sauce-modal {
+  width: min(32rem, 100%);
+}
+
+.sauce-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+  max-height: min(50vh, 22rem);
+  overflow: auto;
+}
+
+.sauce-picker-row {
+  display: grid;
+  grid-template-columns: 2.75rem 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sauce-picker-row img,
+.sauce-picker-fallback {
+  width: 2.75rem;
+  height: 2.75rem;
+  object-fit: contain;
+  border-radius: 0.7rem;
+  background: #fff7ed;
+}
+
+.sauce-picker-name {
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.sauce-picker-count {
+  font-weight: 800;
+  color: var(--ink);
 }

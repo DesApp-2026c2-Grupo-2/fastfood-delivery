@@ -1,310 +1,157 @@
 # Requerimientos funcionales
 
-**Proyecto:** Mordi — Pedidos en casas de comidas rápidas  
-**Fuente:** `docs/interno/Enunciado.txt`  
-**Versión:** 1.2  
-**Actualizado:** 07/10/2026  
-**Estado:** IDs estables. Al cierre del Sprint 3 están cubiertos 35 de 40 RF obligatorios y el stock de Extensión 1. El alcance está en `Alcance-funcional.md`. Las historias, en `Historias-de-usuario.md`.
+**Proyecto:** Mordi, pedidos de una casa de comidas rápidas
+**Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
+**Versión:** 2.4
+**Actualizado:** 12/11/2026
+**Fuente:** sección homónima de `Carpeta.md`
 
-## 1. Cómo leer este documento
+«El sistema deberá» describe lo que Mordi hace. El identificador es el de la carpeta desde el inicio del cuatrimestre: no se reutiliza ni se cambia de significado. Stock, promociones y reportes de operación forman parte del producto, no de una lista aparte para más adelante.
 
-Un requerimiento funcional (RF) describe **qué debe hacer el sistema**, no cómo se implementa.
+## Cómo se lee
 
 | Campo | Significado |
 |---|---|
-| ID | Identificador estable. No se reutiliza si se elimina un RF. |
-| Nombre | Acción o capacidad, en español. |
-| Descripción | Frase tipo “El sistema deberá…”. |
-| Actor | Quién dispara o se beneficia de la función. |
-| Prioridad | `Obligatorio` (funcionalidades base) · `Optativo` · `Extensión 1` · `Extensión 2` |
-| Entidad | Nombre canónico en inglés (código, URLs, API). |
-| Fuente | Cita o párrafo del enunciado. |
-
-Convención de lenguaje (igual que el resto de la carpeta): documentación y UI en español; código, tablas y URLs en inglés. Ver glosario en `docs/interno/01-Analisis-inicial-y-planning-Sprint-1.md`.
-
-Los RF de extensión **no forman parte del mínimo** del enunciado. El grupo toma **Extensión 1**. La Extensión 2 no es compromiso.
-
-## 2. Actores
-
-| Actor | Descripción |
-|---|---|
-| Visitante | Persona no autenticada. Puede registrarse, ver el catálogo y, como extra del grupo, confirmar un pedido invitado. |
-| Cliente (`Customer`) | Usuario autenticado que realiza pedidos de delivery. |
-| Administrador (`Admin`) | Usuario autenticado que gestiona el negocio desde la aplicación administrativa. |
-| Sistema | Comportamiento automático (asignación de sucursal, cálculo de total, registro de estados, seed inicial). |
-| Repartidor (`Driver`) | Solo Extensión 2 (fuera de compromiso). |
-
-## 3. Requerimientos — funcionalidades base
-
-### 3.1 Gestión de usuarios — Cliente
-
-| ID | Nombre | Descripción | Actor | Prioridad | Entidad | Fuente |
-|---|---|---|---|---|---|---|
-| RF-CLI-01 | Registro de cliente | El sistema deberá permitir a un visitante crear una cuenta de cliente con los datos mínimos para autenticarse y operar. | Visitante | Obligatorio | `Customer` | “Podrán: Registrarse.” |
-| RF-CLI-02 | Inicio de sesión | El sistema deberá autenticar a un cliente con sus credenciales y mantener una sesión válida para usar la aplicación. | Cliente | Obligatorio | `Customer` | “Iniciar sesión.” |
-| RF-CLI-03 | Recuperar contraseña | El sistema deberá permitir a un cliente iniciar un flujo para restablecer su contraseña. | Cliente | Obligatorio | `Customer` | “Recuperar contraseña.” |
-| RF-CLI-04 | Modificar datos personales | El sistema deberá permitir a un cliente autenticado consultar y modificar sus datos personales. | Cliente | Obligatorio | `Customer` | “Modificar sus datos.” |
-| RF-CLI-05 | Administrar direcciones | El sistema deberá permitir a un cliente dar de alta, consultar, modificar y eliminar una o más direcciones de entrega. | Cliente | Obligatorio | `Address` | “Administrar sus direcciones.” |
-| RF-CLI-06 | Consultar pedidos anteriores | El sistema deberá permitir a un cliente consultar los pedidos que realizó. | Cliente | Obligatorio | `Order` | “Consultar pedidos anteriores.” |
-| RF-CLI-07 | Realizar un pedido nuevo | El sistema deberá permitir a un cliente autenticado confirmar un pedido de delivery a partir del carrito. | Cliente | Obligatorio | `Order` | “Realizar nuevos pedidos.” |
-
-### 3.2 Gestión de usuarios — Administrador
-
-| ID | Nombre | Descripción | Actor | Prioridad | Entidad | Fuente |
-|---|---|---|---|---|---|---|
-| RF-ADM-01 | Administrador inicial | El sistema deberá nacer con un administrador precargado, capaz de iniciar sesión en la aplicación administrativa. | Sistema | Obligatorio | `Admin` | “El sistema nace con un administrador inicial.” |
-| RF-ADM-02 | Inicio de sesión de administrador | El sistema deberá autenticar a un administrador y restringir las operaciones de backoffice a ese rol. | Administrador | Obligatorio | `Admin` | “Gestionan toda la información necesaria para el funcionamiento del sistema.” |
-| RF-ADM-03 | Alta de administradores | El sistema deberá permitir a un administrador crear nuevos administradores. | Administrador | Obligatorio | `Admin` | “Los administradores podrán crear nuevos administradores.” |
-
-### 3.3 Sucursales
-
-| ID | Nombre | Descripción | Actor | Prioridad | Entidad | Fuente |
-|---|---|---|---|---|---|---|
-| RF-BRN-01 | ABM de sucursales | El sistema deberá permitir al administrador el alta, baja, modificación y consulta de sucursales. De cada sucursal se registrarán al menos: nombre, dirección, latitud, longitud, horarios de atención, teléfono y estado (activa/inactiva). | Administrador | Obligatorio | `Branch` | “De cada una interesa registrar, entre otros datos: Nombre. Dirección. Ubicación geográfica (latitud y longitud). Horarios de atención. Teléfono. Estado (activa/inactiva).” |
-| RF-BRN-02 | Asignación de sucursal al pedido | El sistema deberá determinar desde qué sucursal se prepara cada pedido, según la estrategia definida por el grupo. | Sistema | Obligatorio | `Branch`, `Order` | “La aplicación deberá determinar desde qué sucursal preparar un pedido.” |
-| RF-BRN-03 | Sucursales disponibles para el cliente | El sistema deberá mostrar al cliente las sucursales disponibles para su ubicación. | Cliente | Obligatorio | `Branch` | “También deberá mostrar al cliente las sucursales disponibles para su ubicación.” |
-
-### 3.4 Catálogo de productos
-
-| ID | Nombre | Descripción | Actor | Prioridad | Entidad | Fuente |
-|---|---|---|---|---|---|---|
-| RF-CAT-01 | ABM de productos | El sistema deberá permitir al administrador el alta, baja, modificación y consulta de productos. De cada producto se registrarán al menos: nombre, descripción, categoría, precio, imagen y estado (disponible/no disponible). | Administrador | Obligatorio | `Product` | “Cada producto posee información como: nombre, descripción, categoría, precio, imagen, estado (disponible/no disponible).” |
-| RF-CAT-02 | ABM de categorías | El sistema deberá permitir al administrador el alta, baja, modificación y consulta de categorías de producto. | Administrador | Obligatorio | `Category` | “Las categorías también deberán ser administrables.” |
-| RF-CAT-03 | Consulta del catálogo | El sistema deberá permitir al cliente consultar los productos disponibles, organizados por categoría. | Cliente | Obligatorio | `Product`, `Category` | “Catálogo de Productos” / “Son quienes realizan pedidos mediante la aplicación.” |
-| RF-CAT-04 | Configuraciones especiales de producto | El sistema deberá permitir, en los productos que el grupo defina, indicar configuraciones especiales al armar el pedido (por ejemplo extras, quitar ingredientes, tamaños o sabores). | Cliente, Administrador | Obligatorio | `Product`, `ProductOption` | “Cada grupo deberá definir si algunos productos pueden tener configuraciones especiales, a tener en cuenta al realizar pedidos.” |
-
-### 3.5 Carrito de compras
-
-| ID | Nombre | Descripción | Actor | Prioridad | Entidad | Fuente |
-|---|---|---|---|---|---|---|
-| RF-CRT-01 | Agregar productos al carrito | El sistema deberá permitir al cliente agregar productos al carrito. | Cliente | Obligatorio | `Cart` | “Los clientes podrán ir agregando productos al carrito.” |
-| RF-CRT-02 | Datos del ítem de carrito | El sistema deberá permitir indicar, por cada producto del carrito, cantidad, observaciones y configuraciones especiales si correspondieran. | Cliente | Obligatorio | `CartItem` | “para cada producto incluido en un carrito, se pueda indicar: cantidad, observaciones, configuraciones especiales (si correspondiera).” |
-| RF-CRT-03 | Cálculo del importe total | El sistema deberá calcular y mostrar el importe total del carrito. | Sistema | Obligatorio | `Cart` | “La aplicación calculará el importe total.” |
-| RF-CRT-04 | Modificar el carrito | El sistema deberá permitir al cliente modificar el carrito (cambiar cantidades, observaciones, configuraciones, quitar ítems) antes de confirmar el pedido. | Cliente | Obligatorio | `Cart` | “El cliente podrá modificar el carrito antes de confirmar el pedido.” |
-
-### 3.6 Realización de pedidos
-
-| ID | Nombre | Descripción | Actor | Prioridad | Entidad | Fuente |
-|---|---|---|---|---|---|---|
-| RF-ORD-01 | Confirmación del pedido | Al confirmar, el sistema deberá registrar al menos: cliente, sucursal asignada, dirección de entrega, fecha y hora, detalle de productos, importe y estado inicial. | Cliente | Obligatorio | `Order` | “Al confirmar el pedido se deberán registrar, como mínimo: cliente, sucursal asignada, dirección de entrega, fecha y hora, detalle de productos, importe, estado inicial.” |
-| RF-ORD-02 | Estados del pedido | El sistema deberá hacer atravesar cada pedido por una máquina de estados. Lista de referencia del enunciado: Pendiente, Confirmado, En preparación, Listo para entregar, En camino, Entregado, Cancelado. El grupo puede ajustar la lista. | Sistema, Administrador | Obligatorio | `OrderStatus` | “Cada pedido atravesará diferentes estados, por ejemplo: …” |
-| RF-ORD-03 | Cambio de estado | El sistema deberá permitir registrar el cambio de estado de un pedido y dejar constancia de fecha y hora de cada cambio. | Administrador | Obligatorio | `OrderStatusHistory` | “fecha y hora de cada cambio de estado” |
-| RF-ORD-04 | Cancelación | El sistema deberá permitir cancelar un pedido cuando las reglas de negocio del grupo lo habiliten, dejando el estado `cancelled`. | Cliente y/o Administrador | Obligatorio | `Order` | Estado “Cancelado” en la lista de ejemplo. |
-
-### 3.7 Geolocalización
-
-| ID | Nombre | Descripción | Actor | Prioridad | Entidad | Fuente |
-|---|---|---|---|---|---|---|
-| RF-GEO-01 | Ubicación geográfica de direcciones | El sistema deberá almacenar, además de la dirección textual, la ubicación geográfica (latitud y longitud) de cada dirección del cliente. | Cliente | Obligatorio | `Address` | “Además de la dirección textual deberá almacenarse la ubicación geográfica.” |
-| RF-GEO-02 | Uso de geo para asignar sucursal | El sistema deberá utilizar la ubicación de la dirección de entrega para determinar la sucursal que prepara el pedido. | Sistema | Obligatorio | `Address`, `Branch` | “La aplicación utilizará dicha información para determinar desde qué sucursal preparar el pedido.” |
-| RF-GEO-03 | Mapa de pedido | El sistema podrá mostrar un mapa con la ubicación del cliente, la sucursal asignada y un recorrido estimado. No es obligatorio implementar navegación real. | Cliente | Optativo | `Order`, `Branch`, `Address` | “Como funcionalidad adicional y optativa, podrá mostrarse un mapa… No es obligatorio implementar navegación real.” |
-
-### 3.8 Seguimiento e historial
-
-| ID | Nombre | Descripción | Actor | Prioridad | Entidad | Fuente |
-|---|---|---|---|---|---|---|
-| RF-TRK-01 | Consultar evolución del pedido | Una vez confirmado el pedido, el sistema deberá permitir al cliente consultar su evolución. | Cliente | Obligatorio | `Order` | “Una vez confirmado el pedido, el cliente podrá consultar su evolución.” |
-| RF-TRK-02 | Información de seguimiento | El sistema deberá mostrar: sucursal que prepara o preparó el pedido, estado actual, fecha y hora de cada cambio de estado, y tiempo estimado de entrega. | Cliente | Obligatorio | `Order`, `Branch`, `OrderStatusHistory` | “qué sucursal está preparando / preparó el pedido, estado actual, fecha y hora de cada cambio de estado, tiempo estimado de entrega.” |
-| RF-TRK-03 | Cálculo de tiempo estimado | El sistema deberá calcular el tiempo estimado de entrega según el criterio definido por el grupo. | Sistema | Obligatorio | `Order` | “Cada grupo podrá definir cómo calcula dicho tiempo.” |
-| RF-HIS-01 | Historial de pedidos | El sistema deberá permitir al cliente consultar pedidos realizados con detalle, importe, fecha y estado final. | Cliente | Obligatorio | `Order` | “Los clientes podrán consultar: pedidos realizados, detalle de cada pedido, importe, fecha, estado final.” |
-| RF-HIS-02 | Repetir un pedido anterior | El sistema deberá permitir al cliente repetir un pedido anterior (cargar su detalle en el carrito para volver a confirmarlo). | Cliente | Obligatorio | `Order`, `Cart` | “También podrán repetir pedidos anteriores.” |
-
-### 3.9 Sistema administrativo (ABM)
-
-El enunciado exige una aplicación administrativa independiente que comparte la misma base de datos. Además de sucursales, productos y categorías (ya cubiertos), el administrador gestiona:
-
-| ID | Nombre | Descripción | Actor | Prioridad | Entidad | Fuente |
-|---|---|---|---|---|---|---|
-| RF-ADM-04 | Aplicación administrativa independiente | El sistema deberá ofrecer una aplicación administrativa, distinta de la de clientes, que comparte la misma base de datos. El grupo la implementa como SPA propia (`/backend/admin`), no como rutas `/admin` dentro de la app de clientes. | Administrador | Obligatorio | — | “Los administradores disponen de una aplicación independiente que comparte la misma base de datos con el sistema de delivery.” |
-| RF-ADM-05 | ABM de promociones | El sistema deberá permitir al administrador el alta, baja, modificación y consulta de promociones. | Administrador | Obligatorio | `Promotion` | Entidad “Promociones.” en el ABM del sistema administrativo. |
-| RF-ADM-06 | ABM de stock | El sistema deberá permitir al administrador consultar y actualizar stock. | Administrador | Obligatorio | `Stock` | Entidad “Stock.” en el ABM del sistema administrativo. |
-| RF-ADM-07 | ABM de administradores | El sistema deberá permitir consultar y dar de alta administradores desde el backoffice. | Administrador | Obligatorio | `Admin` | Entidad “Administradores.” |
-| RF-ADM-08 | Gestión de estados generales | El sistema deberá permitir administrar los estados generales usados por el negocio (como mínimo, los estados de pedido). | Administrador | Obligatorio | `OrderStatus` / `Parameter` | Entidad “Estados generales.” |
-| RF-ADM-09 | Gestión de parámetros del sistema | El sistema deberá permitir consultar y modificar parámetros de funcionamiento (por ejemplo radio de cobertura, valores de ETA u otros que defina el grupo). | Administrador | Obligatorio | `Parameter` | Entidad “Parámetros del sistema.” |
-| RF-ADM-10 | Gestión de pedidos en backoffice | El sistema deberá permitir al administrador consultar pedidos y cambiar su estado. | Administrador | Obligatorio | `Order` | Necesario para “entrega del pedido al cliente” y para RF-ORD-03. No está listado como entidad ABM, pero el proceso completo lo exige. |
-
-Nota: RF-ADM-05 y RF-ADM-06 cubren el **ABM** pedido en el bloque administrativo. El stock no se queda en la carga: desde el Sprint 3 el checkout lo verifica y lo reserva (RF-STK-02, RF-STK-04). Las promociones tampoco se quedan en el ABM: desde el Sprint 4 se aplican al confirmar, con las reglas de `docs/sprints/Ficha-Sprint-4.md` (RF-PRM-02).
-
-### 3.10 Reportes base
-
-| ID | Nombre | Descripción | Actor | Prioridad | Entidad | Fuente |
-|---|---|---|---|---|---|---|
-| RF-RPT-01 | Productos más vendidos | El sistema administrativo deberá mostrar los productos más vendidos. | Administrador | Obligatorio | `Report`, `Product` | “Productos más vendidos.” |
-| RF-RPT-02 | Productos menos vendidos | El sistema administrativo deberá mostrar los productos menos vendidos. | Administrador | Obligatorio | `Report`, `Product` | “Productos menos vendidos.” |
-| RF-RPT-03 | Productos sin stock | El sistema administrativo deberá mostrar los productos sin stock. | Administrador | Obligatorio | `Report`, `Stock` | “Productos sin stock.” |
-| RF-RPT-04 | Productos con mayor facturación | El sistema administrativo deberá mostrar los productos con mayor facturación. | Administrador | Obligatorio | `Report`, `Product` | “Productos con mayor facturación.” |
-
-## 4. Requerimientos — Extensión 1 (stock, promociones, reportes extra)
-
-Aplican solo si el grupo elige la propuesta 1.
-
-### 4.1 Stock por sucursal
-
-| ID | Nombre | Descripción | Actor | Prioridad | Entidad | Fuente |
-|---|---|---|---|---|---|---|
-| RF-STK-01 | Stock por sucursal y producto | El sistema deberá registrar el stock disponible de cada producto en cada sucursal. | Administrador | Extensión 1 | `Stock` | “Cada sucursal administra su propio stock. Debe existir una forma de registrar el stock disponible para cada producto.” |
-| RF-STK-02 | Verificar disponibilidad al pedir | Al realizar un pedido, el sistema deberá verificar que exista stock suficiente en la sucursal asignada. | Sistema | Extensión 1 | `Stock`, `Order` | “Cuando un cliente realiza un pedido, la aplicación deberá verificar la disponibilidad correspondiente.” |
-| RF-STK-03 | Disponibilidad distinta por sucursal | El sistema deberá permitir que un producto no esté disponible en todas las sucursales. | Administrador | Extensión 1 | `Stock`, `Product` | “No necesariamente todos los productos estarán disponibles en todas las sucursales.” |
-| RF-STK-04 | Reserva, descuento y liberación | El sistema deberá reservar, descontar o liberar stock según la política definida por el grupo (por ejemplo reservar al confirmar, liberar al cancelar, confirmar el descuento al entregar). | Sistema | Extensión 1 | `Stock` | “La forma en que se reserva, descuenta o libera el stock queda abierta para ser definida por cada grupo.” |
-| RF-STK-05 | Alertas o niveles de stock | El sistema podrá manejar niveles de stock o alertas (por ejemplo stock mínimo). | Administrador | Extensión 1 (opcional dentro de la extensión) | `Stock` | “También queda abierta la posibilidad de manejar distintos niveles de stock o alertas.” |
-
-### 4.2 Promociones
-
-| ID | Nombre | Descripción | Actor | Prioridad | Entidad | Fuente |
-|---|---|---|---|---|---|---|
-| RF-PRM-01 | Administración de promociones | El sistema deberá administrar promociones aplicables a pedidos (ejemplos del enunciado: combos, descuentos, 2x1, cupones, envío gratuito). | Administrador | Extensión 1 | `Promotion` | “El sistema podrá administrar promociones.” |
-| RF-PRM-02 | Aplicación de promociones | El sistema deberá aplicar al carrito o al pedido las promociones vigentes según las reglas definidas por el grupo, y reflejarlo en el importe. | Sistema, Cliente | Extensión 1 | `Promotion`, `Cart`, `Order` | “Las reglas de aplicación quedan abiertas para que cada grupo las defina.” |
-
-### 4.3 Reportes adicionales (Extensión 1)
-
-**Pedidos**
-
-| ID | Nombre | Descripción | Actor | Prioridad | Fuente |
-|---|---|---|---|---|---|
-| RF-RPT-10 | Pedidos por día | El sistema deberá mostrar la cantidad de pedidos agrupados por día. | Administrador | Extensión 1 | “Pedidos por día.” |
-| RF-RPT-11 | Pedidos por sucursal | El sistema deberá mostrar pedidos agrupados por sucursal. | Administrador | Extensión 1 | “Pedidos por sucursal.” |
-| RF-RPT-12 | Pedidos por estado | El sistema deberá mostrar pedidos agrupados por estado. | Administrador | Extensión 1 | “Pedidos por estado.” |
-| RF-RPT-13 | Tiempo promedio de entrega | El sistema deberá mostrar el tiempo promedio de entrega. | Administrador | Extensión 1 | “Tiempo promedio de entrega.” |
-| RF-RPT-14 | Pedidos cancelados | El sistema deberá mostrar información de pedidos cancelados. | Administrador | Extensión 1 | “Pedidos cancelados.” |
-
-**Clientes**
-
-| ID | Nombre | Descripción | Actor | Prioridad | Fuente |
-|---|---|---|---|---|---|
-| RF-RPT-15 | Clientes con mayor cantidad de pedidos | El sistema deberá listar los clientes con más pedidos. | Administrador | Extensión 1 | “Clientes con mayor cantidad de pedidos.” |
-| RF-RPT-16 | Clientes nuevos por período | El sistema deberá mostrar clientes nuevos en un período. | Administrador | Extensión 1 | “Clientes nuevos por período.” |
-| RF-RPT-17 | Clientes inactivos | El sistema deberá mostrar clientes inactivos según el criterio del grupo. | Administrador | Extensión 1 | “Clientes inactivos.” |
-
-**Sucursales**
-
-| ID | Nombre | Descripción | Actor | Prioridad | Fuente |
-|---|---|---|---|---|---|
-| RF-RPT-18 | Ventas por sucursal | El sistema deberá mostrar ventas por sucursal. | Administrador | Extensión 1 | “Ventas por sucursal.” |
-| RF-RPT-19 | Productos vendidos por sucursal | El sistema deberá mostrar productos vendidos por sucursal. | Administrador | Extensión 1 | “Productos vendidos por sucursal.” |
-| RF-RPT-20 | Pedidos atendidos por sucursal | El sistema deberá mostrar la cantidad de pedidos atendidos por sucursal. | Administrador | Extensión 1 | “Cantidad de pedidos atendidos.” |
-
-**Promociones**
-
-| ID | Nombre | Descripción | Actor | Prioridad | Fuente |
-|---|---|---|---|---|---|
-| RF-RPT-21 | Promociones más utilizadas | El sistema deberá mostrar las promociones más utilizadas. | Administrador | Extensión 1 | “Promociones más utilizadas.” |
-| RF-RPT-22 | Impacto de una promoción | El sistema deberá mostrar el impacto de una promoción sobre las ventas. | Administrador | Extensión 1 | “Impacto sobre las ventas de una promoción.” |
-
-## 5. Requerimientos — Extensión 2 (calificaciones, notificaciones, repartidores)
-
-Aplican solo si el grupo elige la propuesta 2. Los reportes extra de esta extensión son RF-RPT-10 a RF-RPT-20 (los de Extensión 1 salvo promociones).
-
-| ID | Nombre | Descripción | Actor | Prioridad | Entidad | Fuente |
-|---|---|---|---|---|---|---|
-| RF-RAT-01 | Calificar un pedido | Luego de recibir un pedido, el sistema deberá permitir al cliente valorarlo con puntuación y/o comentario. | Cliente | Extensión 2 | `Rating` | “Luego de recibir un pedido, el cliente podrá realizar una valoración. Podrá incluir puntuación y/o comentario.” |
-| RF-NOT-01 | Notificar eventos del pedido | El sistema deberá informar al cliente eventos relevantes del pedido (al menos: confirmado, en preparación, en camino, entregado, cancelación). El canal lo define el grupo (email, in-app u otro). | Sistema | Extensión 2 | `Notification` | “El sistema deberá informar al cliente los eventos importantes.” |
-| RF-DRV-01 | Aplicación de repartidores | El sistema deberá ofrecer una tercera aplicación para uso de los repartidores, sobre la misma base de datos. | Repartidor | Extensión 2 | `Driver` | “Se propone construir una tercer aplicación para uso de los repartidores.” |
-| RF-DRV-02 | Asignación de repartidor | Cuando un pedido queda listo para entregar, el sistema deberá asignarlo a un repartidor según el criterio del grupo. | Sistema | Extensión 2 | `Order`, `Driver` | “Cuando un pedido queda listo para entregar, se asigna a un repartidor…” |
-| RF-DRV-03 | Pedidos pendientes de entrega | El sistema deberá mostrar al repartidor los pedidos pendientes de entrega. | Repartidor | Extensión 2 | `Order` | “En la aplicación del repartidor aparecen los pedidos pendientes de entrega.” |
-| RF-DRV-04 | Inicio de viaje | El sistema deberá permitir al repartidor marcar el inicio de un viaje e indicar qué pedidos lleva. | Repartidor | Extensión 2 | `Trip` | “El repartidor marca cuando empieza un viaje, indicando qué pedidos está llevando…” |
-| RF-DRV-05 | Registrar entrega | El sistema deberá permitir al repartidor marcar la entrega de cada pedido. | Repartidor | Extensión 2 | `Order` | “…y cuando entrega cada pedido.” |
-
-## 6. Resumen cuantitativo
-
-| Alcance | Cantidad de RF |
-|---|---|
-| Obligatorios | 40 (incluye RF-ADM-10, necesario para el proceso de entrega) |
-| Optativos | 1 (RF-GEO-03 mapa) |
-| Extensión 1 | 18 (stock, promos, reportes extra; RF-STK-05 es opcional dentro de la extensión) |
-| Extensión 2 | 7 + reportes RF-RPT-10 a RF-RPT-20 |
-
-Núcleo mínimo demostrable (**Sprint 1**, 16 RF = 40% del base): RF-CLI-01, RF-CLI-02, RF-CLI-05, RF-CLI-07, RF-ADM-01, RF-ADM-02, RF-ADM-04, RF-BRN-01, RF-CAT-01, RF-CAT-02, RF-CAT-03, RF-CRT-01 a RF-CRT-04, RF-ORD-01. RF-GEO-01 arranca junto con RF-CLI-05 (lat/lng en cada dirección).
-
-Capacidad adicional (no es RF del enunciado, no cuenta para el 40%): el visitante puede confirmar un pedido sin cuenta (`POST /api/orders/guest`). No sustituye RF-CLI-01, RF-CLI-02 ni RF-CLI-05.
-
-## 7. Trazabilidad enunciado → RF
-
-| Bloque del enunciado | RF |
-|---|---|
-| Clientes (registro a nuevos pedidos) | RF-CLI-01 a RF-CLI-07 |
-| Administradores | RF-ADM-01 a RF-ADM-03, RF-ADM-07 |
-| Sucursales | RF-BRN-01 a RF-BRN-03 |
-| Catálogo | RF-CAT-01 a RF-CAT-04 |
-| Carrito | RF-CRT-01 a RF-CRT-04 |
-| Realización de pedidos | RF-ORD-01 a RF-ORD-04 |
-| Geolocalización | RF-GEO-01 a RF-GEO-03 |
-| Seguimiento | RF-TRK-01 a RF-TRK-03 |
-| Historial | RF-HIS-01, RF-HIS-02 |
-| Sistema administrativo | RF-ADM-04 a RF-ADM-10 |
-| Reportes base | RF-RPT-01 a RF-RPT-04 |
-| Extensión 1 | RF-STK-*, RF-PRM-*, RF-RPT-10 a RF-RPT-22 |
-| Extensión 2 | RF-RAT-01, RF-NOT-01, RF-DRV-01 a RF-DRV-05 |
-
-## 8. Asignación a sprints (plan)
-
-No cambia la prioridad del RF. Solo indica cuándo el grupo planea cubrirlo.
-
-| Sprint | RF |
-|---|---|
-| 1 | RF-CLI-01, RF-CLI-02, RF-CLI-05, RF-CLI-07, RF-ADM-01, RF-ADM-02, RF-ADM-04, RF-BRN-01, RF-CAT-01, RF-CAT-02, RF-CAT-03, RF-CRT-01 a RF-CRT-04, RF-ORD-01 (+ lat/lng de RF-GEO-01; RF-BRN-02 y RF-GEO-02 con la regla simple: activa más cercana) |
-| 2 | RF-CLI-06, RF-ADM-10, RF-ORD-02 a RF-ORD-04, RF-TRK-01 a RF-TRK-03, RF-HIS-01, RF-HIS-02, RF-CAT-04 (acotado a adicionales de hamburguesa) |
-| 3 | RF-CLI-03, RF-CLI-04, RF-ADM-03, RF-ADM-06, RF-ADM-07, RF-ADM-08, RF-ADM-09, RF-BRN-03, RF-STK-01 a RF-STK-04 (+ RF-BRN-02 y RF-GEO-02 completos: radio de cobertura parametrizable) |
-| 4 | RF-ADM-05, RF-PRM-01, RF-PRM-02, RF-RPT-01 a RF-RPT-04 |
-| 5 | RF-RPT-10 a RF-RPT-22, RF-STK-05 (si hay tiempo), pulido de RF ya cubiertos |
-| Fuera (optativo / plus) | RF-GEO-03 (mapa), todos los RF de Extensión 2 |
-
-## 9. Estado de implementación (07/10/2026)
-
-Un RF está **cubierto** cuando el flujo existe en la API y en la pantalla correspondiente. El detalle de cada incremento está en `Incrementos-de-los-sprints.md`.
-
-### Cubiertos — funcionalidades base (35 / 40)
-
-| RF | Desde |
-|---|---|
-| RF-CLI-01, RF-CLI-02, RF-CLI-05, RF-CLI-07 | Sprint 1 |
-| RF-ADM-01, RF-ADM-02, RF-ADM-04 | Sprint 1 |
-| RF-BRN-01 | Sprint 1 |
-| RF-BRN-02, RF-GEO-02 | Sprint 1 con la regla simple; desde el Sprint 3, activa más cercana dentro del radio |
-| RF-CAT-01, RF-CAT-02, RF-CAT-03 | Sprint 1 |
-| RF-CRT-01 a RF-CRT-04 | Sprint 1; desde el Sprint 2 el ítem también lleva adicionales de hamburguesa |
-| RF-ORD-01 | Sprint 1 |
-| RF-GEO-01 | Sprint 1 (lat/lng); el Sprint 2 suma la ubicación del dispositivo |
-| RF-CLI-06, RF-HIS-01, RF-HIS-02 | Sprint 2 |
-| RF-ORD-02, RF-ORD-03, RF-ORD-04, RF-ADM-10 | Sprint 2 |
-| RF-TRK-01, RF-TRK-02, RF-TRK-03 | Sprint 2; el Sprint 3 fija la hora estimada y muestra la demora |
-| RF-CAT-04 | Sprint 2, acotado a adicionales de hamburguesa |
-| RF-CLI-03, RF-CLI-04 | Sprint 3 |
-| RF-ADM-03, RF-ADM-07 | Sprint 3 (alta, edición y baja; el administrador inicial no se borra) |
-| RF-ADM-06, RF-ADM-08, RF-ADM-09 | Sprint 3 |
-| RF-BRN-03 | Sprint 3 |
-
-### Cubiertos — Extensión 1
-
-RF-STK-01, RF-STK-02, RF-STK-03 y RF-STK-04, desde el Sprint 3.
-
-### Pendientes
-
-| RF | Cuándo |
-|---|---|
-| RF-ADM-05, RF-PRM-01, RF-PRM-02 | Sprint 4 |
-| RF-RPT-01 a RF-RPT-04 | Sprint 4 |
-| RF-RPT-10 a RF-RPT-22 | Sprint 5 |
-| RF-STK-05 | Sprint 5, si hay tiempo |
-| RF-GEO-03 y toda la Extensión 2 | Fuera de compromiso |
-
-## 10. Pendientes de confirmación con docentes
-
-Cerrados por decisión de grupo (se consultan si un docente contradice):
-
-1. **RF-ADM-04:** dos SPAs (cliente y admin), deploys separados, misma API y misma BD.
-2. **RF-GEO-03:** sigue optativo; no entra al núcleo ni al medio término.
-3. **Extensión:** se toma la propuesta 1. Una extensión alcanza para aspirar a nota alta.
-4. **RF-ADM-06:** el stock no se queda en carga de datos. Desde el Sprint 3 el checkout verifica y reserva stock en la sucursal asignada (RF-STK-02, RF-STK-04).
-5. **RF-ADM-08 y RF-ADM-09:** pantalla en el admin (`/admin/parameters`) sobre la tabla `Parameter`, que el sistema usa al confirmar (radio de cobertura y constantes de ETA). Los estados de pedido se listan en modo lectura; la máquina de estados no se edita.
-6. **RF-CLI-03:** flujo demostrable sin SMTP. El token de recuperación se muestra en modo demo, vence a los 30 minutos y es de un solo uso. El correo real queda como mejora.
-7. **RF-ADM-05:** el ABM no alcanza. Desde el Sprint 4 una promoción vigente se aplica al confirmar y queda en el importe (RF-PRM-02). Una sola por pedido: porcentual, monto fijo o 2x1, automática o con cupón. Sin combos, sin envío gratis y sin cupón de un solo uso. El contrato está en `docs/sprints/Ficha-Sprint-4.md`.
-
-No quedan preguntas abiertas de este documento.
+| ID | Identificador estable |
+| El sistema deberá | La capacidad, con la regla que usa el producto hoy |
+| Actor | Quién la dispara |
+
+## Cuenta del cliente
+
+| ID | El sistema deberá | Actor |
+|---|---|---|
+| RF-CLI-01 | Registrar un cliente con nombre, correo y contraseña. | Visitante |
+| RF-CLI-02 | Iniciar sesión y mantenerla hasta que cierre o el token venza. | Cliente |
+| RF-CLI-03 | Recuperar la contraseña con un token de 30 minutos y un solo uso. Sin correo configurado, la pantalla muestra el token. Un email inexistente recibe la misma respuesta. | Cliente |
+| RF-CLI-04 | Dejar que el cliente edite su nombre y su contraseña. El correo no se cambia. | Cliente |
+| RF-CLI-05 | Guardar direcciones con calle, ciudad, provincia, código postal, alias y ubicación. Buscar hasta cinco candidatos y confirmar el punto en el mapa. | Cliente |
+| RF-CLI-06 | Consultar los pedidos anteriores, con detalle, importe, fecha y estado. | Cliente |
+| RF-CLI-07 | Confirmar un pedido nuevo, con cuenta o como invitado. El invitado deja nombre, correo y, si es envío, una dirección. | Cliente o visitante |
+| RF-CLI-08 | Dar de baja la cuenta con la contraseña, anonimizar los datos personales y conservar los pedidos. Rechazar la baja si hay un pedido en curso. | Cliente |
+| RF-CLI-09 | Reportar un problema de un pedido entregado o retirado, uno por pedido y solo el dueño. Si el motivo es otro, el mensaje es obligatorio. El mensaje puede tener hasta 500 caracteres. Leer la respuesta en el pedido. Hasta abrirla, figura «Nueva respuesta». Si cambian la solución, vuelve a figurar. En reclamos, abierto es sin cupón o con cupón sin usar; cerrado es el cupón ya usado. | Cliente |
+
+## Administradores
+
+Hay un solo alta de administradores. Listar, crear, editar y borrar son la misma función: RF-ADM-03 la nombra y RF-ADM-07 es ese mismo ABM, no un segundo alta.
+
+| ID | El sistema deberá | Actor |
+|---|---|---|
+| RF-ADM-01 | Nacer con un administrador precargado, capaz de entrar a la aplicación administrativa. Ese usuario no se borra. | Sistema |
+| RF-ADM-02 | Autenticar administradores y separar super admin de solo pedidos. Quien solo ve pedidos consulta pedidos, reclamos y cupones, escribe la respuesta, resuelve el reclamo y puede cargar el cupón. No cambia el estado ni cancela. | Administrador |
+| RF-ADM-03 | Listar, crear, editar y borrar administradores, y asignarles el rol. | Super admin |
+| RF-ADM-04 | Ofrecer la administración como otra aplicación (`backend/admin`), con la misma base que la del cliente. | Administrador |
+| RF-ADM-05 | Dar de alta, editar y desactivar promociones de la carta: porcentaje, con mínimo opcional, o 2x1 de un producto. | Super admin |
+| RF-ADM-06 | Consultar y cargar el stock disponible de cada producto en cada sucursal. Si el disponible es 0, esa fila va arriba y en rojo. | Super admin |
+| RF-ADM-07 | El mismo ABM de RF-ADM-03: listar, editar y borrar. No es otra pantalla de alta. | Super admin |
+| RF-ADM-08 | Mostrar los estados del pedido y su etiqueta. La máquina no se edita desde parámetros. | Super admin |
+| RF-ADM-09 | Editar radio, tiempos de la hora estimada, precio por kilómetro, mínimo de envío gratis, meta y premio de sellos, y premio del Top 3. Un pedido ya confirmado no se recalcula. | Super admin |
+| RF-ADM-10 | Listar pedidos, buscar por código o cliente, y avanzar el estado según la máquina. Solo el super admin cambia el estado o cancela. | Administrador |
+| RF-ADM-11 | Listar clientes, buscarlos, ver el detalle y darlos de alta, de baja lógica o editarlos. Un cliente deshabilitado no inicia sesión. Sus pedidos quedan. | Super admin |
+| RF-ADM-12 | Ver reclamos abiertos primero, con filtro por estado. Al resolver, escribir la respuesta (hasta 500 caracteres) y, si corresponde, cargar el importe del cupón o copiar el total cobrado. Si se cambia la respuesta o el monto, el cliente vuelve a ver «Nueva respuesta». Si el cupón no se usó, reabrir y cambiar la solución: mientras está abierto, el cupón no se descuenta. Si ya se usó, dejarla fija. | Super admin o solo pedidos |
+
+## Sucursales
+
+| ID | El sistema deberá | Actor |
+|---|---|---|
+| RF-BRN-01 | Gestionar sucursales con nombre, dirección, mapa, teléfono, hasta dos franjas por día y activa o inactiva. | Super admin |
+| RF-BRN-02 | Dejar que el cliente elija la sucursal que prepara el pedido. La distancia ordena la lista y cotiza el envío. No asigna sola. | Cliente |
+| RF-BRN-03 | Ofrecer en el checkout las sucursales de retiro (todas las activas) o de domicilio (las activas dentro del radio). Primero las que tienen stock de todo el carrito. Si en domicilio ninguna llega, no se puede confirmar. | Cliente |
+| RF-SUC-04 | Mostrar el horario. Si el pedido cae fuera de la franja, ofrecer programarlo para la próxima apertura. Sin franjas, tomar el local como abierto. | Cliente |
+
+## Catálogo y carrito
+
+| ID | El sistema deberá | Actor |
+|---|---|---|
+| RF-CAT-01 | Dar de alta, editar y consultar productos, con nombre, descripción, categoría, precio, imagen y disponible sí o no. | Super admin |
+| RF-CAT-02 | Dar de alta, editar y consultar categorías. No se borra una categoría que todavía tiene productos. | Super admin |
+| RF-CAT-03 | Mostrar al cliente solo los productos disponibles, organizados por categoría. | Cliente |
+| RF-CAT-04 | Ofrecer, en el detalle, solo los adicionales que el administrador marcó para ese producto. El aderezo de precio 0 también es un adicional. | Cliente |
+| RF-CRT-01 | Agregar productos al carrito, con cantidad, nota y adicionales. | Cliente |
+| RF-CRT-02 | Conservar el carrito al recargar. Con cuenta, en el servidor. Sin cuenta, en el navegador. La misma hamburguesa con otros adicionales es otra línea. | Cliente |
+| RF-CRT-03 | Calcular el importe del carrito como suma de `(precio + adicionales) × cantidad`. El importe a pagar, con la promoción y el envío, se calcula al preparar el pedido (RF-PRM-02). | Sistema |
+| RF-CRT-04 | Cambiar la cantidad, la nota y quitar líneas antes de confirmar. | Cliente |
+| RF-CRT-05 | Al confirmar, si hay hamburguesas o guarniciones y no hay aderezos, preguntar si se suman y proponer la mitad del máximo de cada uno. El máximo solo se alcanza si el cliente lo aumenta. | Cliente |
+
+## Pedido, seguimiento e historial
+
+| ID | El sistema deberá | Actor |
+|---|---|---|
+| RF-ORD-01 | Al confirmar, registrar sucursal elegida, dirección si es domicilio, fecha, detalle, subtotal, descuento, envío, total y estado Pendiente. | Cliente |
+| RF-ORD-02 | Recorrer Pendiente, Confirmado, En preparación, Listo, En camino y Entregado. En retiro, Listo para retirar pasa a Retirado y no usa En camino. | Sistema |
+| RF-ORD-03 | Registrar cada cambio de estado con fecha y quién lo hizo. El cliente y el administrador ven el mismo estado. | Administrador |
+| RF-ORD-04 | Dejar cancelar en Pendiente o Confirmado, al cliente o al administrador, y devolver el stock reservado. Desde En preparación, no. | Cliente o administrador |
+| RF-ORD-05 | Asignar un código de tres letras de la sucursal y seis dígitos, y una hora estimada que no se recalcula. | Sistema |
+| RF-ORD-06 | Dejar elegir un medio de pago simulado, sin guardarlo ni cobrarlo. | Cliente |
+| RF-TRK-01 | Mostrar la evolución del pedido después de confirmarlo. | Cliente |
+| RF-TRK-02 | Mostrar sucursal, estado, historial, hora estimada y la demora si ya se pasó. | Cliente |
+| RF-TRK-03 | Calcular la hora estimada una vez, con preparación base, minutos por ítem y traslado. Si el pedido queda programado, la cuenta empieza en la apertura. | Sistema |
+| RF-HIS-01 | Listar los pedidos del cliente, del más reciente al más viejo. | Cliente |
+| RF-HIS-02 | Repetir un pedido anterior sumando las cantidades a lo que el carrito ya tenía. No se copian la promoción ni la sucursal. Si un producto ya no se vende, se avisa y se omite. | Cliente |
+
+## Ubicación
+
+| ID | El sistema deberá | Actor |
+|---|---|---|
+| RF-GEO-01 | Guardar, además del texto, la latitud y la longitud de cada dirección. | Cliente |
+| RF-GEO-02 | Usar esa ubicación para ordenar sucursales, filtrar el radio y cotizar el envío de la sucursal elegida. | Sistema |
+| RF-GEO-03 | Mostrar un mapa con el recorrido del pedido. No entra: el producto muestra un pin para confirmar una dirección o una sucursal, y un mapa con las sucursales activas. | — |
+
+## Stock
+
+| ID | El sistema deberá | Actor |
+|---|---|---|
+| RF-STK-01 | Registrar el stock entero de cada producto en cada sucursal. Sin fila, cuenta como 0. | Super admin |
+| RF-STK-02 | Al confirmar, verificar que alcance en la sucursal elegida. Si falta, no crear el pedido y nombrar el producto, lo pedido y lo disponible. | Sistema |
+| RF-STK-03 | Permitir que un producto tenga stock en una sucursal y cero en otra. | Super admin |
+| RF-STK-04 | Reservar al confirmar, liberar al cancelar y descontar al entregar o retirar. El 2x1 reserva también la unidad gratis. El administrador puede devolver el reservado a disponible. | Sistema |
+| RF-STK-05 | Mostrar el disponible 0 arriba y en rojo en Stock, y listarlo en el reporte de productos sin stock. No hay mail ni un mínimo distinto de cero. | Super admin |
+
+## Promociones, campañas, cupón y envío
+
+| ID | El sistema deberá | Actor |
+|---|---|---|
+| RF-PRM-01 | Administrar promociones porcentuales y 2x1, con vigencia. | Super admin |
+| RF-PRM-02 | Aplicar al pedido la promoción o el premio de campaña que más descuenta, y mostrar cuáles otras habrían aplicado. El descuento no supera el subtotal y queda congelado. El cupón de reclamo se suma a ese descuento. | Sistema |
+| RF-CAM-01 | Sumar un sello por pedido que llega al mínimo, al crearlo. Al llegar a 10, aplicar el descuento sorpresa en ese pedido y revertir el sello si se cancela. El porcentaje no se publica. | Sistema |
+| RF-CAM-02 | Al cerrar el Top 3, otorgar un descuento de un solo uso a los tres que más gastaron. Compite igual que los sellos. | Super admin |
+| RF-CUP-01 | Al resolver un reclamo, poder cargar un importe de $1 a $500.000. Lo hacen el super admin y el rol solo pedidos. El código es `REC-` y seis caracteres. El cupón vale 3 meses, es de un solo uso y se suma al descuento ya ganado, sin dejar el total de productos en negativo. Con el reclamo abierto, no se descuenta. | Super admin o solo pedidos |
+| RF-ENV-01 | Cobrar el envío con el precio por kilómetro y el mínimo de envío gratis. En retiro el envío es 0. El importe queda congelado. | Sistema |
+
+## Reportes
+
+| ID | El sistema deberá | Actor |
+|---|---|---|
+| RF-RPT-01 | Informar los productos más vendidos. | Super admin |
+| RF-RPT-02 | Informar los productos menos vendidos. | Super admin |
+| RF-RPT-03 | Informar los productos sin stock. Respeta la sucursal y no las fechas. | Super admin |
+| RF-RPT-04 | Informar los productos de mayor facturación. | Super admin |
+| RF-RPT-10 | Informar pedidos por día. Las fechas son días de Argentina. | Super admin |
+| RF-RPT-11 | Informar pedidos por sucursal. | Super admin |
+| RF-RPT-12 | Informar pedidos por estado. | Super admin |
+| RF-RPT-13 | Informar el tiempo promedio hasta la entrega. | Super admin |
+| RF-RPT-14 | Informar los cancelados. Un cancelado no suma en las ventas. Un pendiente sí. | Super admin |
+| RF-RPT-15 | Informar los clientes con más pedidos, hasta diez. | Super admin |
+| RF-RPT-16 | Informar clientes nuevos por período. No entra en este producto. | — |
+| RF-RPT-17 | Informar clientes inactivos. No entra en este producto. | — |
+| RF-RPT-18 | Informar ventas por sucursal. | Super admin |
+| RF-RPT-19 | Informar productos vendidos por sucursal. | Super admin |
+| RF-RPT-20 | Informar la cantidad de pedidos atendidos por sucursal. | Super admin |
+| RF-RPT-21 | Informar las promociones más usadas. | Super admin |
+| RF-RPT-22 | Informar el descuento acumulado de cada promoción, como impacto en las ventas. | Super admin |
+| RF-RPT-23 | Filtrar los reportes por fecha y por sucursal, mostrarlos en gráficos y descargarlos en CSV. | Super admin |
+| RF-RPT-24 | Mostrar en el inicio los pedidos de hoy, la facturación de hoy, los pedidos por estado y las ventas de los últimos siete días. El rol solo pedidos ve ese tablero. Los reportes de productos quedan para el super admin. | Super admin |
+
+## Lo que el enunciado nombra y este producto no hace
+
+Calificar un pedido, avisar por correo cada cambio de estado, y la aplicación de repartidores (asignar, ver pendientes, iniciar un viaje y marcar la entrega) no forman parte de Mordi.
 
 ## Historial
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.4 | 12/11/2026 | El cupón tiene código `REC-`, importe de $1 a $500.000, y no se descuenta mientras el reclamo está abierto |
+| 2.3 | 12/11/2026 | RF-CLI-09 para el reclamo del cliente. RF-ADM-12 y RF-CUP-01 también los cumple el rol solo pedidos |
+| 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11 |
 | 1.2 | 07/10/2026 | Estado al cierre del Sprint 3 (35/40 obligatorios y stock). Cerrada la consulta de RF-ADM-05: las promociones se aplican al confirmar en el Sprint 4 |
 | 1.1 | 03/10/2026 | Asignación a sprints según lo cubierto en S2 y S3; cerradas las consultas de RF-ADM-06, RF-ADM-08/09 y RF-CLI-03 |
 | 1.0 | 07/09/2026 | Versión inicial en la carpeta |

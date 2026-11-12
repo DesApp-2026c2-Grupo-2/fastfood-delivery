@@ -101,6 +101,7 @@ export type CartItem = {
     imageUrl: string;
   };
   extras?: OrderItemExtra[];
+  addedAt?: string;
 };
 
 export type Cart = {
@@ -108,6 +109,7 @@ export type Cart = {
   items: CartItem[];
   itemCount: number;
   total: number;
+  purchaseBlocked?: boolean;
 };
 
 // DEV-17: Tipo para adicionales reales
@@ -140,6 +142,8 @@ export type QuotedOffer = {
   value: number;
   discountAmount: number;
   applied: boolean;
+  stacks?: boolean;
+  expiresAt?: string;
 };
 
 export type PromotionQuote = {
@@ -150,6 +154,12 @@ export type PromotionQuote = {
   offers?: QuotedOffer[];
 };
 
+export type OrderDiscountLine = {
+  kind: 'promotion' | 'coupon';
+  name: string;
+  amount: number;
+};
+
 export type Order = {
   id: string;
   code?: string;
@@ -157,6 +167,8 @@ export type Order = {
   fulfillment?: Fulfillment;
   subtotal: number;
   discountAmount: number;
+  discounts?: OrderDiscountLine[];
+  claimCouponCode?: string | null;
   promotionName: string | null;
   promotionType?: 'percent' | 'two_for_one' | null;
   promotionValue?: number | null;
@@ -164,6 +176,7 @@ export type Order = {
   deliveryFee?: number;
   totalAmount: number;
   createdAt: string;
+  scheduledFor?: string | null;
   guestName?: string | null;
   guestEmail?: string | null;
   // Solo en la respuesta de crear pedido autenticado.
@@ -195,9 +208,17 @@ export type OrderSummary = {
   fulfillment?: Fulfillment;
   totalAmount: number;
   createdAt: string;
+  scheduledFor?: string | null;
   branch: { id: string; name: string };
   itemCount: number;
   loyaltyStampGranted?: boolean;
+  hasIncident?: boolean;
+  hasResolution?: boolean;
+  resolutionUnseen?: boolean;
+  // Abierto: todavía no hay cupón, o el cupón no se usó.
+  claimOpen?: boolean;
+  // Código del cupón de reclamo que este pedido consumió.
+  claimCouponCode?: string | null;
   estimatedDeliveryAt?: string | null;
   delayMinutes?: number | null;
 };
@@ -250,6 +271,8 @@ export type AvailableBranch = {
   postalCode?: string | null;
   phone: string;
   openingHours: string;
+  openNow?: boolean | null;
+  nextOpenAt?: string | null;
   latitude: number;
   longitude: number;
   distanceKm: number;
@@ -311,6 +334,8 @@ export type CheckoutBranch = {
   postalCode?: string | null;
   phone: string;
   openingHours: string;
+  openNow?: boolean | null;
+  nextOpenAt?: string | null;
   latitude: number;
   longitude: number;
   distanceKm: number | null;
@@ -339,13 +364,25 @@ export type CheckoutBranchesResponse = {
 // HU-36: reclamo sobre un pedido entregado o retirado.
 export type IncidentReason = 'missing_item' | 'wrong_order' | 'late' | 'cold' | 'other';
 
+export type IncidentCoupon = {
+  code: string;
+  amount: number;
+  used: boolean;
+  status: 'available' | 'used' | 'expired';
+  createdAt: string;
+  expiresAt: string;
+};
+
 export type Incident = {
   id: string;
   reason: IncidentReason;
   message: string;
   status: 'open' | 'resolved';
+  response: string;
+  coupon: IncidentCoupon | null;
   createdAt: string;
   resolvedAt: string | null;
+  responseUnseen?: boolean;
 };
 
 export const INCIDENT_REASONS: { value: IncidentReason; label: string }[] = [

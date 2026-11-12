@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
-function databaseUrl(): string {
+export function databaseUrl(): string {
   const raw = process.env.DATABASE_URL?.trim();
   if (!raw) {
     throw new Error(

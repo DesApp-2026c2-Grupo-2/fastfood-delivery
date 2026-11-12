@@ -165,7 +165,7 @@ describe('Alta y edición de roles (/api/admin/admins)', () => {
   });
 });
 
-describe('orders_viewer: solo consulta pedidos', () => {
+describe('orders_viewer: consulta pedidos, reclamos y cupones', () => {
   let viewer: Awaited<ReturnType<typeof createAdmin>>;
 
   beforeAll(async () => {
@@ -181,6 +181,19 @@ describe('orders_viewer: solo consulta pedidos', () => {
     expect(detail.body.id).toBe(orderId);
 
     expect((await request(server).get('/api/admin/order-statuses').set(auth(viewer.token))).status).toBe(200);
+  });
+
+  it('ve los reclamos y los cupones, y puede resolverlos', async () => {
+    expect((await request(server).get('/api/admin/incidents').set(auth(viewer.token))).status).toBe(200);
+    expect((await request(server).get('/api/admin/incidents/coupons').set(auth(viewer.token))).status).toBe(200);
+    expect((await request(server).get('/api/admin/incidents/no-existe').set(auth(viewer.token))).status).toBe(404);
+
+    const patch = await request(server)
+      .patch('/api/admin/incidents/no-existe')
+      .set(auth(viewer.token))
+      .send({ status: 'resolved', response: 'Listo' });
+    expect(patch.status).toBe(404);
+    expect(patch.body.message).toBe('Reclamo no encontrado');
   });
 
   it('no cambia estados ni cancela; el pedido queda igual', async () => {

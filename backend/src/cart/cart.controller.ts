@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { JwtPayload } from '../auth/jwt-payload';
 import { CartService } from './cart.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
+import { SyncCartBlockDto } from './dto/sync-cart-block.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 
 type AuthedRequest = Request & { user: JwtPayload };
@@ -17,6 +18,16 @@ export class CartController {
   @Get()
   getCart(@Req() req: AuthedRequest) {
     return this.cartService.getCart(req.user.sub);
+  }
+
+  @Delete()
+  reset(@Req() req: AuthedRequest) {
+    return this.cartService.reset(req.user.sub);
+  }
+
+  @Post('release-check')
+  applyReleaseBlock(@Req() req: AuthedRequest, @Body() dto: SyncCartBlockDto) {
+    return this.cartService.applyReleaseBlock(req.user.sub, dto.items);
   }
 
   @Post('items')

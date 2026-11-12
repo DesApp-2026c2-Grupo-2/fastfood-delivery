@@ -11,3 +11,8 @@ coverage/
 *.tsbuildinfo
 backend/uploads/*
 !backend/uploads/.gitkeep
+
+# Scripts locales que generan docx, pdf y diagramas
+docs/interno/exportar-entregables-docx.py
+docs/interno/diagrama_modelo.py
+docs/interno/__pycache__/

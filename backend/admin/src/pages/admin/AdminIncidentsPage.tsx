@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
-import { INCIDENT_REASON_LABEL, type AdminIncident, type IncidentStatus } from '../../api/types';
+import { INCIDENT_REASON_LABEL, type AdminIncident } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { OrderCode } from '../../components/OrderCode';
-import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
+import { useTimedNotice } from '../../lib/success-notice';
 
 function formatWhen(iso: string) {
   return new Intl.DateTimeFormat('es-AR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso));
@@ -13,45 +14,26 @@ export function AdminIncidentsPage() {
   const token = getToken() ?? '';
   const [incidents, setIncidents] = useState<AdminIncident[]>([]);
   const [error, setError] = useTimedNotice();
-  const [ok, setOk] = useSuccessNotice();
   const [loading, setLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState('');
-
-  async function load(showSpinner = true) {
-    if (showSpinner) setLoading(true);
-    setError('');
-    try {
-      setIncidents(await api<AdminIncident[]>('/admin/incidents', { token }));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudieron cargar los reclamos');
-    } finally {
-      setLoading(false);
-    }
-  }
 
   useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function setStatus(incident: AdminIncident, status: IncidentStatus) {
-    setUpdatingId(incident.id);
+    let active = true;
+    setLoading(true);
     setError('');
-    setOk('');
-    try {
-      await api(`/admin/incidents/${incident.id}`, {
-        method: 'PATCH',
-        token,
-        body: JSON.stringify({ status }),
+    api<AdminIncident[]>('/admin/incidents', { token })
+      .then((rows) => {
+        if (active) setIncidents(rows);
+      })
+      .catch((err: unknown) => {
+        if (active) setError(err instanceof Error ? err.message : 'No se pudieron cargar los reclamos');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
-      setOk(status === 'resolved' ? 'Reclamo marcado como resuelto.' : 'Reclamo reabierto.');
-      await load(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo actualizar el reclamo');
-    } finally {
-      setUpdatingId('');
-    }
-  }
+    return () => {
+      active = false;
+    };
+  }, [token, setError]);
 
   const openCount = incidents.filter((incident) => incident.status === 'open').length;
 
@@ -63,39 +45,27 @@ export function AdminIncidentsPage() {
     );
   }
 
-  function Action({ incident }: { incident: AdminIncident }) {
-    const busy = updatingId === incident.id;
-    return incident.status === 'open' ? (
-      <button type="button" disabled={busy} onClick={() => void setStatus(incident, 'resolved')}>
-        {busy ? 'Guardando…' : 'Marcar resuelto'}
-      </button>
-    ) : (
-      <button type="button" className="secondary" disabled={busy} onClick={() => void setStatus(incident, 'open')}>
-        {busy ? 'Guardando…' : 'Reabrir'}
-      </button>
-    );
-  }
-
   return (
     <section className="stack">
       <header className="page-head">
         <div>
           <h1>Reclamos</h1>
           <p className="muted">
-            Problemas que reportaron los clientes sobre pedidos entregados.{' '}
+            Problemas que reportaron los clientes sobre pedidos entregados. Abrí el reclamo para ver lo que se cobró y
+            responder.{' '}
             {incidents.length > 0 ? `${openCount} abiertos de ${incidents.length}.` : ''}
           </p>
+          <div className="row">
+            <Link className="button" to="/admin/incident-coupons">
+              Cupones de reclamos
+            </Link>
+          </div>
         </div>
       </header>
 
       {error ? (
         <p className="error" role="alert">
           {error}
-        </p>
-      ) : null}
-      {ok ? (
-        <p className="success" role="status">
-          {ok}
         </p>
       ) : null}
 
@@ -135,13 +105,12 @@ export function AdminIncidentsPage() {
                     </td>
                     <td>
                       <StatusBadge incident={incident} />
-                      {incident.resolvedAt ? (
-                        <p className="table-slug muted">{formatWhen(incident.resolvedAt)}</p>
-                      ) : null}
                     </td>
-                    <td className="muted">{formatWhen(incident.createdAt)}</td>
+                    <td className="muted cell-nowrap">{formatWhen(incident.createdAt)}</td>
                     <td className="data-table-actions">
-                      <Action incident={incident} />
+                      <Link className="button" to={`/admin/incidents/${incident.id}`}>
+                        {incident.status === 'open' ? 'Responder' : 'Ver'}
+                      </Link>
                     </td>
                   </tr>
                 ))}
@@ -164,7 +133,9 @@ export function AdminIncidentsPage() {
                   {incident.customerName} · {incident.branch.name} · {formatWhen(incident.createdAt)}
                 </p>
                 <div className="row">
-                  <Action incident={incident} />
+                  <Link className="button" to={`/admin/incidents/${incident.id}`}>
+                    {incident.status === 'open' ? 'Responder' : 'Ver'}
+                  </Link>
                 </div>
               </li>
             ))}

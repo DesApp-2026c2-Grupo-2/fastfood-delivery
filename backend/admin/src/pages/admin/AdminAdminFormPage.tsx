@@ -1,18 +1,18 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
-import type { AdminAccount } from '../../api/types';
+import type { AdminAccount, AdminRole } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { SvgIcon } from '../../icons/SvgIcon';
 import { useTimedNotice } from '../../lib/success-notice';
 
-type FormState = { name: string; email: string; password: string; deletable: boolean };
+type FormState = { name: string; email: string; password: string; adminRole: AdminRole; deletable: boolean };
 
 const NAME_MAX = 80;
 const PASSWORD_MIN = 6;
 const PASSWORD_MAX = 72;
 
-const emptyForm: FormState = { name: '', email: '', password: '', deletable: true };
+const emptyForm: FormState = { name: '', email: '', password: '', adminRole: 'super_admin', deletable: true };
 
 function isEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -44,6 +44,7 @@ export function AdminAdminFormPage() {
           name: admin.name,
           email: admin.email,
           password: '',
+          adminRole: admin.adminRole === 'orders_viewer' ? 'orders_viewer' : 'super_admin',
           deletable: admin.deletable,
         });
       })
@@ -92,7 +93,10 @@ export function AdminAdminFormPage() {
     const email = form.email.trim();
     try {
       if (id) {
-        const body: { name: string; email?: string; password?: string } = { name };
+        const body: { name: string; email?: string; password?: string; adminRole: AdminRole } = {
+          name,
+          adminRole: form.adminRole,
+        };
         if (!editingInitial) body.email = email;
         if (form.password) body.password = form.password;
         await api(`/admin/admins/${id}`, {
@@ -105,7 +109,7 @@ export function AdminAdminFormPage() {
         await api('/admin/admins', {
           method: 'POST',
           token,
-          body: JSON.stringify({ name, email, password: form.password }),
+          body: JSON.stringify({ name, email, password: form.password, adminRole: form.adminRole }),
         });
         navigate('/admin/admins', { state: { notice: `${name} ya puede entrar con ${email}.` } });
       }
@@ -180,6 +184,20 @@ export function AdminAdminFormPage() {
         {editingInitial ? (
           <p className="field-hint">El administrador inicial no se puede borrar ni cambiar de email.</p>
         ) : null}
+        <label>
+          Rol
+          <select
+            value={form.adminRole}
+            onChange={(event) => setForm({ ...form, adminRole: event.target.value as AdminRole })}
+          >
+            <option value="super_admin">Super admin</option>
+            <option value="orders_viewer">Solo pedidos</option>
+          </select>
+          <p className="field-hint">
+            Super admin opera todo el backoffice. Solo pedidos consulta los pedidos, ve y resuelve
+            reclamos, y no cambia estados de pedidos.
+          </p>
+        </label>
         <label>
           {editing ? 'Nueva contraseña' : 'Contraseña inicial'}
           <span className="password-field">
