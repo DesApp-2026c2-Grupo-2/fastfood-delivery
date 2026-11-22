@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mordi · Presentación</title>
+<style>
+/* Paleta de la app Mordi (index.css) llevada a modo oscuro para sala sin luz.
+   Respaldo offline: logo en SVG inline. Con conexión preferí presentacion-logo.html. */
+:root{
+  --bg:#0c0a09;
+  --ink:#1c1917;
+  --text:#fff7ed;
+  --text-2:#d6d3d1;
+  --muted:#a8a29e;
+  --card:rgba(255,247,237,.05);
+  --line:rgba(254,215,170,.17);
+  --accent:#ea580c;
+  --accent-dark:#c2410c;
+  --accent-deep:#9a3412;
+  --peach:#f97316;
+  --soft:#ffedd5;
+  --glow:#fdba74;
+  --ease:cubic-bezier(.22,1,.36,1);
+  --font:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* 1rem = 1% del ancho de un escenario 16:9 que siempre entra en la pantalla. */
+html{font-size:min(1vw,1.7778vh);-webkit-text-size-adjust:100%}
+html,body{height:100%;overflow:hidden}
+body{
+  display:grid;place-items:center;
+  background:
+    radial-gradient(62vw 74vh at 96% -12%,rgba(234,88,12,.24),transparent 62%),
+    radial-gradient(52vw 62vh at -8% 112%,rgba(194,65,12,.18),transparent 62%),
+    var(--bg);
+  color:var(--text);
+  font-family:var(--font);
+  -webkit-font-smoothing:antialiased;
+}
+svg.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+:focus-visible{outline:.25rem solid var(--glow);outline-offset:.25rem}
+
+.stage{position:relative;width:100rem;height:56.25rem;overflow:hidden}
+
+/* ---------- Diapositivas ---------- */
+.slide{
+  position:absolute;inset:0;
+  padding:4.2rem 6rem 7.2rem;
+  display:flex;flex-direction:column;
+  opacity:0;visibility:hidden;
+  transform:translate3d(2.4rem,0,0);
+  transition:opacity .38s var(--ease),transform .38s var(--ease),visibility 0s linear .38s;
+}
+.slide.is-before{transform:translate3d(-2.4rem,0,0)}
+.slide.is-active{opacity:1;visibility:visible;transform:none;transition-delay:0s}
+.slide.is-active .rise{animation:rise .4s var(--ease) both;animation-delay:calc(var(--i,0)*55ms + 40ms)}
+@keyframes rise{from{opacity:0;transform:translateY(1.2rem)}}
+
+.kicker{
+  display:flex;align-items:center;gap:1.2rem;
+  font-size:1.9rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--peach);
+}
+.kicker::before{content:"";width:3.2rem;height:.4rem;border-radius:1rem;background:var(--accent)}
+h2{
+  margin-top:1.3rem;
+  font-size:4.9rem;line-height:1.07;font-weight:800;letter-spacing:-.02em;
+  text-wrap:balance;
+}
+h2 em,.punch em{font-style:normal;color:var(--peach)}
+.lead{margin-top:1.1rem;font-size:2.4rem;line-height:1.3;color:var(--text-2)}
+.body{flex:1;min-height:0;margin-top:3rem;display:flex;flex-direction:column}
+
+h3{font-size:2.6rem;line-height:1.15;font-weight:700}
+.card{
+  background:var(--card);
+  border:max(1px,.1rem) solid var(--line);
+  border-radius:2rem;
+  padding:2.5rem;
+}
+.card p,.step p,.row p{margin-top:.8rem;font-size:2.05rem;line-height:1.4;color:var(--text-2);text-wrap:balance}
+
+.icon{
+  flex:none;width:5.4rem;height:5.4rem;border-radius:1.5rem;
+  display:grid;place-items:center;
+  background:linear-gradient(180deg,var(--peach),var(--accent));
+  color:var(--soft);
+  box-shadow:0 .45rem 0 var(--accent-deep);
+}
+.icon svg{width:2.9rem;height:2.9rem}
+.icon.ghost{
+  width:4.4rem;height:4.4rem;border-radius:1.2rem;
+  background:rgba(249,115,22,.15);color:var(--peach);box-shadow:none;
+}
+.icon.ghost svg{width:2.4rem;height:2.4rem}
+
+.cards3{display:grid;grid-template-columns:repeat(3,1fr);gap:2.4rem}
+.cards3 h3{margin-top:2rem}
+.punch{margin-top:auto;font-size:2.6rem;line-height:1.3;font-weight:700}
+
+.split{flex:1;min-height:0;display:grid;grid-template-columns:46rem minmax(0,1fr);gap:4rem;align-items:center}
+
+.facts{display:grid;gap:1.7rem}
+.fact{display:grid;grid-template-columns:4.4rem 1fr;gap:1.6rem;align-items:center}
+.fact p{font-size:2.1rem;line-height:1.35;color:var(--text)}
+.fact strong{color:var(--glow);font-weight:700}
+
+.pill{
+  font-size:1.9rem;font-weight:700;letter-spacing:.03em;
+  padding:.3rem 1.3rem;border-radius:99rem;
+  background:rgba(249,115,22,.16);color:var(--glow);
+}
+.caption{font-size:1.9rem;line-height:1.35;color:var(--muted)}
+
+/* ---------- 01 Portada ---------- */
+.cover,.closing{align-items:center;justify-content:center;text-align:center}
+.brand{display:flex;align-items:center;gap:3rem}
+.brand svg{width:15rem;height:15rem;filter:drop-shadow(0 .8rem 0 var(--accent-deep))}
+.wordmark{font-size:16rem;line-height:1;font-weight:800;letter-spacing:-.04em}
+.tagline{margin-top:1.6rem;font-size:3.2rem;font-weight:600;color:var(--peach)}
+.cover .value{margin-top:2.8rem;max-width:62rem;font-size:2.8rem;line-height:1.3;color:var(--text-2);text-wrap:balance}
+.cover .caption{position:absolute;left:0;right:0;bottom:7rem}
+
+/* ---------- 03 Solución ---------- */
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:3.6rem}
+.step{position:relative}
+.step h3{margin-top:1.8rem}
+.step:not(:last-child)::after{
+  content:"";position:absolute;top:2.7rem;right:-2.4rem;
+  width:1.2rem;height:1.2rem;
+  border-top:.3rem solid var(--peach);border-right:.3rem solid var(--peach);
+  transform:translateY(-50%) rotate(45deg);
+}
+.chips{
+  margin-top:auto;padding-top:1.8rem;
+  border-top:max(1px,.1rem) solid var(--line);
+  display:flex;justify-content:space-between;gap:1.5rem;
+}
+.chip{display:flex;align-items:center;gap:.8rem;font-size:1.9rem;color:var(--text-2);white-space:nowrap}
+.chip svg{width:1.9rem;height:1.9rem;color:var(--peach)}
+
+/* ---------- 04 Reclamos ---------- */
+.rows{display:grid;gap:2.2rem}
+.row{position:relative;display:grid;grid-template-columns:5.4rem 1fr;gap:2rem;align-items:center}
+/* Conector entre pasos: va del centro de un ícono al centro del siguiente. */
+.row:not(:last-child)::before{
+  content:"";position:absolute;left:2.6rem;top:50%;
+  width:.2rem;height:calc(100% + 2.2rem);
+  background:var(--accent-dark);
+}
+.row .icon{position:relative;z-index:1}
+.row p{margin-top:.4rem}
+.coupon{
+  border-radius:2.2rem;padding:2.4rem 2.8rem;
+  background:linear-gradient(135deg,var(--accent-dark),var(--accent) 48%,var(--peach));
+  color:var(--soft);
+  box-shadow:0 .7rem 0 var(--accent-deep);
+}
+.coupon-label{display:flex;align-items:center;gap:1rem;font-size:1.9rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.coupon-label svg{width:2.4rem;height:2.4rem}
+.coupon-amount{display:block;margin-top:.4rem;font-size:7rem;line-height:1.05;font-weight:800;letter-spacing:-.03em;color:#fff}
+.coupon-stub{
+  margin-top:1.6rem;padding-top:1.6rem;
+  border-top:max(2px,.2rem) dashed rgba(255,237,213,.55);
+  display:flex;align-items:center;justify-content:space-between;gap:1.5rem;
+  font-size:1.9rem;font-weight:600;white-space:nowrap;
+}
+.code{
+  padding:.4rem 1.2rem;border-radius:.9rem;
+  background:var(--ink);color:var(--soft);
+  font-family:Consolas,ui-monospace,monospace;font-size:2.1rem;font-weight:700;letter-spacing:.06em;
+}
+.coupon + .caption{margin-top:1.6rem}
+
+/* ---------- 05 Beneficio Mordi ---------- */
+.stampcard-head,.dash-head{display:flex;align-items:center;justify-content:space-between}
+.stampcard-head strong,.dash-head strong{font-size:2.2rem}
+.stamps{margin-top:1.8rem;display:grid;grid-template-columns:repeat(5,6rem);justify-content:space-between;row-gap:1.3rem}
+.stamp{width:6rem;height:6rem;border-radius:50%;display:grid;place-items:center}
+.stamp svg{width:100%;height:100%}
+.stamp.is-off{border:max(2px,.2rem) dashed rgba(254,215,170,.3)}
+.stamp.is-off svg{width:70%;height:70%;filter:grayscale(1);opacity:.22}
+.stamp.is-prize{
+  background:linear-gradient(180deg,var(--peach),var(--accent));color:var(--soft);
+  box-shadow:0 .4rem 0 var(--accent-deep),0 0 0 .5rem rgba(249,115,22,.2);
+}
+.stamp.is-prize svg{width:52%;height:52%}
+.stampcard-foot{
+  margin-top:2.3rem;display:flex;align-items:center;gap:1rem;
+  font-size:2.05rem;color:var(--text-2);
+}
+.stampcard-foot svg{width:2.4rem;height:2.4rem;color:var(--peach)}
+.stampcard-foot b{color:var(--glow)}
+
+/* ---------- 06 Reportes ---------- */
+.dash{padding:2.2rem}
+.kpis{margin-top:1.5rem;display:grid;grid-template-columns:1fr 1.25fr;gap:1.4rem}
+.kpi,.spark-box{border-radius:1.4rem;background:rgba(255,247,237,.05);padding:1.2rem 1.8rem}
+.kpi span,.spark-box span{display:block;font-size:1.9rem;color:var(--muted)}
+.kpi b{display:block;font-size:4.2rem;line-height:1.1;font-weight:800;letter-spacing:-.02em}
+.kpi.is-money b{color:var(--peach)}
+.spark-box{margin-top:1.4rem}
+.spark{display:block;width:100%;height:auto;margin-top:.8rem}
+.note{
+  margin-top:2rem;padding-top:1.6rem;
+  border-top:max(1px,.1rem) solid var(--line);
+  font-size:1.9rem;line-height:1.35;color:var(--muted);text-wrap:balance;
+}
+
+/* ---------- 07 Impacto ---------- */
+.tag{font-size:1.9rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--peach);white-space:nowrap}
+.big{display:block;margin-top:.6rem;font-size:4rem;line-height:1.1;font-weight:800;letter-spacing:-.02em}
+.value-close{
+  margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:1.5rem;
+  font-size:2.05rem;line-height:1.3;font-weight:700;color:var(--text-2);
+}
+.value-close b{color:var(--glow);font-weight:800}
+.value-close .sep{color:rgba(249,115,22,.45);font-weight:700}
+
+/* ---------- 08 Cierre ---------- */
+.closing > svg{width:7rem;height:7rem;filter:drop-shadow(0 .4rem 0 var(--accent-deep))}
+.closing h2{margin-top:2rem;font-size:8.6rem;letter-spacing:-.03em}
+.closing .lead{margin-top:1.4rem;font-size:2.6rem}
+.demos{margin-top:3.6rem;display:grid;grid-template-columns:repeat(2,42rem);gap:2.4rem}
+.demo{
+  display:block;text-align:left;text-decoration:none;color:inherit;
+  padding:2.2rem 2.6rem;border-radius:2rem;
+  background:var(--card);border:max(1px,.1rem) solid var(--line);
+  box-shadow:0 .5rem 0 var(--accent-deep);
+  transition:transform .2s var(--ease),border-color .2s var(--ease);
+}
+.demo:hover{transform:translateY(-.3rem);border-color:var(--peach)}
+.demo span{display:flex;align-items:center;gap:1rem;font-size:1.9rem;color:var(--text-2)}
+.demo span svg{width:2.3rem;height:2.3rem;color:var(--peach)}
+.demo b{display:block;margin-top:.6rem;font-size:2.9rem;font-weight:800;letter-spacing:-.01em;color:var(--peach);white-space:nowrap}
+
+/* ---------- Seguidor de progreso ---------- */
+.hud{
+  position:absolute;left:0;right:0;bottom:0;z-index:5;
+  height:5.6rem;padding:0 3rem .45rem;
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+}
+.hud-left{display:flex;align-items:baseline;gap:1.4rem;min-width:0}
+.count{font-size:1.7rem;font-weight:700;letter-spacing:.06em;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.count b{color:var(--text)}
+.hud-title{font-size:1.5rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dots{display:flex;gap:.7rem}
+.dot{
+  position:relative;width:2.8rem;height:2.8rem;border-radius:50%;
+  border:max(1px,.12rem) solid var(--line);background:transparent;
+  color:var(--muted);font:700 1.3rem/1 var(--font);cursor:pointer;
+  transition:background .2s,color .2s,border-color .2s;
+}
+.dot:hover{color:var(--text);border-color:var(--peach)}
+.dot.is-done{color:var(--glow);border-color:rgba(249,115,22,.5)}
+.dot.is-current{background:var(--accent);border-color:var(--accent);color:var(--soft);box-shadow:0 .3rem 0 var(--accent-deep)}
+.dot::after{
+  content:attr(data-label);
+  position:absolute;left:50%;bottom:calc(100% + .9rem);
+  transform:translate(-50%,.3rem);
+  padding:.5rem 1.1rem;border-radius:.8rem;
+  background:#292524;border:max(1px,.1rem) solid var(--line);
+  color:var(--text);font-size:1.4rem;font-weight:600;white-space:nowrap;
+  opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;
+}
+.dot:hover::after,.dot:focus-visible::after{opacity:1;transform:translate(-50%,0)}
+.hud-right{display:flex;justify-content:flex-end;gap:.8rem}
+.ctl{
+  width:3.4rem;height:3.4rem;border-radius:1rem;
+  display:grid;place-items:center;
+  border:max(1px,.1rem) solid var(--line);background:rgba(255,247,237,.04);
+  color:var(--muted);cursor:pointer;
+  transition:color .2s,border-color .2s,opacity .2s;
+}
+.ctl:hover{color:var(--text);border-color:var(--peach)}
+.ctl:disabled{opacity:.3;cursor:default;border-color:var(--line);color:var(--muted)}
+.ctl svg{width:1.8rem;height:1.8rem}
+.ctl .fs-off,.is-fs .ctl .fs-on{display:none}
+.is-fs .ctl .fs-off{display:block}
+.progress{position:absolute;left:0;right:0;bottom:0;height:.45rem;background:rgba(255,247,237,.08)}
+.progress i{
+  display:block;height:100%;
+  background:linear-gradient(90deg,var(--accent-dark),var(--peach));
+  transform-origin:left;transform:scaleX(0);
+  transition:transform .38s var(--ease);
+}
+
+@media (prefers-reduced-motion:reduce){
+  .slide,.progress i,.demo{transition:none}
+  .slide.is-active .rise{animation:none}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mordi" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="30" fill="#EA580C"/>
+    <circle cx="32" cy="32" r="22" fill="#FFEDD5"/>
+    <circle cx="24" cy="30" r="3" fill="#1C1917"/>
+    <circle cx="40" cy="30" r="3" fill="#1C1917"/>
+    <circle cx="25" cy="29" r="1" fill="#fff"/>
+    <circle cx="41" cy="29" r="1" fill="#fff"/>
+    <path d="M28 40c1.4 2 6.6 2 8 0" fill="none" stroke="#1C1917" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/></symbol>
+  <symbol id="i-user-x" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 8 5 5"/><path d="m22 8-5 5"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="m2 2 20 20"/></symbol>
+  <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></symbol>
+  <symbol id="i-percent" viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/><path d="M12 7v4"/><path d="M12 14h.01"/></symbol>
+  <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></symbol>
+  <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C10 3 12 5.5 12 8c0-2.5 2-5 4.5-5a2.5 2.5 0 0 1 0 5"/></symbol>
+  <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M2 14h4"/><path d="M10 8h4"/><path d="M18 16h4"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="m3 9 1.5-5h15L21 9"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M5 12.5V20h14v-7.5"/><path d="M10 20v-5h4v5"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-max" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-min" viewBox="0 0 24 24"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></symbol>
+</svg>
+
+<main class="stage" id="stage">
+
+  <!-- 01 -->
+  <section class="slide cover is-active" data-title="Mordi">
+    <div class="brand rise">
+      <svg aria-hidden="true"><use href="#mordi"/></svg>
+      <h1 class="wordmark">Mordi</h1>
+    </div>
+    <p class="tagline rise" style="--i:1">un mordisco y listo</p>
+    <p class="value rise" style="--i:2">Pedidos, fidelización y control de tu local en un solo sistema.</p>
+    <p class="caption">Desarrollo de Aplicaciones · Grupo 2 · 2026</p>
+  </section>
+
+  <!-- 02 -->
+  <section class="slide" data-title="El problema">
+    <p class="kicker">El problema</p>
+    <h2>Donde un local <em>pierde plata</em></h2>
+    <div class="body">
+      <div class="cards3">
+        <article class="card rise">
+          <div class="icon"><svg class="i"><use href="#i-receipt"/></svg></div>
+          <h3>Pedidos dispersos</h3>
+          <p>Se toman por un lado y se siguen por otro.</p>
+        </article>
+        <article class="card rise" style="--i:1">
+          <div class="icon"><svg class="i"><use href="#i-user-x"/></svg></div>
+          <h3>Clientes que no vuelven</h3>
+          <p>Un error sin respuesta y se van con otro.</p>
+        </article>
+        <article class="card rise" style="--i:2">
+          <div class="icon"><svg class="i"><use href="#i-eye-off"/></svg></div>
+          <h3>Decisiones a ciegas</h3>
+          <p>Promos y carta sin saber qué rinde.</p>
+        </article>
+      </div>
+      <p class="punch rise" style="--i:3">Mordi resuelve los tres <em>en un solo sistema</em>.</p>
+    </div>
+  </section>
+
+  <!-- 03 -->
+  <section class="slide" data-title="La solución">
+    <p class="kicker">La solución</p>
+    <h2>Un solo sistema, del pedido a la <em>recompra</em></h2>
+    <div class="body">
+      <div class="flow">
+        <article class="step rise">
+          <div class="icon"><svg class="i"><use href="#i-bag"/></svg></div>
+          <h3>Toma el pedido</h3>
+          <p>Carta, carrito y retiro o envío.</p>
+        </article>
+        <article class="step rise" style="--i:1">
+          <div class="icon"><svg class="i"><use href="#i-percent"/></svg></div>
+          <h3>Calcula el total</h3>
+          <p>Mejor promo y envío, aplicados solos.</p>
+        </article>
+        <article class="step rise" style="--i:2">
+          <div class="icon"><svg class="i"><use href="#i-pin"/></svg></div>
+          <h3>Sigue cada paso</h3>
+          <p>Estado visible hasta la entrega.</p>
+        </article>
+        <article class="step rise" style="--i:3">
+          <div class="icon"><svg class="i"><use href="#i-repeat"/></svg></div>
+          <h3>Retiene y mide</h3>
+          <p>Sellos, cupones y reportes.</p>
+        </article>
+      </div>
+      <div class="chips rise" style="--i:4">
+        <span class="chip"><svg class="i"><use href="#i-check"/></svg>Varias sucursales</span>
+        <span class="chip"><svg class="i"><use href="#i-check"/></svg>Stock por sucursal</span>
+        <span class="chip"><svg class="i"><use href="#i-check"/></svg>Pedidos programados</span>
+        <span class="chip"><svg class="i"><use href="#i-check"/></svg>Con cuenta o invitado</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 -->
+  <section class="slide" data-title="Reclamos con cupón">
+    <p class="kicker">Diferencial 01 · Reclamos con cupón</p>
+    <h2>Un reclamo bien resuelto es <em>una venta más</em></h2>
+    <div class="body">
+      <div class="split">
+        <div class="rows">
+          <div class="row rise">
+            <div class="icon"><svg class="i"><use href="#i-alert"/></svg></div>
+            <div><h3>El cliente avisa</h3><p>Lo reporta desde su pedido recibido.</p></div>
+          </div>
+          <div class="row rise" style="--i:1">
+            <div class="icon"><svg class="i"><use href="#i-ticket"/></svg></div>
+            <div><h3>El local responde</h3><p>Escribe la solución y carga un cupón.</p></div>
+          </div>
+          <div class="row rise" style="--i:2">
+            <div class="icon"><svg class="i"><use href="#i-repeat"/></svg></div>
+            <div><h3>El cliente vuelve</h3><p>El cupón se suma a su próxima compra.</p></div>
+          </div>
+        </div>
+        <div class="rise" style="--i:3">
+          <div class="coupon">
+            <span class="coupon-label"><svg class="i"><use href="#i-ticket"/></svg>Cupón por reclamo</span>
+            <strong class="coupon-amount">$5.000</strong>
+            <div class="coupon-stub">
+              <span class="code">REC-4F7K2P</span>
+              <span>1 uso · 3 meses</span>
+            </div>
+          </div>
+          <p class="caption">Ejemplo: el local elige de $1 a $500.000.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 -->
+  <section class="slide" data-title="Beneficio Mordi">
+    <p class="kicker">Diferencial 02 · Beneficio Mordi</p>
+    <h2>Diez sellos, <em>un hábito</em></h2>
+    <p class="lead">Más frecuencia de compra y más valor por cliente (LTV).</p>
+    <div class="body">
+      <div class="split">
+        <div class="card rise">
+          <div class="stampcard-head"><strong>Tarjeta de sellos</strong><span class="pill">7 de 10</span></div>
+          <div class="stamps">
+            <span class="stamp"><svg aria-hidden="true"><use href="#mordi"/></svg></span>
+            <span class="stamp"><svg aria-hidden="true"><use href="#mordi"/></svg></span>
+            <span class="stamp"><svg aria-hidden="true"><use href="#mordi"/></svg></span>
+            <span class="stamp"><svg aria-hidden="true"><use href="#mordi"/></svg></span>
+            <span class="stamp"><svg aria-hidden="true"><use href="#mordi"/></svg></span>
+            <span class="stamp"><svg aria-hidden="true"><use href="#mordi"/></svg></span>
+            <span class="stamp"><svg aria-hidden="true"><use href="#mordi"/></svg></span>
+            <span class="stamp is-off"><svg aria-hidden="true"><use href="#mordi"/></svg></span>
+            <span class="stamp is-off"><svg aria-hidden="true"><use href="#mordi"/></svg></span>
+            <span class="stamp is-prize"><svg class="i"><use href="#i-gift"/></svg></span>
+          </div>
+          <p class="stampcard-foot"><svg class="i"><use href="#i-gift"/></svg><span>Al décimo sello: <b>Premio Fidelidad</b></span></p>
+        </div>
+        <div class="facts">
+          <div class="fact rise" style="--i:1">
+            <div class="icon ghost"><svg class="i"><use href="#i-check"/></svg></div>
+            <p><strong>Un sello</strong> por cada pedido que llega al mínimo.</p>
+          </div>
+          <div class="fact rise" style="--i:2">
+            <div class="icon ghost"><svg class="i"><use href="#i-gift"/></svg></div>
+            <p>El décimo pedido lleva un <strong>descuento sorpresa</strong>.</p>
+          </div>
+          <div class="fact rise" style="--i:3">
+            <div class="icon ghost"><svg class="i"><use href="#i-trophy"/></svg></div>
+            <p><strong>Top 3:</strong> premio extra a quienes más gastan.</p>
+          </div>
+          <div class="fact rise" style="--i:4">
+            <div class="icon ghost"><svg class="i"><use href="#i-sliders"/></svg></div>
+            <p>Vos definís <strong>la meta y el premio</strong>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 -->
+  <section class="slide" data-title="Reportes estratégicos">
+    <p class="kicker">Diferencial 03 · Reportes estratégicos</p>
+    <h2>Decidí con datos, <em>no a ojo</em></h2>
+    <div class="body">
+      <div class="split">
+        <div class="card dash rise">
+          <div class="dash-head"><strong>Tablero del día</strong><span class="pill">Ejemplo</span></div>
+          <div class="kpis">
+            <div class="kpi"><span>Pedidos hoy</span><b>4</b></div>
+            <div class="kpi is-money"><span>Facturado hoy</span><b>$60.000</b></div>
+          </div>
+          <div class="spark-box">
+            <span>Ventas, últimos 7 días</span>
+            <svg class="spark" viewBox="0 0 400 56" aria-hidden="true">
+              <defs>
+                <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#f97316" stop-opacity=".45"/>
+                  <stop offset="1" stop-color="#f97316" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path d="M2 44 68 34 134 39 200 22 266 28 332 12 398 6V56H2Z" fill="url(#sparkFill)"/>
+              <path d="M2 44 68 34 134 39 200 22 266 28 332 12 398 6" fill="none" stroke="#f97316" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <div>
+          <div class="facts">
+            <div class="fact rise" style="--i:1">
+              <div class="icon ghost"><svg class="i"><use href="#i-bag"/></svg></div>
+              <p>¿Qué se vende más y qué no sale?</p>
+            </div>
+            <div class="fact rise" style="--i:2">
+              <div class="icon ghost"><svg class="i"><use href="#i-percent"/></svg></div>
+              <p>¿Cuánto descuenta cada promo?</p>
+            </div>
+            <div class="fact rise" style="--i:3">
+              <div class="icon ghost"><svg class="i"><use href="#i-store"/></svg></div>
+              <p>¿Qué sucursal vende más?</p>
+            </div>
+            <div class="fact rise" style="--i:4">
+              <div class="icon ghost"><svg class="i"><use href="#i-users"/></svg></div>
+              <p>¿Quiénes compran más seguido?</p>
+            </div>
+          </div>
+          <p class="note rise" style="--i:5">Por fecha y sucursal, con gráficos y descarga a planilla.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 -->
+  <section class="slide" data-title="Impacto comercial">
+    <p class="kicker">Impacto comercial</p>
+    <h2>Lo que gana <em>tu local</em></h2>
+    <div class="body">
+      <div class="cards3">
+        <article class="card rise">
+          <span class="tag">Reclamos</span>
+          <strong class="big">Retención</strong>
+          <p>Cada reclamo resuelto deja un cupón para volver.</p>
+        </article>
+        <article class="card rise" style="--i:1">
+          <span class="tag">Beneficio Mordi</span>
+          <strong class="big">Frecuencia</strong>
+          <p>Cada sello acerca el premio y la próxima compra.</p>
+        </article>
+        <article class="card rise" style="--i:2">
+          <span class="tag">Reportes</span>
+          <strong class="big">Margen</strong>
+          <p>Sabés cuánto descuenta cada promo y ajustás a tiempo.</p>
+        </article>
+      </div>
+      <p class="value-close rise" style="--i:3">
+        <span>Un cupón que <b>vuelve a la caja</b></span>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>Diez sellos = <b>un hábito</b></span>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>Sabés qué promo <b>te cuesta</b></span>
+      </p>
+    </div>
+  </section>
+
+  <!-- 08 -->
+  <section class="slide closing" data-title="Probalo ahora">
+    <svg class="rise" aria-hidden="true"><use href="#mordi"/></svg>
+    <h2 class="rise" style="--i:1">Probalo <em>ahora</em></h2>
+    <p class="lead rise" style="--i:2">Reclamos que retienen. Sellos que fidelizan. Datos que deciden.</p>
+    <div class="demos rise" style="--i:3">
+      <a class="demo" href="https://mordi-web.vercel.app/" target="_blank" rel="noopener">
+        <span><svg class="i"><use href="#i-phone"/></svg>Para tus clientes</span>
+        <b>mordi-web.vercel.app</b>
+      </a>
+      <a class="demo" href="https://mordi-admin.vercel.app/" target="_blank" rel="noopener">
+        <span><svg class="i"><use href="#i-store"/></svg>Para tu local</span>
+        <b>mordi-admin.vercel.app</b>
+      </a>
+    </div>
+  </section>
+
+  <footer class="hud" id="hud">
+    <div class="hud-left">
+      <span class="count"><b id="cur">01</b> / <span id="tot">08</span></span>
+      <span class="hud-title" id="hudTitle">Mordi</span>
+    </div>
+    <nav class="dots" id="dots" aria-label="Ir a una diapositiva"></nav>
+    <div class="hud-right">
+      <button class="ctl" id="prev" type="button" aria-label="Diapositiva anterior" title="Anterior (←)"><svg class="i"><use href="#i-left"/></svg></button>
+      <button class="ctl" id="next" type="button" aria-label="Diapositiva siguiente" title="Siguiente (→ o Espacio)"><svg class="i"><use href="#i-right"/></svg></button>
+      <button class="ctl" id="fs" type="button" aria-label="Pantalla completa" aria-pressed="false" title="Pantalla completa (F)">
+        <svg class="i fs-on"><use href="#i-max"/></svg>
+        <svg class="i fs-off"><use href="#i-min"/></svg>
+      </button>
+    </div>
+    <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+  </footer>
+</main>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var dotsEl = document.getElementById('dots');
+  var cur = document.getElementById('cur');
+  var hudTitle = document.getElementById('hudTitle');
+  var bar = document.getElementById('bar');
+  var prevBtn = document.getElementById('prev');
+  var nextBtn = document.getElementById('next');
+  var fsBtn = document.getElementById('fs');
+  var index = 0;
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  document.getElementById('tot').textContent = pad(total);
+
+  var dots = slides.map(function (slide, i) {
+    var dot = document.createElement('button');
+    dot.type = 'button';
+    dot.className = 'dot';
+    dot.textContent = i + 1;
+    dot.dataset.label = pad(i + 1) + ' · ' + slide.dataset.title;
+    dot.setAttribute('aria-label', 'Ir a la diapositiva ' + (i + 1) + ': ' + slide.dataset.title);
+    dot.addEventListener('click', function () { go(i); });
+    dotsEl.appendChild(dot);
+    return dot;
+  });
+
+  function render() {
+    slides.forEach(function (slide, i) {
+      var active = i === index;
+      slide.classList.toggle('is-active', active);
+      slide.classList.toggle('is-before', i < index);
+      slide.setAttribute('aria-hidden', String(!active));
+      slide.inert = !active;
+    });
+    dots.forEach(function (dot, i) {
+      dot.classList.toggle('is-current', i === index);
+      dot.classList.toggle('is-done', i < index);
+      if (i === index) dot.setAttribute('aria-current', 'step');
+      else dot.removeAttribute('aria-current');
+    });
+    cur.textContent = pad(index + 1);
+    hudTitle.textContent = slides[index].dataset.title;
+    bar.style.transform = 'scaleX(' + (index + 1) / total + ')';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === total - 1;
+  }
+
+  function go(i) {
+    i = Math.max(0, Math.min(total - 1, i));
+    if (i === index) return;
+    index = i;
+    render();
+    // El número queda en la dirección: recargar no pierde la diapositiva.
+    try { history.replaceState(null, '', '#' + (index + 1)); } catch (e) {}
+  }
+
+  function fromHash() {
+    var n = parseInt(location.hash.slice(1), 10);
+    return n >= 1 && n <= total ? n - 1 : 0;
+  }
+
+  function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+
+  function toggleFullscreen() {
+    var root = document.documentElement;
+    var request = root.requestFullscreen || root.webkitRequestFullscreen;
+    var exit = document.exitFullscreen || document.webkitExitFullscreen;
+    var result;
+    if (isFullscreen()) result = exit && exit.call(document);
+    else result = request && request.call(root);
+    if (result && result.catch) result.catch(function () {});
+  }
+
+  function syncFullscreen() {
+    var on = isFullscreen();
+    document.body.classList.toggle('is-fs', on);
+    fsBtn.setAttribute('aria-pressed', String(on));
+    fsBtn.setAttribute('aria-label', on ? 'Salir de pantalla completa' : 'Pantalla completa');
+  }
+
+  prevBtn.addEventListener('click', function () { go(index - 1); });
+  nextBtn.addEventListener('click', function () { go(index + 1); });
+  fsBtn.addEventListener('click', toggleFullscreen);
+  document.addEventListener('fullscreenchange', syncFullscreen);
+  document.addEventListener('webkitfullscreenchange', syncFullscreen);
+  window.addEventListener('hashchange', function () { go(fromHash()); });
+
+  // Tras un clic con el mouse se suelta el foco, así Espacio sigue avanzando.
+  document.getElementById('hud').addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (btn && e.detail > 0) btn.blur();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // Solo un control enfocado con Tab conserva Espacio; con el mouse, Espacio avanza.
+    var control = e.target.closest && e.target.closest('button, a');
+    var onControl = control && control.matches(':focus-visible');
+    switch (e.key) {
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown':
+        e.preventDefault(); go(index + 1); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+        e.preventDefault(); go(index - 1); break;
+      case ' ': case 'Spacebar':
+        if (onControl) return;
+        e.preventDefault(); go(index + (e.shiftKey ? -1 : 1)); break;
+      case 'Home': e.preventDefault(); go(0); break;
+      case 'End': e.preventDefault(); go(total - 1); break;
+      case 'f': case 'F': toggleFullscreen(); break;
+      default:
+        if (/^[1-9]$/.test(e.key) && Number(e.key) <= total) go(Number(e.key) - 1);
+    }
+  });
+
+  index = fromHash();
+  render();
+})();
+</script>
+</body>
+</html>
