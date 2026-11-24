@@ -2,13 +2,27 @@
 
 **Proyecto:** Mordi, pedidos de una casa de comidas rápidas
 **Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
-**Versión:** 2.4
+**Versión:** 2.5
 **Actualizado:** 12/11/2026
 **Fuente:** sección homónima de `Carpeta.md`
 
-Los tests son de la API, en `backend`. `npm test` prepara la base `fastfood_test` y corre ahí, un archivo por vez. No escriben la base de la aplicación y no hace falta tener el servidor levantado: los de integración arrancan Nest en el propio test.
+Los tests son de la API, en `backend`. Los corre Jest 30 con `ts-jest`, en Node, de a un archivo. Antes de la suite, `npm test` prepara la base `fastfood_test` con un script en `tsx`: la crea si no existe, aplica las migraciones de Prisma y, si no hay administrador, corre el seed. No escriben la base `fastfood` de la aplicación. No hace falta tener el servidor levantado: los de integración arrancan Nest en el propio test.
+
+## Con qué se corre
+
+| Para qué | Qué se usa |
+|---|---|
+| Los casos | Jest 30 (`describe`, `it`, `expect`) y `ts-jest`, que compila el TypeScript |
+| La base de test | Prisma. `pretest` corre `prisma migrate deploy` y, si hace falta, el seed |
+| Contra la base | Nest (`NestFactory`) levanta la API en el test. Supertest pega a las rutas. Prisma lee y borra |
+| Sin base | El mismo Jest llama a la función. No abre Nest ni Postgres |
+| Carpeta de imágenes | `jest.mock` de `fs`, en `upload-dir.test.ts` |
+| Geocodificación | Un `fetch` de prueba. `geocode.test.ts` no llama a Nominatim |
+| Tiempo real | `jest.mock` del SDK `pusher`, en `pusher.service.test.ts` |
 
 ## Contra la base
+
+Cada archivo de esta tabla levanta Nest adentro del test y pega a las rutas con Supertest. Los datos los lee y los borra Prisma, en `fastfood_test`.
 
 | Archivo | Qué fija |
 |---|---|
@@ -33,7 +47,7 @@ Los tests son de la API, en `backend`. `npm test` prepara la base `fastfood_test
 
 ## Sin base
 
-Estos no reemplazan una prueba de punta a punta. Fijan una regla que la pantalla o el arranque usan.
+Estos no reemplazan una prueba de punta a punta. Fijan una regla que la pantalla o el arranque usan. Los corre Jest sobre la función, sin Nest, sin Supertest y sin Postgres. Los dobles de `fs`, de `fetch` y de `pusher` están en la tabla de arriba. `admin-rules.test.ts` toma del admin el ajuste de stock y los textos de demora.
 
 | Archivo | Qué fija |
 |---|---|
@@ -56,6 +70,7 @@ La pregunta de aderezos es de la pantalla: no tiene un test de API. El cálculo 
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.5 | 12/11/2026 | Queda dicho con qué se corre cada grupo: Jest, ts-jest, Supertest, Prisma y los mocks |
 | 2.4 | 12/11/2026 | El test de reclamos también fija que cambiar la solución la vuelve a marcar como no leída |
 | 2.3 | 12/11/2026 | El rol solo pedidos también carga el cupón al resolver un reclamo |
 | 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11 |

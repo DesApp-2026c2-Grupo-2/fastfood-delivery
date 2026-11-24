@@ -2,7 +2,7 @@
 
 **Proyecto:** Mordi, pedidos de una casa de comidas rápidas
 **Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
-**Versión:** 2.5
+**Versión:** 2.6
 **Actualizado:** 12/11/2026
 **Entrega de esta carpeta:** 12/11/2026
 **Review:** 19/11/2026 · **Presentación final:** 27/11/2026
@@ -1171,11 +1171,73 @@ Mientras el reclamo está abierto, el cupón no se descuenta. Vuelve a aplicar a
 
 ---
 
+# Stack técnico
+
+Hay dos aplicaciones y la API que las dos usan. Las tres están en TypeScript 5.9. El desarrollo y la API corren con Node.js 22. Las pantallas hablan con la API por HTTP y JSON. El token viaja en `Authorization: Bearer`.
+
+## Cliente
+
+La aplicación de quien pide está en `frontend`. Es React 19, armada con Vite 7. Las rutas las resuelve React Router 7. Las pantallas y el CSS son del proyecto.
+
+El mapa de sucursales y el pin de la dirección usan Leaflet 1.9. Las teselas salen de OpenStreetMap. Si hay tiempo real configurado, el seguimiento del pedido llega con `pusher-js`.
+
+Las llamadas pasan por un cliente propio que usa `fetch`. La URL de la API es `VITE_API_URL`. El token queda en `localStorage` o en `sessionStorage`, con la clave `customer_token`. El carrito de quien no inició sesión queda en `localStorage`, con la clave `guest_cart`.
+
+En desarrollo escucha en el puerto 5173. Publicada, es una página única en Vercel: cualquier ruta vuelve a `index.html`.
+
+## Administración
+
+Está en `backend/admin` y se abre en `/admin`. Usa las mismas librerías que el cliente: React 19, Vite 7, React Router 7, Leaflet y `pusher-js`. El token es `admin_token`, en `localStorage` o en `sessionStorage`.
+
+Los gráficos del inicio y de los reportes los dibuja la pantalla en SVG. El CSV se arma en el navegador y se descarga. La foto de un producto se sube como `FormData`.
+
+En desarrollo escucha en el puerto 5174. Publicada, también es una página única en Vercel.
+
+## API
+
+Está en `backend`. Es NestJS 11 sobre Express. Todas las rutas cuelgan de `/api`. El cuerpo de cada pedido lo valida `class-validator`, con `class-transformer`, en un `ValidationPipe`: lo que el DTO no declara se descarta.
+
+La sesión es un JWT firmado con `@nestjs/jwt`. Dura lo que diga `JWT_EXPIRES_IN` (7 días si nadie lo cambió). La contraseña se guarda con `bcrypt`. Un guard lee el token y vuelve a buscar el usuario en la base. El rol sale de ahí.
+
+Los datos los lee y los escribe Prisma 6 contra PostgreSQL. En la máquina, Postgres 16 corre en Docker, con la imagen `postgres:16-alpine` y la base `fastfood`. Publicada, la misma API apunta a Neon. Las migraciones son las de Prisma.
+
+La foto la recibe Multer y Express la sirve en `/uploads/`. La búsqueda de una dirección consulta Nominatim, de OpenStreetMap, de a una por segundo y acotada a Argentina. El cambio de estado, si hay credenciales, se publica con el SDK `pusher`. Si Pusher falla, el pedido igual queda guardado.
+
+La configuración entra por `@nestjs/config`. En desarrollo escucha en el puerto 3000. Publicada, corre en Vercel. Acepta el navegador local y los dominios `*.vercel.app`.
+
+## Resumen
+
+| Pieza | Dónde | Con qué |
+|---|---|---|
+| Cliente | `frontend` | React 19, Vite 7, React Router 7, Leaflet, pusher-js |
+| Administración | `backend/admin` | Las mismas librerías que el cliente. Gráficos en SVG propio |
+| API | `backend` | NestJS 11, Express, Prisma 6, JWT, bcrypt, class-validator, Multer |
+| Base local | Docker | Postgres 16, base `fastfood` |
+| Base publicada | Neon | PostgreSQL con SSL |
+| Mapas | OpenStreetMap | Teselas en el navegador. Direcciones por Nominatim, en la API |
+| Tiempo real | Pusher | El servidor publica y las dos pantallas escuchan |
+
+---
+
 # Testing y automatización
 
-Los tests son de la API, en `backend`. `npm test` prepara la base `fastfood_test` y corre ahí, un archivo por vez. No escriben la base de la aplicación y no hace falta tener el servidor levantado: los de integración arrancan Nest en el propio test.
+Los tests son de la API, en `backend`. Los corre Jest 30 con `ts-jest`, en Node, de a un archivo. Antes de la suite, `npm test` prepara la base `fastfood_test` con un script en `tsx`: la crea si no existe, aplica las migraciones de Prisma y, si no hay administrador, corre el seed. No escriben la base `fastfood` de la aplicación. No hace falta tener el servidor levantado: los de integración arrancan Nest en el propio test.
+
+## Con qué se corre
+
+| Para qué | Qué se usa |
+|---|---|
+| Los casos | Jest 30 (`describe`, `it`, `expect`) y `ts-jest`, que compila el TypeScript |
+| La base de test | Prisma. `pretest` corre `prisma migrate deploy` y, si hace falta, el seed |
+| Contra la base | Nest (`NestFactory`) levanta la API en el test. Supertest pega a las rutas. Prisma lee y borra |
+| Sin base | El mismo Jest llama a la función. No abre Nest ni Postgres |
+| Carpeta de imágenes | `jest.mock` de `fs`, en `upload-dir.test.ts` |
+| Geocodificación | Un `fetch` de prueba. `geocode.test.ts` no llama a Nominatim |
+| Tiempo real | `jest.mock` del SDK `pusher`, en `pusher.service.test.ts` |
 
 ## Contra la base
+
+Cada archivo de esta tabla levanta Nest adentro del test y pega a las rutas con Supertest. Los datos los lee y los borra Prisma, en `fastfood_test`.
 
 | Archivo | Qué fija |
 |---|---|
@@ -1200,7 +1262,7 @@ Los tests son de la API, en `backend`. `npm test` prepara la base `fastfood_test
 
 ## Sin base
 
-Estos no reemplazan una prueba de punta a punta. Fijan una regla que la pantalla o el arranque usan.
+Estos no reemplazan una prueba de punta a punta. Fijan una regla que la pantalla o el arranque usan. Los corre Jest sobre la función, sin Nest, sin Supertest y sin Postgres. Los dobles de `fs`, de `fetch` y de `pusher` están en la tabla de arriba. `admin-rules.test.ts` toma del admin el ajuste de stock y los textos de demora.
 
 | Archivo | Qué fija |
 |---|---|
@@ -1227,6 +1289,7 @@ Hasta el 11/11 la carpeta eran ocho documentos. Esta tabla sigue ese recorrido y
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.6 | 12/11/2026 | Apartado de stack por aplicación. Testing nombra Jest, Supertest, Prisma y los dobles |
 | 2.5 | 12/11/2026 | El cupón es `REC-` y seis caracteres, de $1 a $500.000. Cambiar la solución avisa de nuevo. Reabierto, el cupón no se descuenta |
 | 2.4 | 12/11/2026 | Reclamos y cupones: respuesta al cliente, aviso de nueva respuesta, reabrir si el cupón no se usó, y el rol solo pedidos también resuelve y carga el importe |
 | 2.3 | 12/11/2026 | Se quita la frase de que no hay una tercera aplicación para repartidores |
