@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" role="img" aria-label="Ventas de los últimos siete días. El 11/11 está en 60000 pesos">
+  <rect width="640" height="240" rx="16" fill="#fff7ed"/>
+  <text x="24" y="36" font-family="Segoe UI, sans-serif" font-size="18" font-weight="700" fill="#1c1917">Ventas</text>
+  <text x="24" y="58" font-family="Segoe UI, sans-serif" font-size="13" fill="#78716c">Últimos 7 días, sin cancelados. Es una línea, no barras.</text>
+  <line x1="56" y1="180" x2="600" y2="180" stroke="#fed7aa" stroke-width="2"/>
+  <polyline points="80,150 164,142 248,158 332,134 416,146 500,128 584,78" fill="none" stroke="#ea580c" stroke-width="3" stroke-linejoin="round"/>
+  <g fill="#c2410c">
+    <circle cx="80" cy="150" r="5"/>
+    <circle cx="164" cy="142" r="5"/>
+    <circle cx="248" cy="158" r="5"/>
+    <circle cx="332" cy="134" r="5"/>
+    <circle cx="416" cy="146" r="5"/>
+    <circle cx="500" cy="128" r="5"/>
+    <circle cx="584" cy="78" r="5"/>
+  </g>
+  <text x="548" y="68" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" fill="#1c1917">$60.000</text>
+  <g font-family="Segoe UI, sans-serif" font-size="12" fill="#78716c" text-anchor="middle">
+    <text x="80" y="202">5/11</text>
+    <text x="164" y="202">6/11</text>
+    <text x="248" y="202">7/11</text>
+    <text x="332" y="202">8/11</text>
+    <text x="416" y="202">9/11</text>
+    <text x="500" y="202">10/11</text>
+    <text x="584" y="202">11/11</text>
+  </g>
+  <text x="24" y="226" font-family="Segoe UI, sans-serif" font-size="12" fill="#78716c">El dato del caso es el 11/11, en $60.000. Los días anteriores solo muestran cómo se lee la línea.</text>
+</svg>

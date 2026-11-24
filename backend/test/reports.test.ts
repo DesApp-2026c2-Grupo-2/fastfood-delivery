@@ -312,6 +312,13 @@ describe('GET /api/admin/reports/products', () => {
     const outStockFound = outOfStock.find((p: { name: string }) => p.name.includes(productOutOfStock.name));
     expect(outStockFound).toBeDefined();
     expect(outStockFound.stock).toBe(0);
+
+    const { quantityShare, revenueShare } = response.body;
+    expect(quantityShare.total).toBeGreaterThanOrEqual(3);
+    expect(revenueShare.total).toBeGreaterThanOrEqual(3000);
+    expect(quantityShare.slices.find((slice: { id: string }) => slice.id === productCancelled.id)).toBeUndefined();
+    const percentSum = quantityShare.slices.reduce((sum: number, slice: { percent: number }) => sum + slice.percent, 0);
+    expect(percentSum).toBeCloseTo(100, 0);
   });
 
   it('un pedido de otro día queda fuera del filtro de fechas', async () => {

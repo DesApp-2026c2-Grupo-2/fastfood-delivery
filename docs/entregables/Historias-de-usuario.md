@@ -2,8 +2,8 @@
 
 **Proyecto:** Mordi, pedidos de una casa de comidas rápidas
 **Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
-**Versión:** 2.4
-**Actualizado:** 12/11/2026
+**Versión:** 2.5
+**Actualizado:** 24/11/2026
 **Fuente:** sección homónima de `Carpeta.md`
 
 Cada historia dice quién la usa y para qué. En las que mueven plata o stock hay un caso feliz y al menos un caso que no debe salir bien. El ejemplo trae situación inicial, acción y resultado. Los precios son los del catálogo de demostración.
@@ -12,10 +12,12 @@ Cada historia dice quién la usa y para qué. En las que mueven plata o stock ha
 
 | Campo | Significado |
 |---|---|
-| ID | El de las fichas. No se reutiliza. |
+| ID | Número de la historia, del 01 al 37, sin saltos. No se reutiliza. |
 | Estado | Todas las de esta carpeta están hechas en el producto que se entrega. |
 
 Definición de terminada: funciona en la aplicación del cliente o en la administrativa, y en la API, y se puede usar en el celular.
+
+HU-25, HU-26, HU-27, HU-29 y HU-32 cubren Mordis, el Top 3, el código del pedido, los clientes y el pago simulado. Ya estaban en el producto y no tenían historia: por eso la numeración saltaba.
 
 ## Actores
 
@@ -258,6 +260,7 @@ Como administrador, quiero ver qué se vende, qué no se vende, qué no tiene st
 1. Los cuatro listados salen de los pedidos y del stock. No se guardan aparte.
 2. Un cancelado no suma en las ventas. Un pendiente sí.
 3. Sin stock respeta la sucursal elegida y no el rango de fechas.
+4. La cantidad vendida y la facturación se ven también en un gráfico de torta. Cada porción es un producto y el porcentaje es sobre el total del filtro. Si hay muchos, los de menor peso se agrupan en «Otros».
 
 ## HU-23 — Retiro, domicilio y sucursal
 
@@ -279,6 +282,32 @@ Como administrador de solo pedidos, quiero consultar la operación sin tocar la 
 3. No hay botones para avanzar el estado ni para cancelar. La API de cambio de estado responde 403.
 4. Ve los reclamos y los cupones. Escribe la respuesta, marca el reclamo resuelto y puede cargar el importe del cupón. Si el cupón no se usó, puede reabrir. Si ya se usó, la solución queda fija.
 
+## HU-25 — Mordis, el programa de beneficio
+
+Como cliente, quiero ir sumando mordis, para recibir un premio sorpresa al completar la tarjeta.
+
+En la aplicación se llama Mordis. En la cuenta se ve «Mis mordis». Cada pedido de al menos $15.000 suma uno al crearlo. La meta es 10. El invitado no suma. El porcentaje del premio no se publica.
+
+**Situación inicial.** Ana tiene 9 mordis. Pide una hamburguesa doble de $20.000. Martes 20 descontaría $4.000.
+
+**Acción.** Confirmar el pedido.
+
+**Resultado.** Este pedido completa los 10. Entra Premio Fidelidad. En el ejemplo el premio está en 30%, así que descuenta $6.000 y gana sobre Martes 20. En el pedido se lee Premio Fidelidad y $6.000, no «30%». La tarjeta se ve llena. Si cancela, vuelve a 9 mordis y ese premio no queda.
+
+Un pedido de menos de $15.000 no suma mordi.
+
+## HU-26 — Top 3 compradores
+
+Como cliente, quiero que mi gasto cuente para el top, para llevarme un premio si quedo entre los tres que más gastaron.
+
+El administrador cierra la campaña. Los tres clientes que más gastaron desde que se inició reciben un descuento de un solo uso. El porcentaje no se publica. Compite con las promos de la carta y con Premio Fidelidad: gana el que más descuenta. El invitado no entra. Al usarlo, no vuelve a salir.
+
+## HU-27 — Código del pedido
+
+Como cliente y como local, quiero un código corto del pedido, para decirlo en el mostrador sin leer el identificador interno.
+
+El código son tres letras del nombre de la sucursal y seis dígitos. «Mordi Centro» empieza con `MOR`. Se ve en el pedido del cliente y en la administración.
+
 ## HU-28 — Reportes con filtro, gráfico y CSV
 
 Como administrador, quiero acotar los reportes por fecha y sucursal, verlos en un gráfico y bajarlos, para mirar una semana o un local.
@@ -286,6 +315,14 @@ Como administrador, quiero acotar los reportes por fecha y sucursal, verlos en u
 1. Sin filtro, el corte es todo el historial y todas las sucursales.
 2. Las fechas son días de Argentina.
 3. Cada lista se puede descargar en CSV con el filtro que está puesto.
+4. Las tortas de cantidad vendida y de facturación usan ese mismo filtro.
+
+## HU-29 — Clientes del local
+
+Como administrador, quiero ver y administrar los clientes, para habilitar o corregir una cuenta sin borrar sus pedidos.
+
+1. Alta, edición y baja lógica. Un cliente deshabilitado no inicia sesión. Sus pedidos quedan.
+2. No se mezclan con los administradores.
 
 ## HU-30 — Adicionales de cada producto
 
@@ -303,6 +340,12 @@ Sobre el pedido de una doble y una cola ($17.600 después del 20%), con el grati
 
 Sobre dos dobles y dos colas ($35.200 después del 20%) el mínimo ya se pasó. El envío es $0. En retiro el envío es $0 aunque no se llegue al mínimo. Si el mínimo está en 0, la bonificación está apagada.
 
+## HU-32 — Pago simulado
+
+Como cliente, quiero elegir un medio de pago al confirmar, para cerrar el pedido sin una pasarela.
+
+El checkout pide el medio. No se guarda en el pedido y no se cobra de verdad.
+
 ## HU-33 — Tablero del inicio
 
 Como super admin, quiero ver el día de un vistazo, para saber si el local está vendiendo antes de abrir un reporte.
@@ -311,7 +354,17 @@ Como super admin, quiero ver el día de un vistazo, para saber si el local está
 
 **Acción.** Abrir el inicio.
 
-**Resultado.** Se ven 4 pedidos de hoy, facturación $60.000, una barra por estado y la línea de ventas de los últimos siete días. Quien entra con el rol solo pedidos ve ese mismo tablero, y no ve los paneles de carta, stock ni reportes de productos.
+**Resultado.** Arriba hay dos números del día: 4 pedidos de hoy y facturación $60.000. Abajo hay dos gráficos, y no miran lo mismo.
+
+**Pedidos por estado** cuenta todos los pedidos, no solo los de hoy. Es una barra horizontal por cada estado que tenga al menos un pedido. El largo sale de la cantidad. Si los únicos pedidos fueran los del ejemplo, se verían dos barras: Entregado con 3 y Cancelado con 1. El cancelado entra en este gráfico.
+
+**Ventas** no es un gráfico de barras. Es una línea con un punto por día, de los últimos siete, en el día de Argentina. El importe no incluye cancelados. En el ejemplo el punto del 11/11 está en $60.000.
+
+Quien entra con el rol solo pedidos ve ese mismo tablero, y no ve los paneles de carta, stock ni reportes de productos.
+
+![Pedidos por estado: las dos barras del ejemplo, Entregado 3 y Cancelado 1](figuras/tablero-pedidos-por-estado.svg)
+
+![Ventas de los últimos siete días. El 11/11 está en $60.000 y no es una barra](figuras/tablero-ventas.svg)
 
 ## HU-34 — Provincia y código postal
 
@@ -357,6 +410,7 @@ El administrador puede cargar el día corrido o partido, con hasta dos franjas. 
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.5 | 24/11/2026 | La numeración queda seguida: entran HU-25 a HU-27, HU-29 y HU-32. HU-33 separa las dos barras de estado de la línea de ventas. HU-22 suma las tortas |
 | 2.4 | 12/11/2026 | HU-36: código del cupón, tope del importe, aviso al editar la solución y cupón pausado al reabrir |
 | 2.3 | 12/11/2026 | HU-36 y HU-24: respuesta, aviso de nueva respuesta, reabrir, y el rol solo pedidos también carga el cupón |
 | 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11. Todas las historias de la carpeta están hechas |

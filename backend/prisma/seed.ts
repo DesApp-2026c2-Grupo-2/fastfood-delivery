@@ -1,5 +1,6 @@
 import { AdminRole, PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { seedDemoBranches, seedDemoOrders } from './demo-data';
 
 const prisma = new PrismaClient();
 
@@ -389,7 +390,9 @@ async function main() {
   console.log('Categorías y productos de prueba cargados.');
 
   await seedProductExtras();
+  await seedDemoBranches(prisma);
   await seedStock();
+  await seedDemoOrders(prisma);
   await seedDelayedOrders(testCustomerId);
 }
 
@@ -422,13 +425,20 @@ const DEMO_STOCK = 100;
  * No pisa lo que ya haya cargado el admin.
  */
 async function seedStock() {
-  const branch = await prisma.branch.findFirstOrThrow({ where: { name: DEFAULT_BRANCH.name } });
-  const products = await prisma.product.findMany({ select: { id: true } });
-  const { count } = await prisma.stock.createMany({
-    data: products.map((product) => ({ branchId: branch.id, productId: product.id, available: DEMO_STOCK })),
-    skipDuplicates: true,
+  const branches = await prisma.branch.findMany({
+    where: { name: { in: ['Mordi Centro', 'Mordi Norte', 'Mordi Oeste'] } },
+    select: { id: true, name: true },
   });
-  console.log(`Stock inicial en ${DEFAULT_BRANCH.name}: ${count} productos nuevos con ${DEMO_STOCK} unidades.`);
+  const products = await prisma.product.findMany({ select: { id: true } });
+  let count = 0;
+  for (const branch of branches) {
+    const created = await prisma.stock.createMany({
+      data: products.map((product) => ({ branchId: branch.id, productId: product.id, available: DEMO_STOCK })),
+      skipDuplicates: true,
+    });
+    count += created.count;
+  }
+  console.log(`Stock inicial en sucursales Mordi: ${count} filas nuevas con ${DEMO_STOCK} unidades.`);
 }
 
 const MINUTE_MS = 60_000;

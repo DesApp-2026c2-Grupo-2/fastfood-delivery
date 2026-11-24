@@ -2,8 +2,8 @@
 
 **Proyecto:** Mordi, pedidos de una casa de comidas rápidas
 **Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
-**Versión:** 2.4
-**Actualizado:** 12/11/2026
+**Versión:** 2.5
+**Actualizado:** 24/11/2026
 **Fuente:** sección homónima de `Carpeta.md`
 
 Cada decisión es la regla que usa el sistema hoy.
@@ -21,7 +21,7 @@ Cada decisión es la regla que usa el sistema hoy.
 | D8 | Sin cobertura | Si en domicilio ninguna sucursal activa cae dentro del rango, el botón de confirmar queda deshabilitado y no se crea el pedido. |
 | D9 | Sin stock | Se puede elegir una sucursal que no alcanza, pero confirmar responde error y no crea el pedido. El mensaje nombra el producto, lo pedido y lo disponible. |
 | D10 | Horario | El administrador carga, por día, hasta dos franjas (horario corrido o partido). Si el cliente pide fuera de la franja abierta, puede dejar el pedido programado para la próxima apertura de esa sucursal. La hora estimada se calcula desde esa apertura. Si no lo programa, el pedido no se crea: la respuesta pide confirmación. El stock se reserva al confirmar el programado (D11). Sin franjas cargadas, el local se toma como abierto y se muestra el texto de respaldo. |
-| D11 | Stock | Entero por sucursal y producto. Sin fila, cuenta como 0. Reservar al confirmar, liberar al cancelar, descontar al entregar o retirar. El administrador puede devolver el reservado a disponible. Un carrito de invitado armado antes de esa liberación queda inhabilitado: hay que vaciarlo y armarlo de nuevo. El 2x1 reserva también la unidad gratis. |
+| D11 | Stock | Cada sucursal guarda dos enteros por producto: disponible (se puede vender) y reservado (está en un pedido que todavía no se entregó). Si no hay fila, el disponible es 0. Al confirmar, lo pedido pasa de disponible a reservado. El 2x1 reserva también la unidad gratis, y los adicionales. Al cancelar, el reservado vuelve a disponible. Al entregar o retirar, el reservado se descuenta y no vuelve. En Stock, el administrador puede devolver todo el reservado de un producto a disponible: esos pedidos dejan de mover esas unidades. Los carritos que ya tenían ese producto, el de una cuenta y el de un invitado armado antes, quedan inhabilitados y hay que vaciarlos para armarlos de nuevo. |
 | D12 | Una promoción | Porcentual o 2x1, o el premio de una campaña. Gana la de mayor descuento. Empate: la creada más tarde. El descuento no supera el subtotal y queda congelado en el pedido. El cupón de reclamo no entra en esta elección: se suma (D26). |
 | D13 | Sellos | Cada pedido que llega al mínimo suma un sello al crearlo. Al llegar a 10, ese pedido lleva un descuento sorpresa: el porcentaje lo configura el administrador y no se publica. El cliente ve el premio y el importe, no el número. Si cancela, el sello se revierte. El premio compite con las promociones de la carta y gana solo si descuenta más. |
 | D13b | Top 3 | Al cerrar la campaña, los tres clientes que más gastaron reciben un descuento de un solo uso. El porcentaje tampoco se publica. Compite igual que los sellos: gana el que más descuenta. |
@@ -126,6 +126,8 @@ Confirmar Mordi Norte no crea el pedido. El stock no se toca. Confirmar Mordi Ce
 
 Si después se cancela, Centro vuelve a 5 disponibles y 0 reservadas. Si se entrega, las 2 reservadas salen del stock: quedan 3 disponibles y 0 reservadas.
 
+Si en cambio el administrador, con el pedido todavía pendiente, devuelve el reservado de la doble, Centro queda en 5 disponibles y 0 reservadas igual que al cancelar, pero el pedido sigue en Pendiente. Cancelarlo o entregarlo ya no mueve esa doble. Un carrito que ya la tenía no se puede confirmar: hay que vaciarlo y volver a cargarla. Lo mismo le pasa al carrito de un invitado si lo armó antes de esa devolución.
+
 Si la dirección está a 8 km de todas las sucursales activas, la lista de domicilio queda vacía, el botón no se puede apretar y no hay pedido.
 
 Mordi Centro abre de lunes a domingo, de 10:00 a 23:00. A las 21:00 del miércoles el checkout no ofrece programar: el pedido sale en el momento. A las 23:30 muestra «Mordi Centro está cerrada» y la opción de dejarlo para el jueves a las 10:00, que es la próxima apertura. Si el cliente acepta, el pedido queda programado para esa hora, la estimada se cuenta desde las 10:00 y el stock se reserva ya. Si no acepta, no se crea el pedido en Centro.
@@ -144,6 +146,7 @@ Si el carrito ya tenía aderezos, la pregunta no vuelve a aparecer. «Continuar 
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.5 | 24/11/2026 | D11 separa disponible y reservado, y dice qué pasa cuando el administrador devuelve el reservado a disponible |
 | 2.4 | 12/11/2026 | D22 y D26: código `REC-`, tope del importe, aviso al cambiar la solución y cupón pausado si el reclamo se reabre |
 | 2.3 | 12/11/2026 | D22 y D26: respuesta al cliente, reabrir si el cupón no se usó, y el rol solo pedidos también carga el importe |
 | 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11 |

@@ -24,6 +24,43 @@ function endOfDayAR(date: string): Date {
   return new Date(`${parseDayAR(date)}T23:59:59.999-03:00`);
 }
 
+const SHARE_LIMIT = 6;
+
+/** Porción de cada producto sobre el total vendido. Lo que no entra en las primeras se agrupa en Otros. */
+function shareOf(
+  stats: { id: string; name: string; unitsSold: number; totalRevenue: number }[],
+  key: 'unitsSold' | 'totalRevenue',
+) {
+  const rows = stats
+    .filter((row) => row[key] > 0)
+    .sort((a, b) => b[key] - a[key] || a.name.localeCompare(b.name, 'es'));
+  const total = rows.reduce((sum, row) => sum + row[key], 0);
+  const head = rows.slice(0, rows.length > SHARE_LIMIT + 1 ? SHARE_LIMIT : rows.length);
+  const tail = rows.slice(head.length);
+  const parts = head.map((row) => ({ id: row.id, name: row.name, value: row[key] }));
+  if (tail.length > 0) {
+    parts.push({
+      id: 'otros',
+      name: 'Otros',
+      value: tail.reduce((sum, row) => sum + row[key], 0),
+    });
+  }
+
+  let used = 0;
+  const slices = parts.map((part, index) => {
+    const percent =
+      total === 0
+        ? 0
+        : index === parts.length - 1
+          ? Number((100 - used).toFixed(1))
+          : Number(((part.value / total) * 100).toFixed(1));
+    if (index !== parts.length - 1) used = Number((used + percent).toFixed(1));
+    return { ...part, value: Number(part.value.toFixed(2)), percent };
+  });
+
+  return { total: Number(total.toFixed(2)), slices };
+}
+
 function dayKeyAR(date: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Argentina/Buenos_Aires',
@@ -147,6 +184,8 @@ export class ReportsService {
       leastSelling,
       outOfStock,
       topRevenue,
+      quantityShare: shareOf(productStats, 'unitsSold'),
+      revenueShare: shareOf(productStats, 'totalRevenue'),
     };
   }
 

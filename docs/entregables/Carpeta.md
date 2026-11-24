@@ -2,8 +2,8 @@
 
 **Proyecto:** Mordi, pedidos de una casa de comidas rápidas
 **Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
-**Versión:** 2.5
-**Actualizado:** 12/11/2026
+**Versión:** 2.6
+**Actualizado:** 24/11/2026
 **Entrega de esta carpeta:** 12/11/2026
 **Review:** 19/11/2026 · **Presentación final:** 27/11/2026
 
@@ -38,7 +38,7 @@ Hay dos roles. **Super admin** opera todo el local. **Solo pedidos** ve el inici
 
 El inicio del super admin muestra el día: cuántos pedidos entraron, cuánto se facturó, los pedidos por estado y las ventas de los últimos siete días.
 
-El super admin gestiona categorías, productos (con la foto y los adicionales que cada uno ofrece), sucursales, stock por sucursal, clientes, otros administradores, parámetros, promociones de la carta y dos campañas (sellos y Top 3). Ve los pedidos, cambia el estado, atiende reclamos y consulta reportes con filtro de fecha y sucursal, gráficos y descarga CSV.
+El super admin gestiona categorías, productos (con la foto y los adicionales que cada uno ofrece), sucursales, stock por sucursal, clientes, otros administradores, parámetros, promociones de la carta y dos campañas (sellos y Top 3). Ve los pedidos, cambia el estado, atiende reclamos y consulta reportes con filtro de fecha y sucursal, gráficos, tortas de cantidad y facturación, y descarga CSV.
 
 ## Pedido, sucursal, horario y stock
 
@@ -102,7 +102,7 @@ Cada cambio queda en un historial con fecha y quién lo hizo. El cliente y el ad
 | `/admin/parameters` | Radio, tiempos, precio por km, envío gratis, sellos y Top 3 |
 | `/admin/promotions` | Porcentaje y 2x1 |
 | `/admin/campaigns` | Fidelización y top de clientes |
-| `/admin/reports` | Filtro, gráficos y CSV |
+| `/admin/reports` | Filtro, gráficos, tortas de cantidad y facturación, y CSV |
 | `/admin/incidents` | Reclamos. Super admin y solo pedidos escriben la respuesta, cargan el cupón o copian el total cobrado. El listado se filtra por estado |
 | `/admin/incident-coupons` | Cupones de reclamo. Los ven los dos roles |
 
@@ -137,7 +137,7 @@ Cada decisión es la regla que usa el sistema hoy.
 | D8 | Sin cobertura | Si en domicilio ninguna sucursal activa cae dentro del rango, el botón de confirmar queda deshabilitado y no se crea el pedido. |
 | D9 | Sin stock | Se puede elegir una sucursal que no alcanza, pero confirmar responde error y no crea el pedido. El mensaje nombra el producto, lo pedido y lo disponible. |
 | D10 | Horario | El administrador carga, por día, hasta dos franjas (horario corrido o partido). Si el cliente pide fuera de la franja abierta, puede dejar el pedido programado para la próxima apertura de esa sucursal. La hora estimada se calcula desde esa apertura. Si no lo programa, el pedido no se crea: la respuesta pide confirmación. El stock se reserva al confirmar el programado (D11). Sin franjas cargadas, el local se toma como abierto y se muestra el texto de respaldo. |
-| D11 | Stock | Entero por sucursal y producto. Sin fila, cuenta como 0. Reservar al confirmar, liberar al cancelar, descontar al entregar o retirar. El administrador puede devolver el reservado a disponible. Un carrito de invitado armado antes de esa liberación queda inhabilitado: hay que vaciarlo y armarlo de nuevo. El 2x1 reserva también la unidad gratis. |
+| D11 | Stock | Cada sucursal guarda dos enteros por producto: disponible (se puede vender) y reservado (está en un pedido que todavía no se entregó). Si no hay fila, el disponible es 0. Al confirmar, lo pedido pasa de disponible a reservado. El 2x1 reserva también la unidad gratis, y los adicionales. Al cancelar, el reservado vuelve a disponible. Al entregar o retirar, el reservado se descuenta y no vuelve. En Stock, el administrador puede devolver todo el reservado de un producto a disponible: esos pedidos dejan de mover esas unidades. Los carritos que ya tenían ese producto, el de una cuenta y el de un invitado armado antes, quedan inhabilitados y hay que vaciarlos para armarlos de nuevo. |
 | D12 | Una promoción | Porcentual o 2x1, o el premio de una campaña. Gana la de mayor descuento. Empate: la creada más tarde. El descuento no supera el subtotal y queda congelado en el pedido. El cupón de reclamo no entra en esta elección: se suma (D26). |
 | D13 | Sellos | Cada pedido que llega al mínimo suma un sello al crearlo. Al llegar a 10, ese pedido lleva un descuento sorpresa: el porcentaje lo configura el administrador y no se publica. El cliente ve el premio y el importe, no el número. Si cancela, el sello se revierte. El premio compite con las promociones de la carta y gana solo si descuenta más. |
 | D13b | Top 3 | Al cerrar la campaña, los tres clientes que más gastaron reciben un descuento de un solo uso. El porcentaje tampoco se publica. Compite igual que los sellos: gana el que más descuenta. |
@@ -241,6 +241,8 @@ El carrito pide dos hamburguesas dobles. El radio es 5 km. Las dos sucursales ll
 Confirmar Mordi Norte no crea el pedido. El stock no se toca. Confirmar Mordi Centro crea el pedido en Pendiente: Centro pasa a 3 disponibles y 2 reservadas.
 
 Si después se cancela, Centro vuelve a 5 disponibles y 0 reservadas. Si se entrega, las 2 reservadas salen del stock: quedan 3 disponibles y 0 reservadas.
+
+Si en cambio el administrador, con el pedido todavía pendiente, devuelve el reservado de la doble, Centro queda en 5 disponibles y 0 reservadas igual que al cancelar, pero el pedido sigue en Pendiente. Cancelarlo o entregarlo ya no mueve esa doble. Un carrito que ya la tenía no se puede confirmar: hay que vaciarlo y volver a cargarla. Lo mismo le pasa al carrito de un invitado si lo armó antes de esa devolución.
 
 Si la dirección está a 8 km de todas las sucursales activas, la lista de domicilio queda vacía, el botón no se puede apretar y no hay pedido.
 
@@ -394,6 +396,7 @@ Hay un solo alta de administradores. Listar, crear, editar y borrar son la misma
 | RF-RPT-22 | Informar el descuento acumulado de cada promoción, como impacto en las ventas. | Super admin |
 | RF-RPT-23 | Filtrar los reportes por fecha y por sucursal, mostrarlos en gráficos y descargarlos en CSV. | Super admin |
 | RF-RPT-24 | Mostrar en el inicio los pedidos de hoy, la facturación de hoy, los pedidos por estado y las ventas de los últimos siete días. El rol solo pedidos ve ese tablero. Los reportes de productos quedan para el super admin. | Super admin |
+| RF-RPT-25 | Mostrar la cantidad vendida y la facturación en gráficos de torta. Cada porción es el porcentaje de un producto sobre el total del filtro. Un cancelado no entra. | Super admin |
 
 ## Lo que el enunciado nombra y este producto no hace
 
@@ -407,10 +410,12 @@ Cada historia dice quién la usa y para qué. En las que mueven plata o stock ha
 
 | Campo | Significado |
 |---|---|
-| ID | El de las fichas. No se reutiliza. |
+| ID | Número de la historia, del 01 al 37, sin saltos. No se reutiliza. |
 | Estado | Todas las de esta carpeta están hechas en el producto que se entrega. |
 
 Definición de terminada: funciona en la aplicación del cliente o en la administrativa, y en la API, y se puede usar en el celular.
+
+HU-25, HU-26, HU-27, HU-29 y HU-32 cubren Mordis, el Top 3, el código del pedido, los clientes y el pago simulado. Ya estaban en el producto y no tenían historia: por eso la numeración saltaba.
 
 ## Actores
 
@@ -653,6 +658,7 @@ Como administrador, quiero ver qué se vende, qué no se vende, qué no tiene st
 1. Los cuatro listados salen de los pedidos y del stock. No se guardan aparte.
 2. Un cancelado no suma en las ventas. Un pendiente sí.
 3. Sin stock respeta la sucursal elegida y no el rango de fechas.
+4. La cantidad vendida y la facturación se ven también en un gráfico de torta. Cada porción es un producto y el porcentaje es sobre el total del filtro. Si hay muchos, los de menor peso se agrupan en «Otros».
 
 ## HU-23 — Retiro, domicilio y sucursal
 
@@ -674,6 +680,32 @@ Como administrador de solo pedidos, quiero consultar la operación sin tocar la 
 3. No hay botones para avanzar el estado ni para cancelar. La API de cambio de estado responde 403.
 4. Ve los reclamos y los cupones. Escribe la respuesta, marca el reclamo resuelto y puede cargar el importe del cupón. Si el cupón no se usó, puede reabrir. Si ya se usó, la solución queda fija.
 
+## HU-25 — Mordis, el programa de beneficio
+
+Como cliente, quiero ir sumando mordis, para recibir un premio sorpresa al completar la tarjeta.
+
+En la aplicación se llama Mordis. En la cuenta se ve «Mis mordis». Cada pedido de al menos $15.000 suma uno al crearlo. La meta es 10. El invitado no suma. El porcentaje del premio no se publica.
+
+**Situación inicial.** Ana tiene 9 mordis. Pide una hamburguesa doble de $20.000. Martes 20 descontaría $4.000.
+
+**Acción.** Confirmar el pedido.
+
+**Resultado.** Este pedido completa los 10. Entra Premio Fidelidad. En el ejemplo el premio está en 30%, así que descuenta $6.000 y gana sobre Martes 20. En el pedido se lee Premio Fidelidad y $6.000, no «30%». La tarjeta se ve llena. Si cancela, vuelve a 9 mordis y ese premio no queda.
+
+Un pedido de menos de $15.000 no suma mordi.
+
+## HU-26 — Top 3 compradores
+
+Como cliente, quiero que mi gasto cuente para el top, para llevarme un premio si quedo entre los tres que más gastaron.
+
+El administrador cierra la campaña. Los tres clientes que más gastaron desde que se inició reciben un descuento de un solo uso. El porcentaje no se publica. Compite con las promos de la carta y con Premio Fidelidad: gana el que más descuenta. El invitado no entra. Al usarlo, no vuelve a salir.
+
+## HU-27 — Código del pedido
+
+Como cliente y como local, quiero un código corto del pedido, para decirlo en el mostrador sin leer el identificador interno.
+
+El código son tres letras del nombre de la sucursal y seis dígitos. «Mordi Centro» empieza con `MOR`. Se ve en el pedido del cliente y en la administración.
+
 ## HU-28 — Reportes con filtro, gráfico y CSV
 
 Como administrador, quiero acotar los reportes por fecha y sucursal, verlos en un gráfico y bajarlos, para mirar una semana o un local.
@@ -681,6 +713,14 @@ Como administrador, quiero acotar los reportes por fecha y sucursal, verlos en u
 1. Sin filtro, el corte es todo el historial y todas las sucursales.
 2. Las fechas son días de Argentina.
 3. Cada lista se puede descargar en CSV con el filtro que está puesto.
+4. Las tortas de cantidad vendida y de facturación usan ese mismo filtro.
+
+## HU-29 — Clientes del local
+
+Como administrador, quiero ver y administrar los clientes, para habilitar o corregir una cuenta sin borrar sus pedidos.
+
+1. Alta, edición y baja lógica. Un cliente deshabilitado no inicia sesión. Sus pedidos quedan.
+2. No se mezclan con los administradores.
 
 ## HU-30 — Adicionales de cada producto
 
@@ -698,6 +738,12 @@ Sobre el pedido de una doble y una cola ($17.600 después del 20%), con el grati
 
 Sobre dos dobles y dos colas ($35.200 después del 20%) el mínimo ya se pasó. El envío es $0. En retiro el envío es $0 aunque no se llegue al mínimo. Si el mínimo está en 0, la bonificación está apagada.
 
+## HU-32 — Pago simulado
+
+Como cliente, quiero elegir un medio de pago al confirmar, para cerrar el pedido sin una pasarela.
+
+El checkout pide el medio. No se guarda en el pedido y no se cobra de verdad.
+
 ## HU-33 — Tablero del inicio
 
 Como super admin, quiero ver el día de un vistazo, para saber si el local está vendiendo antes de abrir un reporte.
@@ -706,7 +752,17 @@ Como super admin, quiero ver el día de un vistazo, para saber si el local está
 
 **Acción.** Abrir el inicio.
 
-**Resultado.** Se ven 4 pedidos de hoy, facturación $60.000, una barra por estado y la línea de ventas de los últimos siete días. Quien entra con el rol solo pedidos ve ese mismo tablero, y no ve los paneles de carta, stock ni reportes de productos.
+**Resultado.** Arriba hay dos números del día: 4 pedidos de hoy y facturación $60.000. Abajo hay dos gráficos, y no miran lo mismo.
+
+**Pedidos por estado** cuenta todos los pedidos, no solo los de hoy. Es una barra horizontal por cada estado que tenga al menos un pedido. El largo sale de la cantidad. Si los únicos pedidos fueran los del ejemplo, se verían dos barras: Entregado con 3 y Cancelado con 1. El cancelado entra en este gráfico.
+
+**Ventas** no es un gráfico de barras. Es una línea con un punto por día, de los últimos siete, en el día de Argentina. El importe no incluye cancelados. En el ejemplo el punto del 11/11 está en $60.000.
+
+Quien entra con el rol solo pedidos ve ese mismo tablero, y no ve los paneles de carta, stock ni reportes de productos.
+
+![Pedidos por estado: las dos barras del ejemplo, Entregado 3 y Cancelado 1](figuras/tablero-pedidos-por-estado.svg)
+
+![Ventas de los últimos siete días. El 11/11 está en $60.000 y no es una barra](figuras/tablero-ventas.svg)
 
 ## HU-34 — Provincia y código postal
 
@@ -1227,6 +1283,7 @@ Hasta el 11/11 la carpeta eran ocho documentos. Esta tabla sigue ese recorrido y
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.6 | 24/11/2026 | Historias sin saltos de número. D11 aclara disponible, reservado y el carrito inhabilitado. Reportes con tortas de cantidad y facturación. HU-33 muestra las dos barras del ejemplo |
 | 2.5 | 12/11/2026 | El cupón es `REC-` y seis caracteres, de $1 a $500.000. Cambiar la solución avisa de nuevo. Reabierto, el cupón no se descuenta |
 | 2.4 | 12/11/2026 | Reclamos y cupones: respuesta al cliente, aviso de nueva respuesta, reabrir si el cupón no se usó, y el rol solo pedidos también resuelve y carga el importe |
 | 2.3 | 12/11/2026 | Se quita la frase de que no hay una tercera aplicación para repartidores |

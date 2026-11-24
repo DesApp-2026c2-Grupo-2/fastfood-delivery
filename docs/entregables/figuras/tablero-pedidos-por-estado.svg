@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" role="img" aria-label="Pedidos por estado: Entregado 3 y Cancelado 1">
+  <rect width="640" height="220" rx="16" fill="#fff7ed"/>
+  <text x="24" y="36" font-family="Segoe UI, sans-serif" font-size="18" font-weight="700" fill="#1c1917">Pedidos por estado</text>
+  <text x="24" y="58" font-family="Segoe UI, sans-serif" font-size="13" fill="#78716c">Todos. Una barra por estado con pedidos.</text>
+  <text x="24" y="108" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#1c1917">Entregado</text>
+  <rect x="150" y="90" width="360" height="22" rx="6" fill="#ffedd5"/>
+  <rect x="150" y="90" width="360" height="22" rx="6" fill="#f97316"/>
+  <text x="522" y="106" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#1c1917">3</text>
+  <text x="24" y="156" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#1c1917">Cancelado</text>
+  <rect x="150" y="138" width="360" height="22" rx="6" fill="#ffedd5"/>
+  <rect x="150" y="138" width="120" height="22" rx="6" fill="#fdba74"/>
+  <text x="282" y="154" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#1c1917">1</text>
+  <text x="24" y="198" font-family="Segoe UI, sans-serif" font-size="12" fill="#78716c">Ejemplo del 11/11, si esos cuatro pedidos fueran los únicos: dos barras, 3 y 1.</text>
+</svg>

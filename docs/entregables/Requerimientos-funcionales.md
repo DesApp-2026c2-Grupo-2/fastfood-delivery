@@ -2,8 +2,8 @@
 
 **Proyecto:** Mordi, pedidos de una casa de comidas rápidas
 **Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
-**Versión:** 2.4
-**Actualizado:** 12/11/2026
+**Versión:** 2.5
+**Actualizado:** 24/11/2026
 **Fuente:** sección homónima de `Carpeta.md`
 
 «El sistema deberá» describe lo que Mordi hace. El identificador es el de la carpeta desde el inicio del cuatrimestre: no se reutiliza ni se cambia de significado. Stock, promociones y reportes de operación forman parte del producto, no de una lista aparte para más adelante.
@@ -140,6 +140,7 @@ Hay un solo alta de administradores. Listar, crear, editar y borrar son la misma
 | RF-RPT-22 | Informar el descuento acumulado de cada promoción, como impacto en las ventas. | Super admin |
 | RF-RPT-23 | Filtrar los reportes por fecha y por sucursal, mostrarlos en gráficos y descargarlos en CSV. | Super admin |
 | RF-RPT-24 | Mostrar en el inicio los pedidos de hoy, la facturación de hoy, los pedidos por estado y las ventas de los últimos siete días. El rol solo pedidos ve ese tablero. Los reportes de productos quedan para el super admin. | Super admin |
+| RF-RPT-25 | Mostrar la cantidad vendida y la facturación en gráficos de torta. Cada porción es el porcentaje de un producto sobre el total del filtro. Un cancelado no entra. | Super admin |
 
 ## Lo que el enunciado nombra y este producto no hace
 
@@ -149,6 +150,7 @@ Calificar un pedido, avisar por correo cada cambio de estado, y la aplicación d
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.5 | 24/11/2026 | RF-RPT-25: tortas de cantidad vendida y de facturación, como porcentaje del total |
 | 2.4 | 12/11/2026 | El cupón tiene código `REC-`, importe de $1 a $500.000, y no se descuenta mientras el reclamo está abierto |
 | 2.3 | 12/11/2026 | RF-CLI-09 para el reclamo del cliente. RF-ADM-12 y RF-CUP-01 también los cumple el rol solo pedidos |
 | 2.2 | 11/11/2026 | El texto queda igual a la sección de `Carpeta.md` de la entrega del 12/11 |

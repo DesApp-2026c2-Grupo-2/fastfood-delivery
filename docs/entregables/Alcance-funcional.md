@@ -2,8 +2,8 @@
 
 **Proyecto:** Mordi, pedidos de una casa de comidas rápidas
 **Materia:** Desarrollo de Aplicaciones · 2.º cuatrimestre 2026 · Grupo 2
-**Versión:** 2.5
-**Actualizado:** 12/11/2026
+**Versión:** 2.6
+**Actualizado:** 24/11/2026
 **Fuente:** sección homónima de `Carpeta.md`
 
 Mordi es la plataforma con la que una casa de comidas rápidas toma un pedido, lo cobra con promoción y envío, y lo sigue hasta que se entrega o se retira. Este documento dice qué hace el producto que se entrega. Se puede leer solo. Los precios de los ejemplos de la carpeta son los del catálogo de demostración: hamburguesa doble $20.000, gaseosa cola $2.000, papas fritas $3.000, cheddar $2.000.
@@ -35,7 +35,7 @@ Hay dos roles. **Super admin** opera todo el local. **Solo pedidos** ve el inici
 
 El inicio del super admin muestra el día: cuántos pedidos entraron, cuánto se facturó, los pedidos por estado y las ventas de los últimos siete días.
 
-El super admin gestiona categorías, productos (con la foto y los adicionales que cada uno ofrece), sucursales, stock por sucursal, clientes, otros administradores, parámetros, promociones de la carta y dos campañas (sellos y Top 3). Ve los pedidos, cambia el estado, atiende reclamos y consulta reportes con filtro de fecha y sucursal, gráficos y descarga CSV.
+El super admin gestiona categorías, productos (con la foto y los adicionales que cada uno ofrece), sucursales, stock por sucursal, clientes, otros administradores, parámetros, promociones de la carta y dos campañas (sellos y Top 3). Ve los pedidos, cambia el estado, atiende reclamos y consulta reportes con filtro de fecha y sucursal, gráficos, tortas de cantidad y facturación, y descarga CSV.
 
 ## Pedido, sucursal, horario y stock
 
@@ -99,7 +99,7 @@ Cada cambio queda en un historial con fecha y quién lo hizo. El cliente y el ad
 | `/admin/parameters` | Radio, tiempos, precio por km, envío gratis, sellos y Top 3 |
 | `/admin/promotions` | Porcentaje y 2x1 |
 | `/admin/campaigns` | Fidelización y top de clientes |
-| `/admin/reports` | Filtro, gráficos y CSV |
+| `/admin/reports` | Filtro, gráficos, tortas de cantidad y facturación, y CSV |
 | `/admin/incidents` | Reclamos. Super admin y solo pedidos escriben la respuesta, cargan el cupón o copian el total cobrado. El listado se filtra por estado |
 | `/admin/incident-coupons` | Cupones de reclamo. Los ven los dos roles |
 
@@ -120,6 +120,7 @@ Cada cambio queda en un historial con fecha y quién lo hizo. El cliente y el ad
 
 | Versión | Fecha | Qué cambió |
 |---|---|---|
+| 2.6 | 24/11/2026 | Los reportes de productos incluyen tortas de cantidad vendida y de facturación |
 | 2.5 | 12/11/2026 | El cupón es `REC-` y seis caracteres, de $1 a $500.000. Cambiar la solución avisa de nuevo. Reabierto, el cupón no se descuenta |
 | 2.4 | 12/11/2026 | El reclamo pide respuesta, avisa «Nueva respuesta» y se puede reabrir si el cupón no se usó. El rol solo pedidos también resuelve y carga el importe |
 | 2.3 | 12/11/2026 | Se quita la frase de que no hay una tercera aplicación para repartidores |

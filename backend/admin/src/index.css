@@ -2250,6 +2250,77 @@ h2 {
   -webkit-overflow-scrolling: touch;
 }
 
+.reports-pies {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1.25rem;
+  margin-top: 0.85rem;
+}
+
+.reports-pie-block h3 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.reports-pie {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.45rem;
+}
+
+.reports-pie svg {
+  width: 100%;
+  height: auto;
+}
+
+.reports-pie-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.reports-pie-legend li {
+  display: grid;
+  grid-template-columns: 0.7rem minmax(0, 1fr) auto;
+  grid-template-areas:
+    'swatch name percent'
+    'swatch value value';
+  column-gap: 0.45rem;
+  row-gap: 0.05rem;
+  align-items: baseline;
+  font-size: 0.86rem;
+}
+
+.reports-pie-swatch {
+  grid-area: swatch;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  align-self: center;
+}
+
+.reports-pie-name {
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reports-pie-legend strong {
+  grid-area: percent;
+}
+
+.reports-pie-legend .muted {
+  grid-area: value;
+  font-size: 0.78rem;
+}
+
 .order-lines {
   list-style: none;
   margin: 0;

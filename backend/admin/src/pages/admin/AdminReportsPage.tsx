@@ -131,6 +131,74 @@ function BarChart({ bars }: { bars: { label: string; value: number }[] }) {
   );
 }
 
+const PIE_COLORS = ['#ea580c', '#c2410c', '#fb923c', '#9a3412', '#fdba74', '#44403c', '#a8a29e'];
+
+function pieSlicePath(cx: number, cy: number, outer: number, inner: number, start: number, end: number) {
+  const large = end - start > Math.PI ? 1 : 0;
+  const point = (radius: number, angle: number) => ({
+    x: cx + radius * Math.cos(angle),
+    y: cy + radius * Math.sin(angle),
+  });
+  const a = point(outer, start);
+  const b = point(outer, end);
+  const c = point(inner, end);
+  const d = point(inner, start);
+  return `M ${a.x} ${a.y} A ${outer} ${outer} 0 ${large} 1 ${b.x} ${b.y} L ${c.x} ${c.y} A ${inner} ${inner} 0 ${large} 0 ${d.x} ${d.y} Z`;
+}
+
+function PieChart({
+  slices,
+  formatValue,
+}: {
+  slices: { id: string; name: string; value: number; percent: number }[];
+  formatValue: (value: number) => string;
+}) {
+  const total = slices.reduce((sum, slice) => sum + slice.value, 0);
+  if (slices.length === 0 || total <= 0) {
+    return <p className="muted">Sin ventas en el filtro</p>;
+  }
+
+  const cx = 90;
+  const cy = 90;
+  const outer = 78;
+  const inner = 46;
+  let angle = -Math.PI / 2;
+  const wedges = slices.map((slice, index) => {
+    const sweep = (slice.value / total) * Math.PI * 2;
+    const start = angle;
+    angle += sweep;
+    const full = sweep >= Math.PI * 2 - 0.0001;
+    const path = full
+      ? `M ${cx} ${cy - outer} A ${outer} ${outer} 0 1 1 ${cx - 0.01} ${cy - outer} L ${cx - 0.01} ${cy - inner} A ${inner} ${inner} 0 1 0 ${cx} ${cy - inner} Z`
+      : pieSlicePath(cx, cy, outer, inner, start, angle);
+    return { ...slice, path, color: PIE_COLORS[index % PIE_COLORS.length] };
+  });
+
+  return (
+    <div className="reports-pie">
+      <svg viewBox="0 0 180 180" role="img" aria-label={wedges.map((wedge) => `${wedge.name} ${wedge.percent}%`).join(', ')}>
+        {wedges.map((wedge) => (
+          <path key={wedge.id} d={wedge.path} fill={wedge.color}>
+            <title>{`${wedge.name}: ${formatValue(wedge.value)} (${wedge.percent}%)`}</title>
+          </path>
+        ))}
+      </svg>
+      <ul className="reports-pie-legend">
+        {wedges.map((wedge) => (
+          <li key={wedge.id}>
+            <span className="reports-pie-swatch" style={{ background: wedge.color }} />
+            <span className="reports-pie-name">{wedge.name}</span>
+            <strong>
+              {wedge.percent.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+            </strong>
+            <span className="muted">{formatValue(wedge.value)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 type SectionProps = {
   title: string;
   badge?: string;
@@ -728,6 +796,47 @@ export function AdminReportsPage() {
         <>
           <h2 style={{ marginTop: '1.5rem' }}>Productos</h2>
           <div className="reports-grid">
+            <ReportSection
+              title="Participación en el total"
+              wide
+              onCsv={() =>
+                downloadCsv(
+                  'participacion-productos.csv',
+                  ['Tipo', 'Producto', 'Valor', 'Porcentaje'],
+                  [
+                    ...products.quantityShare.slices.map((slice) => ['Cantidad', slice.name, slice.value, slice.percent]),
+                    ...products.revenueShare.slices.map((slice) => [
+                      'Facturación',
+                      slice.name,
+                      slice.value,
+                      slice.percent,
+                    ]),
+                  ],
+                )
+              }
+            >
+              <p className="muted reports-metric-hint">
+                Sin cancelados. Cada porción es lo que ese producto representa del total vendido en el filtro.
+              </p>
+              <div className="reports-pies">
+                <div className="reports-pie-block">
+                  <h3>Cantidad vendida</h3>
+                  <p className="muted reports-metric-hint">
+                    Total: {products.quantityShare.total.toLocaleString('es-AR')} unidades
+                  </p>
+                  <PieChart
+                    slices={products.quantityShare.slices}
+                    formatValue={(value) => `${value.toLocaleString('es-AR')} u.`}
+                  />
+                </div>
+                <div className="reports-pie-block">
+                  <h3>Facturación</h3>
+                  <p className="muted reports-metric-hint">Total: {formatMoney(products.revenueShare.total)}</p>
+                  <PieChart slices={products.revenueShare.slices} formatValue={formatMoney} />
+                </div>
+              </div>
+            </ReportSection>
+
             <ReportSection
               title="Más vendidos"
               badge="Top 10"

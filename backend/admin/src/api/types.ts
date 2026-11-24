@@ -396,11 +396,25 @@ export type ProductReportItem = {
   stock?: number;
 };
 
+export type ProductShareSlice = {
+  id: string;
+  name: string;
+  value: number;
+  percent: number;
+};
+
+export type ProductShare = {
+  total: number;
+  slices: ProductShareSlice[];
+};
+
 export type ProductReports = {
   topSelling: ProductReportItem[];
   leastSelling: ProductReportItem[];
   outOfStock: ProductReportItem[];
   topRevenue: ProductReportItem[];
+  quantityShare: ProductShare;
+  revenueShare: ProductShare;
 };
 
 export type OrderReports = {
