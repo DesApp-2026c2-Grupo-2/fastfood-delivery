@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import type { Product, Promotion } from '../../api/types';
 import { getToken } from '../../auth/session';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import { DateFilter } from '../../components/DateFilter';
 import { useSuccessNotice, useTimedNotice } from '../../lib/success-notice';
 
 type PromoType = 'percent' | 'two_for_one';
@@ -527,18 +528,18 @@ export function AdminPromotionFormPage() {
         <div className="date-pair">
           <label>
             Vigente desde
-            <input
-              type="date"
+            <DateFilter
+              label="Vigente desde"
               value={form.startsAt}
-              onChange={(event) => setForm((current) => ({ ...current, startsAt: event.target.value }))}
+              onChange={(startsAt) => setForm((current) => ({ ...current, startsAt }))}
             />
           </label>
           <label>
             Vigente hasta
-            <input
-              type="date"
+            <DateFilter
+              label="Vigente hasta"
               value={form.endsAt}
-              onChange={(event) => setForm((current) => ({ ...current, endsAt: event.target.value }))}
+              onChange={(endsAt) => setForm((current) => ({ ...current, endsAt }))}
             />
           </label>
         </div>

@@ -1,4 +1,4 @@
-import { Fulfillment, OrderStatus, PrismaClient, Role } from '@prisma/client';
+import { Fulfillment, OrderStatus, Prisma, PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const MINUTE_MS = 60_000;
@@ -222,14 +222,30 @@ export async function seedDemoOrders(prisma: PrismaClient) {
   await prisma.order.deleteMany({ where: { id: { startsWith: 'demo-ord-' } } });
 
   const branchCycle = ['Mordi Centro', 'Mordi Centro', 'Mordi Norte', 'Mordi Oeste'];
+  const hours = [11, 13, 16, 19, 21];
+  const historyDays = 183;
   let sequence = 0;
+  const orders: Prisma.OrderCreateManyInput[] = [];
+  const orderItems: Prisma.OrderItemCreateManyInput[] = [];
+  const statusHistory: Prisma.OrderStatusHistoryCreateManyInput[] = [];
 
-  for (let daysAgo = 13; daysAgo >= 0; daysAgo -= 1) {
-    const slots = daysAgo === 0 ? TODAY_STATUSES.length : 5;
+  function slotsFor(daysAgo: number) {
+    if (daysAgo === 0) return TODAY_STATUSES.length;
+    const weekday = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      weekday: 'short',
+    }).format(demoDate(daysAgo, 12, 0));
+    const weekend = weekday === 'Sat' || weekday === 'Sun';
+    if (daysAgo <= 14) return weekend ? 4 : 5;
+    return weekend ? 2 : 2 + ((daysAgo * 3) % 3);
+  }
+
+  for (let daysAgo = historyDays; daysAgo >= 0; daysAgo -= 1) {
+    const slots = slotsFor(daysAgo);
     for (let slot = 0; slot < slots; slot += 1) {
       sequence += 1;
       const status =
-        daysAgo === 0 ? TODAY_STATUSES[slot] : slot === 0 && daysAgo % 5 === 0 ? OrderStatus.cancelled : OrderStatus.delivered;
+        daysAgo === 0 ? TODAY_STATUSES[slot] : slot === 0 && daysAgo % 11 === 0 ? OrderStatus.cancelled : OrderStatus.delivered;
       const pickup = status !== OrderStatus.on_the_way && (daysAgo + slot) % 4 === 0;
       const branch = branchByName.get(branchCycle[(daysAgo + slot) % branchCycle.length]);
       if (!branch) throw new Error('Falta una sucursal de demo');
@@ -260,50 +276,60 @@ export async function seedDemoOrders(prisma: PrismaClient) {
       const createdAt =
         daysAgo === 0
           ? new Date(Date.now() - (8 - slot) * 40 * MINUTE_MS)
-          : demoDate(daysAgo, [11, 13, 16, 19, 21][slot] ?? 18, (slot * 13) % 60);
-      const id = `demo-ord-${String(sequence).padStart(3, '0')}`;
+          : demoDate(daysAgo, hours[slot % hours.length], (slot * 13) % 60);
+      const id = `demo-ord-${String(sequence).padStart(4, '0')}`;
       const steps = flow(status, pickup);
 
-      await prisma.order.create({
-        data: {
-          id,
-          userId: guest ? null : customer.id,
-          guestName: guest ? 'Invitado Demo' : null,
-          guestEmail: guest ? 'invitado.demo@mordi.local' : null,
-          branchId: branch.id,
-          addressId: pickup ? null : guest ? guestAddress.id : customer.addressId,
-          fulfillment: pickup ? Fulfillment.pickup : Fulfillment.delivery,
-          status,
-          subtotal,
-          discountAmount: discount,
-          deliveryFee,
-          totalAmount: net + deliveryFee,
-          promotionName,
-          stockReserved: false,
-          createdAt,
-          estimatedDeliveryAt: new Date(createdAt.getTime() + 40 * MINUTE_MS),
-          items: {
-            create: lines.map((line) => ({
-              productId: line.product.id,
-              quantity: line.qty,
-              unitPrice: line.product.price,
-            })),
-          },
-          statusHistory: {
-            create: steps.map((historyStatus, index) => ({
-              status: historyStatus,
-              changedAt:
-                historyStatus === OrderStatus.delivered
-                  ? new Date(createdAt.getTime() + (26 + (sequence % 4) * 2) * MINUTE_MS)
-                  : historyStatus === OrderStatus.cancelled
-                    ? new Date(createdAt.getTime() + 12 * MINUTE_MS)
-                    : new Date(createdAt.getTime() + index * 5 * MINUTE_MS),
-            })),
-          },
-        },
+      orders.push({
+        id,
+        userId: guest ? null : customer.id,
+        guestName: guest ? 'Invitado Demo' : null,
+        guestEmail: guest ? 'invitado.demo@mordi.local' : null,
+        branchId: branch.id,
+        addressId: pickup ? null : guest ? guestAddress.id : customer.addressId,
+        fulfillment: pickup ? Fulfillment.pickup : Fulfillment.delivery,
+        status,
+        subtotal,
+        discountAmount: discount,
+        deliveryFee,
+        totalAmount: net + deliveryFee,
+        promotionName,
+        stockReserved: false,
+        createdAt,
+        estimatedDeliveryAt: new Date(createdAt.getTime() + 40 * MINUTE_MS),
       });
-
+      for (const line of lines) {
+        orderItems.push({
+          orderId: id,
+          productId: line.product.id,
+          quantity: line.qty,
+          unitPrice: line.product.price,
+        });
+      }
+      for (const [index, historyStatus] of steps.entries()) {
+        statusHistory.push({
+          orderId: id,
+          status: historyStatus,
+          changedAt:
+            historyStatus === OrderStatus.delivered
+              ? new Date(createdAt.getTime() + (26 + (sequence % 4) * 2) * MINUTE_MS)
+              : historyStatus === OrderStatus.cancelled
+                ? new Date(createdAt.getTime() + 12 * MINUTE_MS)
+                : new Date(createdAt.getTime() + index * 5 * MINUTE_MS),
+        });
+      }
     }
+  }
+
+  const chunk = 80;
+  for (let index = 0; index < orders.length; index += chunk) {
+    await prisma.order.createMany({ data: orders.slice(index, index + chunk) });
+  }
+  for (let index = 0; index < orderItems.length; index += chunk) {
+    await prisma.orderItem.createMany({ data: orderItems.slice(index, index + chunk) });
+  }
+  for (let index = 0; index < statusHistory.length; index += chunk) {
+    await prisma.orderStatusHistory.createMany({ data: statusHistory.slice(index, index + chunk) });
   }
 
   const ana = customers.find((customer) => customer.key === 'ana');
@@ -404,7 +430,7 @@ export async function seedDemoOrders(prisma: PrismaClient) {
     ],
   });
 
-  console.log(`Demo de operación: ${sequence} pedidos, carrito de Ana y tres reclamos.`);
+  console.log(`Demo de operación: ${sequence} pedidos de los últimos 6 meses, carrito de Ana y tres reclamos.`);
   console.log('Clientes de demo, clave Demo123!: ana, bruno, elena, carla, diego y facundo @mordi.local');
   console.log('Ana tiene el carrito (2 dobles y 2 colas), 8 mordis y el cupón REC-MORDI1 de $5.000.');
   console.log('Elena tiene 9 mordis. Bruno tiene un reclamo abierto. Diego ya usó REC-MORDI2.');

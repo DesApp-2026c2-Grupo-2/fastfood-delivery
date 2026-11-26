@@ -11,6 +11,7 @@ import {
   type OrderStatus,
 } from '../../api/types';
 import { getToken } from '../../auth/session';
+import { DateFilter } from '../../components/DateFilter';
 import { OrderCode } from '../../components/OrderCode';
 import { orderTimingText } from '../../lib/order-timing';
 import { useTimedNotice } from '../../lib/success-notice';
@@ -187,11 +188,11 @@ export function AdminOrdersPage() {
         </label>
         <label className="search-label">
           Desde
-          <input value={fromInput} onChange={(event) => setFromInput(event.target.value)} type="date" />
+          <DateFilter label="Desde" value={fromInput} onChange={setFromInput} />
         </label>
         <label className="search-label">
           Hasta
-          <input value={toInput} onChange={(event) => setToInput(event.target.value)} type="date" />
+          <DateFilter label="Hasta" value={toInput} onChange={setToInput} />
         </label>
         <div className="orders-toolbar-actions">
           <button type="submit">Buscar</button>
