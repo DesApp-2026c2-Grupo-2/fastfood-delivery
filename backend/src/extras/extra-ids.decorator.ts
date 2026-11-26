@@ -8,7 +8,9 @@ export const ExtraIds = () =>
   applyDecorators(
     IsOptional(),
     IsArray(),
-    ArrayMaxSize(MAX_EXTRAS_PER_ITEM),
+    ArrayMaxSize(MAX_EXTRAS_PER_ITEM, {
+      message: `¡Hasta ahí! Podés sumar hasta ${MAX_EXTRAS_PER_ITEM} adicionales. Elegí los que más te gusten.`,
+    }),
     ArrayUnique(),
     IsString({ each: true }),
     IsNotEmpty({ each: true }),

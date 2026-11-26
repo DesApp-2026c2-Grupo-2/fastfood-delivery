@@ -319,6 +319,9 @@ describe('POST /api/cart/items con adicionales', () => {
       extraIds: Array.from({ length: 11 }, (_, index) => `extra-${index}`),
     });
     expect(tooMany.status).toBe(400);
+    expect(String(tooMany.body.message)).toContain(
+      '¡Hasta ahí! Podés sumar hasta 10 adicionales. Elegí los que más te gusten.',
+    );
   });
 
   it('cambiar la cantidad conserva los adicionales y recalcula el subtotal', async () => {
