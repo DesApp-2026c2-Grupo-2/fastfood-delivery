@@ -25,6 +25,8 @@ function endOfDayAR(date: string): Date {
 }
 
 const SHARE_LIMIT = 6;
+// Aderezos y adicionales no son el plato: no entran en tortas, rankings ni barras.
+const EXCLUDED_CATEGORY_SLUGS = ['aderezos', 'adicional'];
 
 /** Porción de cada producto sobre el total vendido. Lo que no entra en las primeras se agrupa en Otros. */
 function shareOf(
@@ -99,9 +101,22 @@ function buildOrderWhere(query: ReportsQuery, opts?: { excludeCancelled?: boolea
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private excludedProductIds() {
+    return this.prisma.product
+      .findMany({
+        where: { categories: { some: { slug: { in: EXCLUDED_CATEGORY_SLUGS } } } },
+        select: { id: true },
+      })
+      .then((rows) => new Set(rows.map((row) => row.id)));
+  }
+
   async getProductReports(query: ReportsQuery = {}) {
+    const excludedIds = await this.excludedProductIds();
     const products = await this.prisma.product.findMany({
-      where: { available: true },
+      where: {
+        available: true,
+        categories: { none: { slug: { in: EXCLUDED_CATEGORY_SLUGS } } },
+      },
       select: { id: true, name: true, price: true },
     });
     const productMap = new Map(products.map((p) => [p.id, p]));
@@ -122,6 +137,7 @@ export class ReportsService {
     }
 
     for (const item of validOrderItems) {
+      if (excludedIds.has(item.productId)) continue;
       const revenue = Number(item.unitPrice) * item.quantity;
       const current = metricsByProduct.get(item.productId);
       if (current) {
@@ -162,7 +178,10 @@ export class ReportsService {
       where: {
         available: { lte: 0 },
         branch: { active: true, ...(branchId ? { id: branchId } : {}) },
-        product: { available: true },
+        product: {
+          available: true,
+          categories: { none: { slug: { in: EXCLUDED_CATEGORY_SLUGS } } },
+        },
       },
       select: {
         available: true,
@@ -191,6 +210,7 @@ export class ReportsService {
 
   async getOrderReports(query: ReportsQuery = {}) {
     const where = buildOrderWhere(query);
+    const excludedIds = await this.excludedProductIds();
 
     // Solo id/name: no pide columnas nuevas de Branch (city/province/CP) y alcanza para el filtro.
     const branches = await this.prisma.branch.findMany({
@@ -318,6 +338,7 @@ export class ReportsService {
     >();
     for (const order of salesOrders) {
       for (const item of order.items) {
+        if (excludedIds.has(item.productId)) continue;
         const key = `${order.branchId}:${item.productId}`;
         const current = productsByBranchMap.get(key);
         if (current) {
@@ -356,7 +377,7 @@ export class ReportsService {
     }
     const topCustomers = Array.from(customerMap.values())
       .sort((a, b) => b.orderCount - a.orderCount)
-      .slice(0, 10);
+      .slice(0, 3);
 
     const promoMap = new Map<string, { promotionName: string; orderCount: number; totalDiscount: number }>();
     for (const order of salesOrders) {

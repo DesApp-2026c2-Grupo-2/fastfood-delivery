@@ -64,12 +64,12 @@ function LineChart({ points }: { points: { label: string; value: number }[] }) {
   }
 
   return (
-    <div className="reports-chart-wrap">
+    <div className="reports-chart-scroll">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         role="img"
         aria-label="Pedidos por día"
-        style={{ width: `${width}px`, maxWidth: 'none', height: 'auto' }}
+        style={{ width: `${width}px`, maxWidth: 'none', height: `${height}px` }}
       >
         <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad} stroke="#fed7aa" strokeWidth="1" />
         <path d={path} fill="none" stroke="#ea580c" strokeWidth="2.5" strokeLinejoin="round" />
@@ -92,47 +92,191 @@ function LineChart({ points }: { points: { label: string; value: number }[] }) {
 }
 
 function BarChart({ bars }: { bars: { label: string; value: number }[] }) {
-  const width = 560;
-  const height = 200;
-  const pad = 28;
+  const height = 280;
+  const padBottom = 36;
+  const padTop = 32;
+  const padX = 28;
+  const slot = 120;
+  const barWidth = 72;
+  const width = padX * 2 + Math.max(bars.length, 1) * slot;
   const max = Math.max(...bars.map((b) => b.value), 1);
-  const gap = 10;
-  const barWidth = bars.length === 0 ? 0 : (width - pad * 2 - gap * (bars.length - 1)) / bars.length;
 
   if (bars.length === 0) {
     return <p className="muted">Sin datos</p>;
   }
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Pedidos por estado" style={{ width: '100%', height: 'auto' }}>
-      <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad} stroke="#fed7aa" strokeWidth="1" />
+    <div className="reports-chart-scroll">
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      role="img"
+      aria-label="Pedidos por estado"
+      style={{ width: `${Math.max(width, 640)}px`, maxWidth: 'none', height: `${height}px` }}
+    >
+      <line x1={padX} y1={height - padBottom} x2={width - padX} y2={height - padBottom} stroke="#fed7aa" strokeWidth="1" />
       {bars.map((bar, i) => {
-        const h = (bar.value / max) * (height - pad * 2);
-        const x = pad + i * (barWidth + gap);
-        const y = height - pad - h;
+        const h = (bar.value / max) * (height - padTop - padBottom);
+        const x = padX + i * slot + (slot - barWidth) / 2;
+        const y = height - padBottom - h;
         return (
           <g key={bar.label}>
             <rect x={x} y={y} width={barWidth} height={Math.max(h, 0)} rx="4" fill="#f97316" />
-            <text x={x + barWidth / 2} y={y - 6} textAnchor="middle" fontSize="11" fill="#1c1917" fontWeight="700">
+            <text x={x + barWidth / 2} y={Math.max(y - 8, 16)} textAnchor="middle" fontSize="14" fill="#1c1917" fontWeight="700">
               {bar.value}
             </text>
-            <text
-              x={x + barWidth / 2}
-              y={height - 8}
-              textAnchor="middle"
-              fontSize="9"
-              fill="#78716c"
-            >
-              {bar.label.length > 10 ? `${bar.label.slice(0, 9)}…` : bar.label}
+            <text x={x + barWidth / 2} y={height - 12} textAnchor="middle" fontSize="12" fill="#78716c">
+              {bar.label.length > 14 ? `${bar.label.slice(0, 13)}…` : bar.label}
             </text>
           </g>
         );
       })}
     </svg>
+    </div>
   );
 }
 
 const PIE_COLORS = ['#ea580c', '#c2410c', '#fb923c', '#9a3412', '#fdba74', '#44403c', '#a8a29e'];
+const BRANCH_COLORS = ['#ea580c', '#0f766e', '#2563eb', '#a16207', '#7c3aed', '#be123c'];
+
+function BranchProductChart({
+  rows,
+}: {
+  rows: { branchId: string; branchName: string; productId: string; productName: string; unitsSold: number }[];
+}) {
+  if (rows.length === 0) return <p className="muted">Sin ventas</p>;
+
+  const branches: { id: string; name: string }[] = [];
+  const seenBranch = new Set<string>();
+  for (const row of rows) {
+    if (seenBranch.has(row.branchId)) continue;
+    seenBranch.add(row.branchId);
+    branches.push({ id: row.branchId, name: row.branchName });
+  }
+
+  const productMap = new Map<string, { id: string; name: string; total: number; byBranch: Map<string, number> }>();
+  for (const row of rows) {
+    const current = productMap.get(row.productId) ?? {
+      id: row.productId,
+      name: row.productName,
+      total: 0,
+      byBranch: new Map<string, number>(),
+    };
+    current.total += row.unitsSold;
+    current.byBranch.set(row.branchId, (current.byBranch.get(row.branchId) ?? 0) + row.unitsSold);
+    productMap.set(row.productId, current);
+  }
+  const products = [...productMap.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'es'));
+  const max = Math.max(1, ...products.flatMap((product) => branches.map((branch) => product.byBranch.get(branch.id) ?? 0)));
+
+  const height = 360;
+  const padTop = 28;
+  const padBottom = 64;
+  const padX = 16;
+  const barWidth = 36;
+  const barGap = 6;
+  const groupGap = 20;
+  const barsWidth = branches.length * barWidth + Math.max(branches.length - 1, 0) * barGap;
+  const groupWidth = Math.max(barsWidth, 96);
+  const barsOffset = (groupWidth - barsWidth) / 2;
+  const width = padX * 2 + products.length * groupWidth + Math.max(products.length - 1, 0) * groupGap;
+  const plotHeight = height - padTop - padBottom;
+
+  return (
+    <div className="reports-branch-chart">
+      <ul className="reports-branch-legend">
+        {branches.map((branch, index) => (
+          <li key={branch.id}>
+            <span className="reports-pie-swatch" style={{ background: BRANCH_COLORS[index % BRANCH_COLORS.length] }} />
+            <span className="reports-ellipsis" title={branch.name}>
+              {branch.name}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="reports-chart-scroll">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          role="img"
+          aria-label="Productos vendidos por sucursal"
+          style={{ width: `${Math.max(width, 640)}px`, maxWidth: 'none', height: `${height}px` }}
+        >
+          <line
+            x1={padX}
+            y1={height - padBottom}
+            x2={width - padX}
+            y2={height - padBottom}
+            stroke="#fed7aa"
+            strokeWidth="1"
+          />
+          {products.map((product, productIndex) => {
+            const groupX = padX + productIndex * (groupWidth + groupGap);
+            const lines = productLabelLines(product.name);
+            return (
+              <g key={product.id}>
+                <title>{product.name}</title>
+                {branches.map((branch, branchIndex) => {
+                  const value = product.byBranch.get(branch.id) ?? 0;
+                  const barHeight = (value / max) * plotHeight;
+                  const x = groupX + barsOffset + branchIndex * (barWidth + barGap);
+                  const y = height - padBottom - barHeight;
+                  return (
+                    <g key={branch.id}>
+                      <title>{`${branch.name} · ${product.name}: ${value}`}</title>
+                      {value > 0 ? (
+                        <text
+                          x={x + barWidth / 2}
+                          y={Math.max(y - 6, 14)}
+                          textAnchor="middle"
+                          fontSize="12"
+                          fill="#1c1917"
+                          fontWeight="700"
+                        >
+                          {value}
+                        </text>
+                      ) : null}
+                      <rect
+                        x={x}
+                        y={y}
+                        width={barWidth}
+                        height={Math.max(barHeight, 0)}
+                        rx="3"
+                        fill={BRANCH_COLORS[branchIndex % BRANCH_COLORS.length]}
+                      />
+                    </g>
+                  );
+                })}
+                {lines.map((line, lineIndex) => (
+                  <text
+                    key={lineIndex}
+                    x={groupX + groupWidth / 2}
+                    y={height - 14 - (lines.length - 1 - lineIndex) * 15}
+                    textAnchor="middle"
+                    fontSize="12"
+                    fill="#57534e"
+                  >
+                    {line}
+                  </text>
+                ))}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function productLabelLines(name: string): string[] {
+  const max = 12;
+  if (name.length <= max) return [name];
+  const space = name.lastIndexOf(' ', max);
+  const splitAt = space >= 4 ? space : max;
+  const first = name.slice(0, splitAt).trim();
+  let second = name.slice(splitAt).trim();
+  if (!second) return [first];
+  if (second.length > max) second = `${second.slice(0, max - 1)}…`;
+  return [first, second];
+}
 
 function pieSlicePath(cx: number, cy: number, outer: number, inner: number, start: number, end: number) {
   const large = end - start > Math.PI ? 1 : 0;
@@ -188,10 +332,12 @@ function PieChart({
         {wedges.map((wedge) => (
           <li key={wedge.id}>
             <span className="reports-pie-swatch" style={{ background: wedge.color }} />
-            <span className="reports-pie-name">{wedge.name}</span>
-            <strong>
-              {wedge.percent.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
-            </strong>
+            <span className="reports-pie-label">
+              <span className="reports-pie-name">{wedge.name}</span>
+              <strong>
+                {wedge.percent.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+              </strong>
+            </span>
             <span className="muted">{formatValue(wedge.value)}</span>
           </li>
         ))}
@@ -200,29 +346,81 @@ function PieChart({
   );
 }
 
-type SectionProps = {
+function ReportCard({
+  title,
+  badge,
+  onCsv,
+  children,
+}: {
   title: string;
   badge?: string;
   onCsv?: () => void;
   children: ReactNode;
-  wide?: boolean;
-};
-
-function ReportSection({ title, badge, onCsv, children, wide }: SectionProps) {
+}) {
   return (
-    <section className={`card stack reports-card${wide ? ' reports-wide' : ''}`}>
+    <section className="card stack reports-card">
       <div className="reports-card-head">
         <div className="reports-card-title">
           <h2>{title}</h2>
           {badge ? <span className="reports-tag">{badge}</span> : null}
         </div>
-        {onCsv ? (
+      </div>
+      <div className="reports-card-body">{children}</div>
+      {onCsv ? (
+        <div className="reports-row-actions">
           <button type="button" className="secondary" onClick={onCsv}>
             Descargar CSV
           </button>
-        ) : null}
-      </div>
-      {children}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function ReportRow({
+  id,
+  title,
+  open,
+  onToggle,
+  onCsv,
+  columns,
+  children,
+}: {
+  id: string;
+  title: string;
+  open: boolean;
+  onToggle: (id: string) => void;
+  onCsv?: () => void;
+  columns?: 3;
+  children: ReactNode;
+}) {
+  const panelId = `report-row-${id}`;
+  return (
+    <section className={`card reports-row${open ? ' is-open' : ''}`}>
+      <button
+        type="button"
+        className="reports-card-toggle"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => onToggle(id)}
+      >
+        <span className="reports-card-title">
+          <h2>{title}</h2>
+        </span>
+        <span className="reports-card-chevron" aria-hidden="true" />
+      </button>
+      {open ? (
+        <div id={panelId} className="reports-row-panel">
+          <div className={columns === 3 ? 'reports-row-body reports-row-3' : 'reports-row-body'}>{children}</div>
+          {onCsv ? (
+            <div className="reports-row-actions">
+              <button type="button" className="secondary" onClick={onCsv}>
+                Descargar CSV
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -312,6 +510,14 @@ export function AdminReportsPage() {
   const [orders, setOrders] = useState<OrderReports | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openIds, setOpenIds] = useState<Record<string, boolean>>({
+    ops: true,
+    share: true,
+    'products-branch': true,
+  });
+  const toggleReport = useCallback((id: string) => {
+    setOpenIds((current) => ({ ...current, [id]: !current[id] }));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -388,53 +594,257 @@ export function AdminReportsPage() {
       {loading && !products && !orders ? <p className="muted">Cargando reportes...</p> : null}
       {loading && (products || orders) ? <p className="muted">Actualizando...</p> : null}
 
-      {orders ? (
-        <div className="reports-grid">
-          <ReportSection
-            title="Pedidos por día"
-            wide
+      {orders && products ? (
+        <div className="reports-rows">
+          <ReportRow
+            id="ops"
+            title="Sin stock, cancelados y tiempo promedio"
+            columns={3}
+            open={Boolean(openIds.ops)}
+            onToggle={toggleReport}
+          >
+          <ReportCard
+            title="Sin stock"
+            badge="Actual"
             onCsv={() =>
               downloadCsv(
-                'pedidos-por-dia.csv',
-                ['Fecha', 'Cantidad'],
-                orders.ordersByDay.map((r) => [r.date, r.count]),
+                'sin-stock.csv',
+                ['Producto', 'Sucursal', 'Stock'],
+                products.outOfStock.map((r) => [r.name, r.branchName ?? '', r.stock ?? 0]),
               )
             }
           >
-            <LineChart points={dayPoints} />
-          </ReportSection>
-
-          <ReportSection
-            title="Pedidos por estado"
-            wide
-            onCsv={() =>
-              downloadCsv(
-                'pedidos-por-estado.csv',
-                ['Estado', 'Cantidad'],
-                orders.ordersByStatus.map((r) => [r.label, r.count]),
-              )
-            }
+            {products.outOfStock.length === 0 ? (
+              <p className="muted">Todos con stock</p>
+            ) : (
+              <ul className="reports-stock-list">
+                {products.outOfStock.map((item) => (
+                  <li key={item.id}>
+                    <span className="reports-ellipsis" title={item.name}>
+                      {item.name}
+                    </span>
+                    <span className="muted reports-ellipsis" title={item.branchName ?? ''}>
+                      {item.branchName ?? '—'}
+                    </span>
+                    <strong>{item.stock ?? 0}</strong>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ReportCard>
+          <ReportCard
+            title="Cancelados"
+            badge={`${orders.cancelled.percent}%`}
           >
-            <BarChart bars={statusBars} />
-          </ReportSection>
-
-          <ReportSection title="Cancelados" badge={`${orders.cancelled.percent}%`}>
             <p className="reports-metric">{orders.cancelled.count}</p>
             <p className="muted reports-metric-hint">
               {orders.cancelled.percent}% del total en el filtro
             </p>
-          </ReportSection>
+          </ReportCard>
 
-          <ReportSection title="Tiempo promedio de entrega">
+          <ReportCard
+            title="Tiempo promedio de entrega"
+          >
             <p className="reports-metric">
               {orders.averageDeliveryMinutes == null
                 ? '—'
                 : `${orders.averageDeliveryMinutes.toLocaleString('es-AR')} min`}
             </p>
             <p className="muted reports-metric-hint">De confirmado a entregado / retirado</p>
-          </ReportSection>
+          </ReportCard>
+          </ReportRow>
 
-          <ReportSection
+          <ReportRow
+            id="share"
+            title="Participación en el total"
+            open={Boolean(openIds.share)}
+            onToggle={toggleReport}
+            onCsv={() =>
+              downloadCsv(
+                'participacion-productos.csv',
+                ['Tipo', 'Producto', 'Valor', 'Porcentaje'],
+                [
+                  ...products.quantityShare.slices.map((slice) => ['Cantidad', slice.name, slice.value, slice.percent]),
+                  ...products.revenueShare.slices.map((slice) => ['Facturación', slice.name, slice.value, slice.percent]),
+                ],
+              )
+            }
+          >
+            <p className="muted reports-metric-hint">
+              Sin cancelados. Cada porción es lo que ese producto representa del total vendido en el filtro.
+            </p>
+            <div className="reports-pies">
+              <div className="reports-pie-block">
+                <h3>Cantidad vendida</h3>
+                <p className="muted reports-metric-hint">
+                  Total: {products.quantityShare.total.toLocaleString('es-AR')} unidades
+                </p>
+                <PieChart
+                  slices={products.quantityShare.slices}
+                  formatValue={(value) => `${value.toLocaleString('es-AR')} u.`}
+                />
+              </div>
+              <div className="reports-pie-block">
+                <h3>Facturación</h3>
+                <p className="muted reports-metric-hint">Total: {formatMoney(products.revenueShare.total)}</p>
+                <PieChart slices={products.revenueShare.slices} formatValue={formatMoney} />
+              </div>
+            </div>
+          </ReportRow>
+
+          <ReportRow
+            id="products-branch"
+            title="Productos vendidos por sucursal"
+            open={Boolean(openIds['products-branch'])}
+            onToggle={toggleReport}
+            onCsv={() =>
+              downloadCsv(
+                'productos-por-sucursal.csv',
+                ['Sucursal', 'Producto', 'Unidades'],
+                orders.productsByBranch.map((row) => [row.branchName, row.productName, row.unitsSold]),
+              )
+            }
+          >
+            <BranchProductChart rows={orders.productsByBranch} />
+          </ReportRow>
+
+          <ReportRow
+            id="ranking"
+            title="Más vendidos, menos vendidos y mayor facturación"
+            columns={3}
+            open={Boolean(openIds.ranking)}
+            onToggle={toggleReport}
+          >
+            <ReportCard
+              title="Más vendidos"
+              badge="Top 10"
+              onCsv={() =>
+                downloadCsv('mas-vendidos.csv', ['Producto', 'Unidades'], products.topSelling.map((row) => [row.name, row.unitsSold ?? 0]))
+              }
+            >
+              <ReportTable>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Producto</th>
+                      <th style={{ textAlign: 'right' }}>Unidades</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products.topSelling.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="muted">Sin ventas</td>
+                      </tr>
+                    ) : (
+                      products.topSelling.map((item) => (
+                        <tr key={item.id}>
+                          <td>{item.name}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 700 }}>{item.unitsSold}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </ReportTable>
+            </ReportCard>
+            <ReportCard
+              title="Menos vendidos"
+              onCsv={() =>
+                downloadCsv('menos-vendidos.csv', ['Producto', 'Unidades'], products.leastSelling.map((row) => [row.name, row.unitsSold ?? 0]))
+              }
+            >
+              <ReportTable>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Producto</th>
+                      <th style={{ textAlign: 'right' }}>Unidades</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products.leastSelling.map((item) => (
+                      <tr key={item.id}>
+                        <td>{item.name}</td>
+                        <td style={{ textAlign: 'right' }}>{item.unitsSold}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </ReportTable>
+            </ReportCard>
+            <ReportCard
+              title="Mayor facturación"
+              onCsv={() =>
+                downloadCsv('mayor-facturacion.csv', ['Producto', 'Total'], products.topRevenue.map((row) => [row.name, row.totalRevenue ?? 0]))
+              }
+            >
+              <ReportTable>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Producto</th>
+                      <th style={{ textAlign: 'right' }}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products.topRevenue.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="muted">Sin facturación</td>
+                      </tr>
+                    ) : (
+                      products.topRevenue.map((item) => (
+                        <tr key={item.id}>
+                          <td>{item.name}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 700 }}>{formatMoney(item.totalRevenue ?? 0)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </ReportTable>
+            </ReportCard>
+          </ReportRow>
+
+          <ReportRow
+            id="days"
+            title="Pedidos por día"
+            open={Boolean(openIds.days)}
+            onToggle={toggleReport}
+            onCsv={() =>
+              downloadCsv(
+                'pedidos-por-dia.csv',
+                ['Fecha', 'Cantidad'],
+                orders.ordersByDay.map((row) => [row.date, row.count]),
+              )
+            }
+          >
+            <LineChart points={dayPoints} />
+          </ReportRow>
+
+          <ReportRow
+            id="status"
+            title="Pedidos por estado"
+            open={Boolean(openIds.status)}
+            onToggle={toggleReport}
+            onCsv={() =>
+              downloadCsv(
+                'pedidos-por-estado.csv',
+                ['Estado', 'Cantidad'],
+                orders.ordersByStatus.map((row) => [row.label, row.count]),
+              )
+            }
+          >
+            <BarChart bars={statusBars} />
+          </ReportRow>
+
+          <ReportRow
+            id="branches"
+            title="Por sucursal y promociones"
+            columns={3}
+            open={Boolean(openIds.branches)}
+            onToggle={toggleReport}
+          >
+          <ReportCard
             title="Pedidos por sucursal"
             onCsv={() =>
               downloadCsv(
@@ -470,9 +880,9 @@ export function AdminReportsPage() {
                 </tbody>
               </table>
             </ReportTable>
-          </ReportSection>
+          </ReportCard>
 
-          <ReportSection
+          <ReportCard
             title="Ventas por sucursal"
             onCsv={() =>
               downloadCsv(
@@ -508,52 +918,9 @@ export function AdminReportsPage() {
                 </tbody>
               </table>
             </ReportTable>
-          </ReportSection>
+          </ReportCard>
 
-          <ReportSection
-            title="Top 10 clientes"
-            onCsv={() =>
-              downloadCsv(
-                'top-clientes.csv',
-                ['Nombre', 'Email', 'Pedidos'],
-                orders.topCustomers.map((r) => [r.name, r.email, r.orderCount]),
-              )
-            }
-          >
-            <ReportTable>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Cliente</th>
-                    <th style={{ textAlign: 'right' }}>Pedidos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.topCustomers.length === 0 ? (
-                    <tr>
-                      <td colSpan={2} className="muted">
-                        Sin clientes en el período
-                      </td>
-                    </tr>
-                  ) : (
-                    orders.topCustomers.map((row) => (
-                      <tr key={row.userId}>
-                        <td>
-                          <div>{row.name}</div>
-                          <div className="muted" style={{ fontSize: '0.85rem' }}>
-                            {row.email}
-                          </div>
-                        </td>
-                        <td style={{ textAlign: 'right', fontWeight: 700 }}>{row.orderCount}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </ReportTable>
-          </ReportSection>
-
-          <ReportSection
+          <ReportCard
             title="Promociones más usadas"
             onCsv={() =>
               downloadCsv(
@@ -591,16 +958,20 @@ export function AdminReportsPage() {
                 </tbody>
               </table>
             </ReportTable>
-          </ReportSection>
+          </ReportCard>
 
-          <ReportSection
-            title="Productos vendidos por sucursal"
-            wide
+          </ReportRow>
+
+          <ReportRow
+            id="top3"
+            title="Top 3 clientes"
+            open={Boolean(openIds.top3)}
+            onToggle={toggleReport}
             onCsv={() =>
               downloadCsv(
-                'productos-por-sucursal.csv',
-                ['Sucursal', 'Producto', 'Unidades'],
-                orders.productsByBranch.map((r) => [r.branchName, r.productName, r.unitsSold]),
+                'top-3-clientes.csv',
+                ['Nombre', 'Email', 'Pedidos'],
+                orders.topCustomers.map((row) => [row.name, row.email, row.orderCount]),
               )
             }
           >
@@ -608,232 +979,31 @@ export function AdminReportsPage() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Sucursal</th>
-                    <th>Producto</th>
-                    <th style={{ textAlign: 'right' }}>Unidades</th>
+                    <th>Cliente</th>
+                    <th style={{ textAlign: 'right' }}>Pedidos</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.productsByBranch.length === 0 ? (
+                  {orders.topCustomers.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="muted">
-                        Sin ventas
-                      </td>
+                      <td colSpan={2} className="muted">Sin clientes en el período</td>
                     </tr>
                   ) : (
-                    orders.productsByBranch.map((row) => (
-                      <tr key={`${row.branchId}-${row.productId}`}>
-                        <td>{row.branchName}</td>
-                        <td>{row.productName}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 700 }}>{row.unitsSold}</td>
+                    orders.topCustomers.map((row) => (
+                      <tr key={row.userId}>
+                        <td>
+                          <div className="reports-ellipsis" title={row.name}>{row.name}</div>
+                          <div className="reports-ellipsis muted" title={row.email}>{row.email}</div>
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }}>{row.orderCount}</td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
             </ReportTable>
-          </ReportSection>
+          </ReportRow>
         </div>
-      ) : null}
-
-      {products ? (
-        <>
-          <h2 style={{ marginTop: '1.5rem' }}>Productos</h2>
-          <div className="reports-grid">
-            <ReportSection
-              title="Participación en el total"
-              wide
-              onCsv={() =>
-                downloadCsv(
-                  'participacion-productos.csv',
-                  ['Tipo', 'Producto', 'Valor', 'Porcentaje'],
-                  [
-                    ...products.quantityShare.slices.map((slice) => ['Cantidad', slice.name, slice.value, slice.percent]),
-                    ...products.revenueShare.slices.map((slice) => [
-                      'Facturación',
-                      slice.name,
-                      slice.value,
-                      slice.percent,
-                    ]),
-                  ],
-                )
-              }
-            >
-              <p className="muted reports-metric-hint">
-                Sin cancelados. Cada porción es lo que ese producto representa del total vendido en el filtro.
-              </p>
-              <div className="reports-pies">
-                <div className="reports-pie-block">
-                  <h3>Cantidad vendida</h3>
-                  <p className="muted reports-metric-hint">
-                    Total: {products.quantityShare.total.toLocaleString('es-AR')} unidades
-                  </p>
-                  <PieChart
-                    slices={products.quantityShare.slices}
-                    formatValue={(value) => `${value.toLocaleString('es-AR')} u.`}
-                  />
-                </div>
-                <div className="reports-pie-block">
-                  <h3>Facturación</h3>
-                  <p className="muted reports-metric-hint">Total: {formatMoney(products.revenueShare.total)}</p>
-                  <PieChart slices={products.revenueShare.slices} formatValue={formatMoney} />
-                </div>
-              </div>
-            </ReportSection>
-
-            <ReportSection
-              title="Más vendidos"
-              badge="Top 10"
-              onCsv={() =>
-                downloadCsv(
-                  'mas-vendidos.csv',
-                  ['Producto', 'Unidades'],
-                  products.topSelling.map((r) => [r.name, r.unitsSold ?? 0]),
-                )
-              }
-            >
-              <ReportTable>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Producto</th>
-                      <th style={{ textAlign: 'right' }}>Unidades</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.topSelling.length === 0 ? (
-                      <tr>
-                        <td colSpan={2} className="muted">
-                          Sin ventas
-                        </td>
-                      </tr>
-                    ) : (
-                      products.topSelling.map((item) => (
-                        <tr key={item.id}>
-                          <td>{item.name}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 700 }}>{item.unitsSold}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </ReportTable>
-            </ReportSection>
-
-            <ReportSection
-              title="Menos vendidos"
-              onCsv={() =>
-                downloadCsv(
-                  'menos-vendidos.csv',
-                  ['Producto', 'Unidades'],
-                  products.leastSelling.map((r) => [r.name, r.unitsSold ?? 0]),
-                )
-              }
-            >
-              <ReportTable>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Producto</th>
-                      <th style={{ textAlign: 'right' }}>Unidades</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.leastSelling.map((item) => (
-                      <tr key={item.id}>
-                        <td>{item.name}</td>
-                        <td style={{ textAlign: 'right' }}>{item.unitsSold}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </ReportTable>
-            </ReportSection>
-
-            <ReportSection
-              title="Mayor facturación"
-              onCsv={() =>
-                downloadCsv(
-                  'mayor-facturacion.csv',
-                  ['Producto', 'Total'],
-                  products.topRevenue.map((r) => [r.name, r.totalRevenue ?? 0]),
-                )
-              }
-            >
-              <ReportTable>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Producto</th>
-                      <th style={{ textAlign: 'right' }}>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.topRevenue.length === 0 ? (
-                      <tr>
-                        <td colSpan={2} className="muted">
-                          Sin facturación
-                        </td>
-                      </tr>
-                    ) : (
-                      products.topRevenue.map((item) => (
-                        <tr key={item.id}>
-                          <td>{item.name}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                            {formatMoney(item.totalRevenue ?? 0)}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </ReportTable>
-            </ReportSection>
-
-            <ReportSection
-              title="Sin stock"
-              badge="Actual"
-              onCsv={() =>
-                downloadCsv(
-                  'sin-stock.csv',
-                  ['Producto', 'Sucursal', 'Stock'],
-                  products.outOfStock.map((r) => [r.name, r.branchName ?? '', r.stock ?? 0]),
-                )
-              }
-            >
-              <ReportTable>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Producto</th>
-                      <th>Sucursal</th>
-                      <th style={{ textAlign: 'right' }}>Stock</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.outOfStock.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="muted">
-                          Todos con stock
-                        </td>
-                      </tr>
-                    ) : (
-                      products.outOfStock.map((item) => (
-                        <tr key={item.id}>
-                          <td>{item.name}</td>
-                          <td>{item.branchName ?? '—'}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--danger)' }}>
-                            {item.stock}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </ReportTable>
-            </ReportSection>
-          </div>
-        </>
       ) : null}
     </section>
   );

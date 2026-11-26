@@ -394,6 +394,7 @@ describe('GET /api/admin/reports/orders', () => {
     expect(response.body.cancelled.count).toBeGreaterThanOrEqual(1);
     expect(response.body.cancelled.percent).toBeGreaterThan(0);
 
+    expect(response.body.topCustomers.length).toBeLessThanOrEqual(3);
     const customer = response.body.topCustomers.find((c: { userId: string }) => c.userId === customerId);
     expect(customer).toBeDefined();
     expect(customer.orderCount).toBeGreaterThanOrEqual(4);
