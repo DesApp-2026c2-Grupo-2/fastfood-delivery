@@ -13,13 +13,27 @@ export function LineExtras({
   className,
   onRemove,
   busy,
+  layout = 'list',
 }: {
   extras: LineExtra[];
   className?: string;
   onRemove?: (extra: LineExtra) => void;
   busy?: boolean;
+  layout?: 'list' | 'chips';
 }) {
   if (extras.length === 0) return null;
+
+  if (layout === 'chips') {
+    return (
+      <div className={className ? `checkout-extra-chips ${className}` : 'checkout-extra-chips'}>
+        {extras.map((extra, index) => (
+            <span key={extra.id ?? `${extra.name}-${index}`} className="checkout-extra-chip">
+              {extra.name}
+            </span>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className={className ? `line-extras ${className}` : 'line-extras'}>

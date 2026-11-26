@@ -7,10 +7,12 @@ export function PromotionOffers({
   offers,
   selectedCouponId,
   onSelectCoupon,
+  compact = false,
 }: {
   offers?: QuotedOffer[];
   selectedCouponId?: string | null;
   onSelectCoupon?: (incidentId: string) => void;
+  compact?: boolean;
 }) {
   const list = offers ?? [];
   if (list.length === 0) return null;
@@ -49,7 +51,7 @@ export function PromotionOffers({
                     checked={checked}
                     onChange={() => onSelectCoupon(couponId)}
                   />
-                  <OfferName offer={offer} />
+                  <OfferName offer={offer} compact={compact} />
                   <strong>−{formatPrice(offer.discountAmount)}</strong>
                 </label>
               </li>
@@ -60,7 +62,7 @@ export function PromotionOffers({
               <span className="promo-offer-mark">
                 {offer.applied ? (offer.stacks && list.some((item) => item.applied && !item.stacks) ? 'Se suma' : 'Se aplica') : 'No se suma'}
               </span>
-              <OfferName offer={offer} />
+              <OfferName offer={offer} compact={compact} />
               <strong>−{formatPrice(offer.discountAmount)}</strong>
             </li>
           );
@@ -71,11 +73,24 @@ export function PromotionOffers({
   );
 }
 
-function OfferName({ offer }: { offer: QuotedOffer }) {
+function OfferName({ offer, compact = false }: { offer: QuotedOffer; compact?: boolean }) {
+  const caption = discountCaption({ id: offer.id, name: offer.name, type: offer.type, value: offer.value });
+  const couponCode = caption.match(/^Cupón\s+(.+)$/)?.[1];
   return (
     <span className="promo-offer-name">
-      {discountCaption({ id: offer.id, name: offer.name, type: offer.type, value: offer.value })}
-      {offer.expiresAt ? <small className="promo-offer-expiry">Vence el {formatDateTime(offer.expiresAt)}</small> : null}
+      <span className="promo-offer-label">
+        {compact && couponCode ? (
+          <>
+            <span className="promo-offer-kicker">Cupón</span>
+            {couponCode}
+          </>
+        ) : (
+          caption
+        )}
+      </span>
+      {!compact && offer.expiresAt ? (
+        <small className="promo-offer-expiry">Vence el {formatDateTime(offer.expiresAt)}</small>
+      ) : null}
     </span>
   );
 }

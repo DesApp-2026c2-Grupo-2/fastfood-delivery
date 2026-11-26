@@ -29,6 +29,7 @@ import { appliedClaimCouponId, readClaimCouponId, saveClaimCouponId } from '../.
 import { discountCaption, orderDiscountLabel } from '../../lib/discount-label';
 import { formatDateTime, formatPrice } from '../../lib/money';
 import { nextOpenPhrase, openStatusLabel } from '../../lib/branch-status';
+import { compactOpeningHours } from '../../lib/opening-hours';
 import { mediaUrl } from '../../lib/media';
 import { orderStatusHint, orderStatusLabel, showPickupBadge } from '../../lib/order-status';
 import { AddressFields } from '../../components/AddressFields';
@@ -711,7 +712,7 @@ export function CheckoutPage() {
                       </span>
                       <span className="checkout-line-price">{formatPrice(itemTotal)}</span>
                     </span>
-                    <LineExtras className="checkout-line-extras" extras={item.extras ?? []} />
+                    <LineExtras layout="chips" extras={item.extras ?? []} />
                     {note ? <small className="muted checkout-line-note">{note}</small> : null}
                   </li>
                 );
@@ -809,7 +810,8 @@ export function CheckoutPage() {
       ) : null}
 
       {loggedIn ? (
-        <form className="card form checkout" onSubmit={(event) => void confirmLoggedIn(event)} noValidate>
+        <form className="card form checkout checkout-layout" onSubmit={(event) => void confirmLoggedIn(event)} noValidate>
+          <div className="checkout-main">
           <FulfillmentToggle
             value={fulfillment}
             onChange={changeFulfillment}
@@ -867,6 +869,8 @@ export function CheckoutPage() {
           <div className="checkout-block">
             <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
           </div>
+          </div>
+          <aside className="checkout-aside">
           <div className="checkout-block">
           <OrderSummary
             cart={cart}
@@ -884,9 +888,11 @@ export function CheckoutPage() {
             }}
           />
           </div>
+          </aside>
         </form>
       ) : (
-        <form className="card form checkout" onSubmit={(event) => void confirmGuest(event)} noValidate>
+        <form className="card form checkout checkout-layout" onSubmit={(event) => void confirmGuest(event)} noValidate>
+          <div className="checkout-main">
           <FulfillmentToggle
             value={fulfillment}
             onChange={changeFulfillment}
@@ -988,6 +994,8 @@ export function CheckoutPage() {
           <div className="checkout-block">
             <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
           </div>
+          </div>
+          <aside className="checkout-aside">
           <div className="checkout-block">
             <OrderSummary
               cart={cart}
@@ -1000,6 +1008,7 @@ export function CheckoutPage() {
               blockedReason={blockedReason}
             />
           </div>
+          </aside>
         </form>
       )}
       {closedAsk ? (
@@ -1091,43 +1100,70 @@ function BranchPicker({
           {blockedReason}
         </p>
       ) : null}
-      {options?.branches.map((branch) => (
-        <label key={branch.id} className="checkbox address-choice">
-          <input
-            type="radio"
-            name="branchId"
-            checked={branchId === branch.id}
-            onChange={() => onChange(branch.id)}
-          />
-          <span className="checkout-choice">
-            <span className="checkout-choice-title">
-              {branch.name}
-              {branch.distanceKm !== null ? (
-                <span className="checkout-choice-meta">{formatDistance(branch.distanceKm)}</span>
-              ) : null}
-              {options.fulfillment === 'delivery' ? (
-                <span className="checkout-choice-meta">
-                  · Envío {branch.deliveryFee > 0 ? formatPrice(branch.deliveryFee) : 'gratis'}
-                </span>
+      {options?.branches.map((branch) => {
+        const selected = branchId === branch.id;
+        const status = openStatusLabel(branch.openNow, branch.nextOpenAt);
+        const glance = [
+          branch.openNow === true ? 'Abierta' : branch.openNow === false ? 'Cerrada' : null,
+          branch.canFulfill ? 'Con stock' : 'Sin stock',
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        return (
+          <label key={branch.id} className="checkbox address-choice branch-choice">
+            <input
+              type="radio"
+              name="branchId"
+              checked={selected}
+              onChange={() => onChange(branch.id)}
+            />
+            <span className="checkout-choice">
+              <span className="checkout-choice-title">
+                {branch.name}
+                {branch.distanceKm !== null ? (
+                  <span className="checkout-choice-meta">{formatDistance(branch.distanceKm)}</span>
+                ) : null}
+                {options.fulfillment === 'delivery' ? (
+                  <span className="checkout-choice-meta">
+                    · Envío {branch.deliveryFee > 0 ? formatPrice(branch.deliveryFee) : 'gratis'}
+                  </span>
+                ) : null}
+                {!selected && glance ? (
+                  <span
+                    className={
+                      branch.canFulfill && branch.openNow !== false
+                        ? 'branch-stock branch-stock--ok branch-choice-status'
+                        : 'branch-stock branch-stock--short branch-choice-status'
+                    }
+                  >
+                    {glance}
+                  </span>
+                ) : null}
+              </span>
+              {selected ? (
+                <>
+                  <span className="checkout-choice-meta">{formatBranchAddress(branch)}</span>
+                  <small className="checkout-choice-meta branch-choice-hours">
+                    {compactOpeningHours(branch.openingHours)}
+                  </small>
+                  {status ? (
+                    <small className={branch.openNow ? 'branch-stock branch-stock--ok' : 'branch-stock branch-stock--short'}>
+                      {status}
+                    </small>
+                  ) : null}
+                  {branch.canFulfill ? (
+                    <small className="branch-stock branch-stock--ok">Tiene stock de todo tu pedido</small>
+                  ) : (
+                    <small className="branch-stock branch-stock--short">
+                      Sin stock suficiente de: {branch.missing.map((item) => item.name).join(', ')}
+                    </small>
+                  )}
+                </>
               ) : null}
             </span>
-            <span className="checkout-choice-meta">{formatBranchAddress(branch)}</span>
-            <small className="checkout-choice-meta">{branch.openingHours}</small>
-            {openStatusLabel(branch.openNow, branch.nextOpenAt) ? (
-              <small className={branch.openNow ? 'branch-stock branch-stock--ok' : 'branch-stock branch-stock--short'}>
-                {openStatusLabel(branch.openNow, branch.nextOpenAt)}
-              </small>
-            ) : null}
-            {branch.canFulfill ? (
-              <small className="branch-stock branch-stock--ok">Tiene stock de todo tu pedido</small>
-            ) : (
-              <small className="branch-stock branch-stock--short">
-                Sin stock suficiente de: {branch.missing.map((item) => item.name).join(', ')}
-              </small>
-            )}
-          </span>
-        </label>
-      ))}
+          </label>
+        );
+      })}
     </fieldset>
   );
 }
@@ -1232,6 +1268,7 @@ function OrderSummary({
   return (
     <>
       <h2>Resumen</h2>
+      <div className="checkout-summary-items">
       <ul className="order-items">
         {withSaucesLast(cart.items, catalog).map((item) => {
           const shortage = shortages.find((entry) => entry.productId === item.productId);
@@ -1250,7 +1287,7 @@ function OrderSummary({
                 </span>
                 <span className="checkout-line-price">{formatPrice(item.subtotal)}</span>
               </span>
-              <LineExtras className="checkout-line-extras" extras={item.extras ?? []} />
+              <LineExtras layout="chips" extras={item.extras ?? []} />
               {note ? <small className="muted checkout-line-note">{note}</small> : null}
               {shortage ? (
                 <small className="order-item-shortage">
@@ -1263,7 +1300,14 @@ function OrderSummary({
           );
         })}
       </ul>
-      <PromotionOffers offers={quote?.offers} selectedCouponId={selectedCouponId} onSelectCoupon={onSelectCoupon} />
+      </div>
+      <div className="checkout-summary-foot">
+          <PromotionOffers
+            offers={quote?.offers}
+            selectedCouponId={selectedCouponId}
+            onSelectCoupon={onSelectCoupon}
+            compact
+          />
       <PriceBreakdown
         subtotal={quote?.subtotal ?? cart.total}
         discountAmount={quote?.discountAmount ?? 0}
@@ -1297,6 +1341,7 @@ function OrderSummary({
       <p className="checkout-back">
         <Link to="/cart">Volver al carrito</Link>
       </p>
+      </div>
     </>
   );
 }

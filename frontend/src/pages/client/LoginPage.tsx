@@ -92,9 +92,9 @@ export function LoginPage() {
 
   return (
     <div className="app-shell">
-      <main className="main login-wrap">
+      <main className="main login-wrap login-fit">
         <form className="card form login-card" onSubmit={onSubmit} noValidate>
-          <BrandLogo size={120} />
+          <BrandLogo size={76} />
           <h1>Mordi</h1>
           <p className="muted">Iniciá sesión para armar tu pedido.</p>
 
