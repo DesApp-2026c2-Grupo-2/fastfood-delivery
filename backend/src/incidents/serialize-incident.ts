@@ -28,6 +28,7 @@ export function serializeIncident(incident: IncidentView) {
           code: incident.couponCode,
           amount,
           used,
+          redeemedOrderId: incident.redeemedOrder?.id ?? null,
           status: couponStatus(createdAt, used),
           createdAt,
           expiresAt: couponExpiresAt(createdAt),

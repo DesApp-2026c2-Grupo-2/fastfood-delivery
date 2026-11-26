@@ -368,6 +368,7 @@ export type IncidentCoupon = {
   code: string;
   amount: number;
   used: boolean;
+  redeemedOrderId?: string | null;
   status: 'available' | 'used' | 'expired';
   createdAt: string;
   expiresAt: string;

@@ -536,9 +536,16 @@ export function OrderDetailPage() {
                     <strong>Cupón exclusivo {formatPrice(order.incident.coupon.amount)}</strong>
                     <p className="muted">
                       Código <code>{order.incident.coupon.code}</code>
-                      {order.incident.coupon.used
-                        ? '. Ya lo usaste.'
-                        : order.incident.coupon.status === 'expired'
+                      {order.incident.coupon.used ? (
+                        order.incident.coupon.redeemedOrderId ? (
+                          <>
+                            . Ya lo usaste en{' '}
+                            <Link to={`/orders/${order.incident.coupon.redeemedOrderId}`}>ese pedido</Link>.
+                          </>
+                        ) : (
+                          '. Ya lo usaste.'
+                        )
+                      ) : order.incident.coupon.status === 'expired'
                           ? '. Venció.'
                           : `. Se descuenta solo en tu cuenta hasta el ${formatDateTime(order.incident.coupon.expiresAt)}.`}
                     </p>

@@ -36,31 +36,6 @@ const DEMO_CUSTOMERS = [
   { key: 'facundo', email: 'facundo@mordi.local', name: 'Facundo Sosa', stamps: 2, street: 'Av. Callao 900', postalCode: 'C1023' },
 ];
 
-const MENU: { slug: string; qty: number }[][] = [
-  [
-    { slug: 'hamburguesa-doble', qty: 1 },
-    { slug: 'gaseosa-cola', qty: 1 },
-  ],
-  [{ slug: 'hamburguesa-doble', qty: 2 }],
-  [
-    { slug: 'hamburguesa-simple', qty: 1 },
-    { slug: 'papas-fritas', qty: 1 },
-  ],
-  [
-    { slug: 'papas-fritas', qty: 2 },
-    { slug: 'gaseosa-cola', qty: 2 },
-  ],
-  [
-    { slug: 'hamburguesa-simple', qty: 1 },
-    { slug: 'aros-de-cebolla', qty: 1 },
-    { slug: 'agua-mineral', qty: 1 },
-  ],
-  [
-    { slug: 'hamburguesa-doble', qty: 1 },
-    { slug: 'papas-fritas', qty: 1 },
-  ],
-];
-
 const TODAY_STATUSES: OrderStatus[] = [
   OrderStatus.pending,
   OrderStatus.confirmed,
@@ -78,6 +53,16 @@ function todayIsoAR(now = new Date()) {
     month: '2-digit',
     day: '2-digit',
   }).format(now);
+}
+
+function mulberry32(seed: number) {
+  return function random() {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let value = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 function demoDate(daysAgo: number, hour: number, minute: number) {
@@ -221,23 +206,54 @@ export async function seedDemoOrders(prisma: PrismaClient) {
   });
   await prisma.order.deleteMany({ where: { id: { startsWith: 'demo-ord-' } } });
 
-  const branchCycle = ['Mordi Centro', 'Mordi Centro', 'Mordi Norte', 'Mordi Oeste'];
-  const hours = [11, 13, 16, 19, 21];
   const historyDays = 183;
   let sequence = 0;
   const orders: Prisma.OrderCreateManyInput[] = [];
   const orderItems: Prisma.OrderItemCreateManyInput[] = [];
   const statusHistory: Prisma.OrderStatusHistoryCreateManyInput[] = [];
+  const rand = mulberry32(20261126);
+  const randInt = (min: number, max: number) => min + Math.floor(rand() * (max - min + 1));
+  const guestNames = ['Pedro Gómez', 'Valentina Ruiz', 'Joaquín Paz', 'Camila Ortiz', 'Nicolás Vega', 'Marina Costa'];
+  const menu = [
+    { slug: 'hamburguesa-doble', weight: 6 },
+    { slug: 'hamburguesa-simple', weight: 4 },
+    { slug: 'papas-fritas', weight: 5 },
+    { slug: 'gaseosa-cola', weight: 4 },
+    { slug: 'aros-de-cebolla', weight: 2 },
+    { slug: 'agua-mineral', weight: 2 },
+  ].flatMap((row) => {
+    const product = productBySlug.get(row.slug);
+    return product ? [{ product, weight: row.weight }] : [];
+  });
 
-  function slotsFor(daysAgo: number) {
-    if (daysAgo === 0) return TODAY_STATUSES.length;
+  function pickWeighted<T>(rows: { item: T; weight: number }[]) {
+    const total = rows.reduce((sum, row) => sum + row.weight, 0);
+    let cursor = rand() * total;
+    for (const row of rows) {
+      cursor -= row.weight;
+      if (cursor <= 0) return row.item;
+    }
+    return rows[rows.length - 1].item;
+  }
+
+  function isWeekend(daysAgo: number) {
     const weekday = new Intl.DateTimeFormat('en-US', {
       timeZone: 'America/Argentina/Buenos_Aires',
       weekday: 'short',
     }).format(demoDate(daysAgo, 12, 0));
-    const weekend = weekday === 'Sat' || weekday === 'Sun';
-    if (daysAgo <= 14) return weekend ? 4 : 5;
-    return weekend ? 2 : 2 + ((daysAgo * 3) % 3);
+    return weekday === 'Sat' || weekday === 'Sun';
+  }
+
+  function slotsFor(daysAgo: number) {
+    if (daysAgo === 0) return TODAY_STATUSES.length;
+    const weekend = isWeekend(daysAgo);
+    const wave = 0.7 + 0.65 * Math.abs(Math.sin(daysAgo / 17));
+    const noise = 0.45 + rand() * 1.25;
+    let count = Math.round((weekend ? 9 : 3.2) * wave * noise);
+    if (!weekend && rand() < 0.09) count = randInt(0, 1);
+    if (rand() < 0.06) count += weekend ? randInt(4, 7) : randInt(3, 6);
+    const floor = weekend ? 5 : 0;
+    return Math.max(floor, Math.min(count, weekend ? 16 : 10));
   }
 
   for (let daysAgo = historyDays; daysAgo >= 0; daysAgo -= 1) {
@@ -245,46 +261,62 @@ export async function seedDemoOrders(prisma: PrismaClient) {
     for (let slot = 0; slot < slots; slot += 1) {
       sequence += 1;
       const status =
-        daysAgo === 0 ? TODAY_STATUSES[slot] : slot === 0 && daysAgo % 11 === 0 ? OrderStatus.cancelled : OrderStatus.delivered;
-      const pickup = status !== OrderStatus.on_the_way && (daysAgo + slot) % 4 === 0;
-      const branch = branchByName.get(branchCycle[(daysAgo + slot) % branchCycle.length]);
+        daysAgo === 0 ? TODAY_STATUSES[slot] : rand() < 0.08 ? OrderStatus.cancelled : OrderStatus.delivered;
+      const pickup = status !== OrderStatus.on_the_way && rand() < 0.3;
+      const branch = pickWeighted([
+        { item: branchByName.get('Mordi Centro'), weight: 5 },
+        { item: branchByName.get('Mordi Norte'), weight: 2 },
+        { item: branchByName.get('Mordi Oeste'), weight: 2 },
+      ]);
       if (!branch) throw new Error('Falta una sucursal de demo');
 
-      const guest = sequence % 7 === 0;
-      const customer = customers[sequence % customers.length];
-      const lines = MENU[sequence % MENU.length].map((line) => {
-        const product = productBySlug.get(line.slug);
-        if (!product) throw new Error(`Falta el producto ${line.slug}`);
-        return { product, qty: line.qty };
-      });
+      const customer = pickWeighted([
+        ...customers.map((person) => ({
+          item: person,
+          weight: person.key === 'ana' || person.key === 'elena' ? 4 : person.key === 'facundo' ? 1 : 2,
+        })),
+        { item: null, weight: 3 },
+      ]);
+      const guest = customer == null;
+      const chosen = new Set<string>();
+      const lines: { product: (typeof menu)[number]['product']; qty: number }[] = [];
+      const lineCount = randInt(1, rand() < 0.22 ? 3 : 2);
+      while (lines.length < lineCount && chosen.size < menu.length) {
+        const row = pickWeighted(menu.map((entry) => ({ item: entry, weight: entry.weight })));
+        if (chosen.has(row.product.id)) continue;
+        chosen.add(row.product.id);
+        const burger = row.product.slug.startsWith('hamburguesa');
+        lines.push({ product: row.product, qty: burger ? randInt(1, 2) : randInt(1, 3) });
+      }
       const subtotal = lines.reduce((sum, line) => sum + Number(line.product.price) * line.qty, 0);
       const colaQty = lines.find((line) => line.product.slug === 'gaseosa-cola')?.qty ?? 0;
+      const promoRoll = rand();
       let promotionName: string | null = null;
       let discount = 0;
-      if (sequence % 11 === 0 && subtotal >= 20000) {
+      if (subtotal >= 20000 && promoRoll < 0.08) {
         promotionName = 'Premio Fidelidad';
         discount = Math.round(subtotal * 0.3);
-      } else if (subtotal >= 15000) {
+      } else if (subtotal >= 15000 && promoRoll < 0.42) {
         promotionName = 'Martes 20';
         discount = Math.round(subtotal * 0.2);
-      } else if (colaQty >= 2) {
+      } else if (colaQty >= 2 && promoRoll < 0.62) {
         promotionName = '2x1 Gaseosa Cola';
         discount = 2000 * Math.floor(colaQty / 2);
       }
       const net = subtotal - discount;
-      const deliveryFee = pickup || net >= 25000 ? 0 : 2400;
+      const deliveryFee = pickup || net >= 25000 ? 0 : randInt(1, 4) * 600;
       const createdAt =
         daysAgo === 0
           ? new Date(Date.now() - (8 - slot) * 40 * MINUTE_MS)
-          : demoDate(daysAgo, hours[slot % hours.length], (slot * 13) % 60);
+          : demoDate(daysAgo, randInt(11, 22), randInt(0, 59));
       const id = `demo-ord-${String(sequence).padStart(4, '0')}`;
       const steps = flow(status, pickup);
 
       orders.push({
         id,
         userId: guest ? null : customer.id,
-        guestName: guest ? 'Invitado Demo' : null,
-        guestEmail: guest ? 'invitado.demo@mordi.local' : null,
+        guestName: guest ? guestNames[randInt(0, guestNames.length - 1)] : null,
+        guestEmail: guest ? `invitado.${sequence}@mordi.local` : null,
         branchId: branch.id,
         addressId: pickup ? null : guest ? guestAddress.id : customer.addressId,
         fulfillment: pickup ? Fulfillment.pickup : Fulfillment.delivery,
@@ -355,8 +387,18 @@ export async function seedDemoOrders(prisma: PrismaClient) {
   const anaClaimOrderId = anaOrders[0];
   const brunoOpenOrderId = brunoOrders[0];
   const diegoClaimOrderId = diegoOrders[0];
-  const diegoRedeemOrderId = diegoOrders[1];
-  if (!ana || !bruno || !diego || !anaClaimOrderId || !brunoOpenOrderId || !diegoClaimOrderId || !diegoRedeemOrderId) {
+  const diegoRedeemCandidates = diego
+    ? await prisma.order.findMany({
+        where: { id: { in: diegoOrders.slice(1) } },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, subtotal: true, discountAmount: true, deliveryFee: true, promotionName: true },
+      })
+    : [];
+  const couponFace = 3000;
+  const diegoRedeem =
+    diegoRedeemCandidates.find((order) => Number(order.subtotal) - Number(order.discountAmount) >= couponFace) ??
+    diegoRedeemCandidates[0];
+  if (!ana || !bruno || !diego || !anaClaimOrderId || !brunoOpenOrderId || !diegoClaimOrderId || !diegoRedeem) {
     throw new Error('La demo no dejó pedidos entregados para los reclamos');
   }
 
@@ -409,9 +451,18 @@ export async function seedDemoOrders(prisma: PrismaClient) {
       responseSeenAt: demoDate(7, 19, 0),
     },
   });
+  const room = Math.max(0, Math.round((Number(diegoRedeem.subtotal) - Number(diegoRedeem.discountAmount)) * 100) / 100);
+  const couponDiscount = Math.min(couponFace, room);
+  const discountAmount = Math.round((Number(diegoRedeem.discountAmount) + couponDiscount) * 100) / 100;
+  const couponName = 'Cupón REC-MORDI2';
   await prisma.order.update({
-    where: { id: diegoRedeemOrderId },
-    data: { couponIncidentId: 'demo-inc-diego' },
+    where: { id: diegoRedeem.id },
+    data: {
+      couponIncidentId: 'demo-inc-diego',
+      discountAmount,
+      totalAmount: Math.round((Number(diegoRedeem.subtotal) - discountAmount + Number(diegoRedeem.deliveryFee)) * 100) / 100,
+      promotionName: diegoRedeem.promotionName ? `${diegoRedeem.promotionName} + ${couponName}` : couponName,
+    },
   });
 
   const doble = productBySlug.get('hamburguesa-doble');
